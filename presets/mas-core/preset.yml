@@ -1,0 +1,52 @@
+schema_version: "1.0"
+
+preset:
+  id: "mas-core"
+  name: "MAS Core Governance"
+  version: "0.1.0"
+  description: "Shared MAS governance baseline for stack-aware Spec Kit initialization"
+  author: "MAS Consultores"
+  repository: "internal"
+  license: "UNLICENSED"
+
+requires:
+  speckit_version: ">=0.8.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "constitution-template"
+      file: "templates/constitution-template.md"
+      description: "MAS company constitution template"
+      replaces: "constitution-template"
+
+    - type: "template"
+      name: "plan-template"
+      file: "templates/plan-template.md"
+      description: "MAS stack-aware implementation plan template"
+      replaces: "plan-template"
+
+    - type: "template"
+      name: "tasks-template"
+      file: "templates/tasks-template.md"
+      description: "MAS stack-aware task list template"
+      replaces: "tasks-template"
+
+    - type: "command"
+      name: "speckit.plan"
+      file: "commands/speckit.plan.md"
+      description: "MAS stack-aware planning workflow"
+      replaces: "speckit.plan"
+      strategy: "wrap"
+
+    - type: "command"
+      name: "speckit.tasks"
+      file: "commands/speckit.tasks.md"
+      description: "MAS stack-aware task generation workflow"
+      replaces: "speckit.tasks"
+      strategy: "wrap"
+
+tags:
+  - "mas"
+  - "governance"
+  - "core"

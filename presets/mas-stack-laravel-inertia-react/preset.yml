@@ -1,0 +1,27 @@
+schema_version: "1.0"
+
+preset:
+  id: "mas-stack-laravel-inertia-react"
+  name: "MAS Stack - Laravel + Inertia + React"
+  version: "0.1.0"
+  description: "MAS stack preset scaffold for Laravel, Inertia, and React projects"
+  author: "MAS Consultores"
+  repository: "internal"
+  license: "UNLICENSED"
+
+requires:
+  speckit_version: ">=0.8.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "mas-stack-laravel-inertia-react"
+      file: "templates/mas-stack-laravel-inertia-react.md"
+      description: "Stack scaffold marker for Laravel + Inertia + React"
+
+tags:
+  - "mas"
+  - "stack"
+  - "laravel"
+  - "inertia"
+  - "react"

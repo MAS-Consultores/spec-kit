@@ -1,0 +1,26 @@
+schema_version: "1.0"
+
+preset:
+  id: "mas-stack-cakephp2-mysql"
+  name: "MAS Stack - CakePHP 2.x + MySQL"
+  version: "0.1.0"
+  description: "MAS stack preset scaffold for legacy CakePHP 2.x and MySQL projects"
+  author: "MAS Consultores"
+  repository: "internal"
+  license: "UNLICENSED"
+
+requires:
+  speckit_version: ">=0.8.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "mas-stack-cakephp2-mysql"
+      file: "templates/mas-stack-cakephp2-mysql.md"
+      description: "Stack scaffold marker for CakePHP 2.x + MySQL"
+
+tags:
+  - "mas"
+  - "stack"
+  - "cakephp2"
+  - "mysql"

@@ -44,6 +44,11 @@ packages = ["src/specify_cli"]
 "workflows/speckit" = "specify_cli/core_pack/workflows/speckit"
 # Bundled presets (installable via `specify preset add <name>` or `specify init --preset <name>`)
 "presets/lean" = "specify_cli/core_pack/presets/lean"
+"presets/mas-core" = "specify_cli/core_pack/presets/mas-core"
+"presets/mas-stack-cakephp2-mysql" = "specify_cli/core_pack/presets/mas-stack-cakephp2-mysql"
+"presets/mas-stack-moodle5-plugin" = "specify_cli/core_pack/presets/mas-stack-moodle5-plugin"
+"presets/mas-stack-moodle5-portal" = "specify_cli/core_pack/presets/mas-stack-moodle5-portal"
+"presets/mas-stack-laravel-inertia-react" = "specify_cli/core_pack/presets/mas-stack-laravel-inertia-react"
 
 [project.optional-dependencies]
 test = [
@@ -70,4 +75,3 @@ omit = ["*/tests/*", "*/__pycache__/*"]
 precision = 2
 show_missing = true
 skip_covered = false
-

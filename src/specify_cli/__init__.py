@@ -61,6 +61,13 @@ from .integration_state import (
     normalize_integration_state as _normalize_integration_state,
     write_integration_json as _write_integration_json_file,
 )
+from .mas import (
+    MasStack,
+    example_stack_init_command,
+    format_valid_stack_ids,
+    get_mas_stack,
+    write_stack_memory_files,
+)
 from .shared_infra import (
     install_shared_infra as _install_shared_infra_impl,
     refresh_shared_templates as _refresh_shared_templates_impl,
@@ -348,7 +355,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
                 console.print(f"  - {f}")
 
 def ensure_constitution_from_template(project_path: Path, tracker: StepTracker | None = None) -> None:
-    """Copy constitution template to memory if it doesn't exist (preserves existing constitution on reinitialization)."""
+    """Initialize constitution from the resolved template, preserving existing content."""
     memory_constitution = project_path / ".specify" / "memory" / "constitution.md"
     template_constitution = project_path / ".specify" / "templates" / "constitution-template.md"
 
@@ -359,20 +366,28 @@ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker |
             tracker.skip("constitution", "existing file preserved")
         return
 
-    # If template doesn't exist, something went wrong with extraction
-    if not template_constitution.exists():
+    content: str | None = None
+    from .presets import PresetResolver
+
+    content = PresetResolver(project_path).resolve_content("constitution-template")
+
+    if content is None and template_constitution.exists():
+        content = template_constitution.read_text(encoding="utf-8")
+
+    # If template doesn't exist, something went wrong with extraction/resolution
+    if content is None:
         if tracker:
             tracker.add("constitution", "Constitution setup")
             tracker.error("constitution", "template not found")
         return
 
-    # Copy template to memory directory
+    # Write resolved template to memory directory
     try:
         memory_constitution.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(template_constitution, memory_constitution)
+        memory_constitution.write_text(content, encoding="utf-8")
         if tracker:
             tracker.add("constitution", "Constitution setup")
-            tracker.complete("constitution", "copied from template")
+            tracker.complete("constitution", "initialized from resolved template")
         else:
             console.print("[cyan]Initialized constitution from template[/cyan]")
     except Exception as e:
@@ -410,6 +425,22 @@ def load_init_options(project_path: Path) -> dict[str, Any]:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return {}
+
+
+def install_mas_stack_presets(project_path: Path, mas_stack: MasStack) -> None:
+    """Install bundled MAS core and stack presets for stack-aware init."""
+    from .presets import PresetManager
+
+    manager = PresetManager(project_path)
+    speckit_ver = get_speckit_version()
+
+    for preset_id, priority in mas_stack.preset_install_plan:
+        bundled_path = _locate_bundled_preset(preset_id)
+        if bundled_path is None:
+            raise RuntimeError(f"Bundled MAS preset '{preset_id}' was not found")
+        if manager.registry.is_installed(preset_id):
+            continue
+        manager.install_from_directory(bundled_path, speckit_ver, priority=priority)
 
 
 def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
@@ -456,6 +487,7 @@ def init(
     ai_skills: bool = typer.Option(False, "--ai-skills", help="Install Prompt.MD templates as agent skills (requires --ai)"),
     offline: bool = typer.Option(False, "--offline", help="Deprecated (no-op). All scaffolding now uses bundled assets.", hidden=True),
     preset: str = typer.Option(None, "--preset", help="Install a preset during initialization (by preset ID)"),
+    stack: str = typer.Option(None, "--stack", help="Required MAS stack ID for stack-aware initialization"),
     branch_numbering: str = typer.Option(None, "--branch-numbering", help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)"),
     integration: str = typer.Option(None, "--integration", help="Use the new integration system (e.g. --integration copilot). Mutually exclusive with --ai."),
     integration_options: str = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
@@ -498,7 +530,7 @@ def init(
         specify init my-project --integration claude   # Claude installs skills by default
         specify init --here --integration gemini
         specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"  # Bring your own agent; requires --commands-dir
-        specify init my-project --integration claude --preset healthcare-compliance  # With preset
+        specify init my-project --integration codex --stack moodle5-plugin
     """
 
     show_banner()
@@ -516,6 +548,29 @@ def init(
         console.print(f"[red]Error:[/red] Invalid value for --ai-commands-dir: '{ai_commands_dir}'")
         console.print("[yellow]Hint:[/yellow] Did you forget to provide a value for --ai-commands-dir?")
         console.print("[yellow]Example:[/yellow] specify init --integration generic --integration-options=\"--commands-dir .myagent/commands/\"")
+        raise typer.Exit(1)
+
+    mas_stack: MasStack | None
+    if not stack:
+        console.print("[red]Error:[/red] MAS initialization requires an approved stack.")
+        console.print(f"[yellow]Valid stack IDs:[/yellow] {format_valid_stack_ids()}")
+        console.print(f"[yellow]Example:[/yellow] {example_stack_init_command()}")
+        raise typer.Exit(1)
+
+    if preset:
+        console.print("[red]Error:[/red] --stack and --preset are mutually exclusive in the MAS fork.")
+        console.print(
+            "[yellow]Stack selection already drives bundled preset composition "
+            "(`mas-core` + `mas-stack-<stack-id>`).[/yellow]"
+        )
+        console.print("[yellow]Additional preset composition requires a later explicit design.[/yellow]")
+        raise typer.Exit(1)
+
+    mas_stack = get_mas_stack(stack)
+    if mas_stack is None:
+        console.print(f"[red]Error:[/red] Invalid --stack value '{stack}'.")
+        console.print(f"[yellow]Valid stack IDs:[/yellow] {format_valid_stack_ids()}")
+        console.print(f"[yellow]Example:[/yellow] {example_stack_init_command()}")
         raise typer.Exit(1)
 
     if ai_assistant:
@@ -681,6 +736,7 @@ def init(
         "[cyan]Specify Project Setup[/cyan]",
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
+        f"{'MAS Stack':<15} [green]{mas_stack.display_name}[/green] [dim]({mas_stack.id})[/dim]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
     ]
 
@@ -728,6 +784,7 @@ def init(
 
     console.print(f"[cyan]Selected coding agent integration:[/cyan] {selected_ai}")
     console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(f"[cyan]Selected MAS stack:[/cyan] {mas_stack.display_name} ({mas_stack.id})")
 
     tracker = StepTracker("Initialize Specify Project")
 
@@ -742,6 +799,7 @@ def init(
 
     tracker.add("integration", "Install integration")
     tracker.add("shared-infra", "Install shared infrastructure")
+    tracker.add("mas-presets", "Install MAS presets")
 
     for key, label in [
         ("chmod", "Ensure scripts executable"),
@@ -804,6 +862,23 @@ def init(
 
             tracker.complete("integration", resolved_integration.config.get("name", resolved_integration.key))
 
+            # Persist init options before MAS preset install so preset command
+            # overrides can target the active integration/skills mode.
+            init_opts = {
+                "ai": selected_ai,
+                "integration": resolved_integration.key,
+                "branch_numbering": branch_numbering or "sequential",
+                "context_file": resolved_integration.context_file,
+                "here": here,
+                "script": selected_script,
+                "speckit_version": get_speckit_version(),
+            }
+            init_opts.update(mas_stack.init_options_payload())
+            from .integrations.base import SkillsIntegration as _SkillsPersist
+            if isinstance(resolved_integration, _SkillsPersist) or getattr(resolved_integration, "_skills_mode", False):
+                init_opts["ai_skills"] = True
+            save_init_options(project_path, init_opts)
+
             # Install shared infrastructure (scripts, templates)
             tracker.start("shared-infra")
             _install_shared_infra_or_exit(
@@ -815,7 +890,12 @@ def init(
             )
             tracker.complete("shared-infra", f"scripts ({selected_script}) + templates")
 
+            tracker.start("mas-presets")
+            install_mas_stack_presets(project_path, mas_stack)
+            tracker.complete("mas-presets", " + ".join(mas_stack.preset_composition))
+
             ensure_constitution_from_template(project_path, tracker=tracker)
+            write_stack_memory_files(project_path, mas_stack)
 
             if not no_git:
                 tracker.start("git")
@@ -902,27 +982,6 @@ def init(
 
             # Fix permissions after all installs (scripts + extensions)
             ensure_executable_scripts(project_path, tracker=tracker)
-
-            # Persist the CLI options so later operations (e.g. preset add)
-            # can adapt their behaviour without re-scanning the filesystem.
-            # Must be saved BEFORE preset install so _get_skills_dir() works.
-            init_opts = {
-                "ai": selected_ai,
-                "integration": resolved_integration.key,
-                "branch_numbering": branch_numbering or "sequential",
-                "context_file": resolved_integration.context_file,
-                "here": here,
-                "script": selected_script,
-                "speckit_version": get_speckit_version(),
-            }
-            # Ensure ai_skills is set for SkillsIntegration so downstream
-            # tools (extensions, presets) emit SKILL.md overrides correctly.
-            # Also set for integrations running in skills mode (e.g. Copilot
-            # with --skills).
-            from .integrations.base import SkillsIntegration as _SkillsPersist
-            if isinstance(resolved_integration, _SkillsPersist) or getattr(resolved_integration, "_skills_mode", False):
-                init_opts["ai_skills"] = True
-            save_init_options(project_path, init_opts)
 
             # Install preset if specified
             if preset:

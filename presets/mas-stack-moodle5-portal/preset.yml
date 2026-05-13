@@ -1,0 +1,26 @@
+schema_version: "1.0"
+
+preset:
+  id: "mas-stack-moodle5-portal"
+  name: "MAS Stack - Moodle 5 -- Portal"
+  version: "0.1.0"
+  description: "MAS stack preset scaffold for Moodle 5 portal integration projects"
+  author: "MAS Consultores"
+  repository: "internal"
+  license: "UNLICENSED"
+
+requires:
+  speckit_version: ">=0.8.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "mas-stack-moodle5-portal"
+      file: "templates/mas-stack-moodle5-portal.md"
+      description: "Stack scaffold marker for Moodle 5 portal work"
+
+tags:
+  - "mas"
+  - "stack"
+  - "moodle5"
+  - "portal"

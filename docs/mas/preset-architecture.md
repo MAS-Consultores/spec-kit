@@ -1,0 +1,151 @@
+# MAS Preset Architecture
+
+MAS stack-aware behavior must use Spec Kit's existing preset model. A MAS
+initialized project is composed from:
+
+```text
+mas-core + exactly one mas-stack-<stack-id>
+```
+
+This keeps company customization visible in the same places upstream already
+uses for customization: preset manifests, preset templates, preset commands,
+and project memory files.
+
+## Current Upstream Model
+
+The upstream preset system is implemented in `src/specify_cli/presets.py`.
+Installed presets live under `.specify/presets/<preset-id>/` and are tracked by
+a registry. Template resolution walks:
+
+1. `.specify/templates/overrides/`
+2. `.specify/presets/<preset-id>/`
+3. `.specify/extensions/<ext-id>/templates/`
+4. `.specify/templates/`
+5. bundled/source fallback templates
+
+Preset entries are declared in `preset.yml`. Each provided item can be a
+template, command, or script. Composition strategies include `replace`,
+`prepend`, `append`, and `wrap`.
+
+MAS should rely on these mechanics rather than adding a second stack resolver.
+
+## `mas-core`
+
+`mas-core` is the shared company preset. It contains company-wide behavior that
+applies to every approved stack.
+
+`mas-core` should include:
+
+- company constitution template content;
+- shared governance rules for security, traceability, data integrity,
+  operational reliability, administrative usability, maintainability,
+  controlled delivery, and rollback readiness;
+- shared command adjustments that tell agents to load MAS memory files;
+- shared sections for specs, plans, and tasks that are independent of stack;
+- common expected artifact language for learning-related business workflows;
+- common plan validation structure that delegates stack-specific checks to the
+  selected stack memory.
+
+During stack-aware init, `mas-core` must be installed before
+`.specify/memory/constitution.md` is initialized. The initialized constitution
+must come from the MAS source of truth, not from the upstream generic
+constitution template followed by one-off replacement.
+
+`mas-core` must not include:
+
+- CakePHP-specific implementation rules;
+- Moodle plugin capability details;
+- Moodle portal SSO or sync details;
+- Laravel/Inertia/React route, policy, or prop conventions;
+- stack-specific anti-pattern lists;
+- stack-specific security profiles.
+
+## Stack Presets
+
+Each stack preset contains only the behavior that varies by stack:
+
+- `mas-stack-cakephp2-mysql`
+- `mas-stack-moodle5-plugin`
+- `mas-stack-moodle5-portal`
+- `mas-stack-laravel-inertia-react`
+
+A stack preset should include:
+
+- stack constraints;
+- stack-specific security guidelines;
+- anti-patterns;
+- expected artifacts;
+- plan validation checks;
+- likely project/module shape;
+- stack-specific examples where useful.
+
+A stack preset must not redefine the company constitution except through a
+documented composition strategy that adds stack-specific references. Company
+governance remains owned by `mas-core`.
+
+Each stack preset must provide enough source content to generate
+`.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and
+`.specify/memory/stack-context.md`.
+
+## Composition Priority
+
+The implementation must install `mas-core` and the selected stack preset with
+deterministic priorities.
+
+Initial MAS ordering:
+
+| Preset | Priority | Purpose |
+| --- | ---: | --- |
+| selected `mas-stack-*` | 5 | highest MAS stack-specific layer |
+| `mas-core` | 10 | shared MAS base layer |
+| upstream core templates | n/a | fallback |
+
+Lower numeric priority wins in upstream Spec Kit. Stack presets should therefore
+have higher precedence than `mas-core`, while using `append`, `prepend`, or
+`wrap` where the goal is augmentation rather than replacement.
+
+## Responsibility Matrix
+
+| Theme | `mas-core` | Stack Preset |
+| --- | --- | --- |
+| Company constitution | Owns baseline content | May reference stack memory only |
+| Shared templates | Owns company-wide sections | Adds or composes stack-specific sections |
+| Company-wide command adjustments | Owns | May add stack validation instructions |
+| Security and access-control principles | Owns common principles | Owns implementation-specific guidelines |
+| Traceability and auditability | Owns common requirements | Defines stack-specific audit surfaces |
+| Explicit data models and integrity | Owns common expectations | Defines stack-specific schema/data patterns |
+| Operational performance and reliability | Owns common expectations | Defines stack-specific performance risks |
+| Administrative usability | Owns common UX expectations | Defines stack-specific workflow artifacts |
+| Stack constraints | References selected stack | Owns details |
+| Stack anti-patterns | Prohibits bypassing stack constraints | Owns concrete anti-pattern list |
+| Stack-specific plan checks | Defines validation framework | Owns check content |
+| Stack-specific examples/tasks | Avoids | Owns |
+| Expected artifacts | Owns common artifact categories | Owns stack-specific artifact list |
+
+## Files Likely Needed In Phase 2
+
+Phase 2 will likely touch these existing areas:
+
+- `src/specify_cli/__init__.py`: add `--stack`, validate values, orchestrate
+  bundled preset installation, and write memory files.
+- `src/specify_cli/presets.py`: reuse `PresetManager.install_from_directory`;
+  avoid broad changes unless bundled preset lookup requires adjustment.
+- `presets/`: add `mas-core` and one preset directory per approved stack.
+- `presets/catalog.json`: optionally expose bundled MAS presets if they should
+  be installable through `specify preset add`.
+- `templates/commands/plan.md` or MAS preset command overrides: teach
+  `speckit-plan` to load stack memory and validate against it.
+- `templates/plan-template.md` or MAS preset template overrides: add MAS stack
+  validation sections.
+- `src/specify_cli/shared_infra.py`: only if new shared memory initialization
+  requires common helper extraction.
+
+## Non-Goals
+
+MAS stack behavior should not be implemented as:
+
+- a separate `.mas/` configuration system;
+- a second template resolver;
+- hidden command arguments passed only to `speckit-plan`;
+- user-provided free-form stack descriptions;
+- multiple simultaneous stack presets for one project.
