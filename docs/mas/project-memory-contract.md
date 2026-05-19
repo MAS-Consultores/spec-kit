@@ -140,7 +140,7 @@ Example skeleton:
 # Stack Security Guidelines
 
 **Stack ID**: `moodle5-plugin`
-**Display Name**: Moodle 5 -- Plugin
+**Display Name**: Moodle 5 Plugin
 
 ## Security Profile
 

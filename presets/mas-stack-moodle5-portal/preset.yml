@@ -2,9 +2,9 @@ schema_version: "1.0"
 
 preset:
   id: "mas-stack-moodle5-portal"
-  name: "MAS Stack - Moodle 5 -- Portal"
+  name: "MAS Stack - Moodle 5 Portal"
   version: "0.1.0"
-  description: "MAS stack preset scaffold for Moodle 5 portal integration projects"
+  description: "MAS stack preset scaffold for Moodle 5 institution-facing portal workflows"
   author: "MAS Consultores"
   repository: "internal"
   license: "UNLICENSED"

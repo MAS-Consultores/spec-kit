@@ -2,7 +2,7 @@ schema_version: "1.0"
 
 preset:
   id: "mas-stack-moodle5-plugin"
-  name: "MAS Stack - Moodle 5 -- Plugin"
+  name: "MAS Stack - Moodle 5 Plugin"
   version: "0.1.0"
   description: "MAS stack preset scaffold for Moodle 5 plugin projects"
   author: "MAS Consultores"
