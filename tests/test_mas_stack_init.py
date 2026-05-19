@@ -15,7 +15,7 @@ def test_mas_stack_catalog_resolves_preset_composition():
 
     assert stack is not None
     assert stack.id == "moodle5-plugin"
-    assert stack.display_name == "Moodle 5 -- Plugin"
+    assert stack.display_name == "Moodle 5 Plugin"
     assert stack.stack_preset_id == "mas-stack-moodle5-plugin"
     assert stack.preset_composition == ("mas-core", "mas-stack-moodle5-plugin")
     assert stack.preset_install_plan == (
@@ -48,7 +48,7 @@ def test_init_with_valid_stack_persists_stack_metadata(tmp_path):
 
     payload = json.loads((project / ".specify" / "init-options.json").read_text())
     assert payload["stack"] == "moodle5-plugin"
-    assert payload["stack_display_name"] == "Moodle 5 -- Plugin"
+    assert payload["stack_display_name"] == "Moodle 5 Plugin"
     assert payload["mas_presets"] == ["mas-core", "mas-stack-moodle5-plugin"]
 
     assert (project / ".specify" / "presets" / "mas-core" / "preset.yml").exists()
@@ -121,17 +121,22 @@ def test_init_with_valid_stack_writes_selected_stack_memory(tmp_path):
 
     assert "**Canonical ID**: `laravel-inertia-react`" in stack_md
     assert "**Display Name**: Laravel + Inertia + React" in stack_md
+    assert "## Purpose" in stack_md
     assert "Laravel is the application boundary" in stack_md
-    assert "Moodle 5 -- Plugin" not in stack_md
+    assert "Moodle 5 Plugin" not in stack_md
 
     assert "**Stack ID**: `laravel-inertia-react`" in security_md
-    assert "Inertia props" in security_md
+    assert "## Security Controls" in security_md
+    assert "## Security Evidence" in security_md
+    assert "FormRequest" in security_md
     assert "React UI must never be the source of authorization truth" in security_md
     assert "[Short risk profile.]" not in security_md
 
     assert "# Stack Context: Laravel + Inertia + React" in context_md
-    assert "Route, controller, request, policy, and Inertia page map" in context_md
-    assert "server-side authorization" in context_md
+    assert "## Typical Risks" in context_md
+    assert "## Preferred Practices" in context_md
+    assert "Laravel routes, controllers, form requests" in context_md
+    assert "spatie/laravel-permission" in context_md
     assert "[Constraint.]" not in context_md
 
 

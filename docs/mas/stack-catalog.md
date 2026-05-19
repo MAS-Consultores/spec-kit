@@ -4,273 +4,262 @@ This catalog is the Phase 1 source of truth for approved MAS stacks. Stack IDs
 are canonical and must be accepted exactly as written by future `--stack`
 validation.
 
+Runtime stack memory is materialized during `specify init --stack <stack-id>`
+into:
+
+- `.specify/memory/stack.md`
+- `.specify/memory/security-guidelines.md`
+- `.specify/memory/stack-context.md`
+
+Source of truth in code: `src/specify_cli/mas.py` (`MAS_STACKS`).
+
 ## Catalog
 
 | Stack ID | Display Name | Primary Use |
 | --- | --- | --- |
 | `cakephp2-mysql` | CakePHP 2.x + MySQL | Legacy CakePHP platform evolution |
-| `moodle5-plugin` | Moodle 5 -- Plugin | Moodle plugin extension work |
-| `moodle5-portal` | Moodle 5 -- Portal | Moodle portal integration and customization |
+| `moodle5-plugin` | Moodle 5 Plugin | Bounded Moodle 5 plugin extension work |
+| `moodle5-portal` | Moodle 5 Portal | Institution-facing Moodle 5 portal workflows |
 | `laravel-inertia-react` | Laravel + Inertia + React | Modern portal or admin product delivery |
 
 ## `cakephp2-mysql`
 
 ### Summary
 
-Legacy web application stack for maintaining and extending existing CakePHP 2.x
-applications backed by MySQL.
+Legacy CakePHP 2.x platform evolution backed by MySQL.
+
+### Purpose
+
+Legacy internal and admin-heavy web applications that must stay compatible with
+the existing CakePHP 2.x estate and MySQL-backed operational data.
 
 ### When To Use
 
-- Enhancing an existing CakePHP 2.x platform.
-- Adding administrative or coordinator workflows to a legacy system.
-- Improving reporting, exports, or course/classroom management features in an
-  existing CakePHP codebase.
-- Making constrained changes where framework migration is not in scope.
+- The feature extends an existing CakePHP 2.x codebase, module, or back-office workflow instead of creating a new platform.
+- The work is centered on server-rendered CRUD, reporting, operational listings, approvals, exports, or compatibility-sensitive maintenance.
+- The business value depends on preserving the current authentication, deployment, hosting, and schema model instead of introducing a new application shell.
 
 ### When Not To Use
 
-- New greenfield portals or products.
-- Work that requires a modern SPA architecture.
-- Features whose main objective is Moodle plugin behavior.
-- Projects where upgrading away from CakePHP 2.x is already approved as the
-  primary scope.
+- Greenfield product surfaces that need a modern component-driven frontend or a new application platform.
+- Work that would require a de facto framework migration, SPA architecture, or a separate runtime to stay maintainable.
+- Heavy asynchronous integration or event-driven designs that would fight the legacy request lifecycle and operational environment.
 
 ### Core Constraints
 
-- Preserve compatibility with the existing CakePHP 2.x conventions, routing,
-  model layer, helpers, components, and authentication mechanisms.
-- Treat MySQL schema changes as controlled migrations with rollback planning.
-- Avoid introducing framework patterns that do not fit CakePHP 2.x.
-- Keep changes localized when modifying legacy flows.
-- Require explicit data model and query impact analysis for reporting/export
-  features.
+- Preserve CakePHP 2.x conventions, controller/model/view boundaries, legacy bootstrap behavior, and established auth or ACL patterns.
+- Favor conservative MySQL migrations, explicit rollback planning, and schema changes that are safe for live operational data.
+- Assume legacy compatibility and hosting constraints are real unless the plan records an approved exception.
 
 ### Typical Risks
 
-- Regression in legacy controller/model behavior.
-- SQL injection or unsafe query construction in older data access patterns.
-- Permission drift in custom administrative workflows.
-- Performance regressions from report queries, joins, or exports.
-- Inconsistent validation between legacy forms and model rules.
+- Tight coupling in reused models, helpers, or components causing regressions far from the feature entry point.
+- Slow queries, pagination regressions, or export/report timeouts on large operational datasets.
+- Hidden manual SQL, ad hoc production data fixes, or fragile migrations that bypass traceable delivery controls.
 
 ### Expected Artifacts
 
-- Impact analysis for touched controllers, models, views, helpers, components,
-  and routes.
-- Data model or schema migration notes.
-- Query and export performance assumptions.
-- Regression test plan focused on legacy flows.
-- Rollback notes for schema and behavior changes.
+- Controller, model, view, component, helper, shell, or config changes that stay aligned with the CakePHP 2.x structure already in use.
+- Documented MySQL schema or migration impact, validation rules, indexes, seed or backfill needs, and rollback notes.
+- QA coverage for permissions, admin flows, listings, filters, exports, and other operational paths touched by the feature.
 
-### Stack-Specific Security Guidelines
+### Preferred Practices
 
-- Validate all request data through CakePHP 2.x-compatible validation paths.
-- Use parameterized queries or framework query builders; raw SQL requires an
-  explicit justification.
-- Preserve existing authentication/session behavior unless the plan explicitly
-  changes it.
-- Check authorization for each administrative action, report, and export.
-- Treat legacy file uploads and generated exports as high-risk surfaces.
+- Reuse established CakePHP components, helpers, and query patterns before introducing new abstractions.
+- Keep data-model, pagination, indexing, and report/export impacts explicit in the plan and tasks.
+- Make risky legacy touchpoints visible early so QA, deployment, and rollback planning are not afterthoughts.
+
+### Security Controls
+
+See `.specify/memory/security-guidelines.md` after init. Highlights include
+`SecurityComponent`, `AuthComponent`, parameterized queries, `h()` for output,
+upload MIME validation, and web-server security headers.
 
 ### `speckit-plan` Validation
 
-- Confirms the plan identifies CakePHP 2.x and MySQL as fixed constraints.
-- Rejects unapproved framework migration or new framework introduction.
-- Checks that touched legacy modules and regression coverage are named.
-- Requires schema and rollback notes for database changes.
-- Requires query/export performance review for reporting-heavy work.
+- Confirm CakePHP 2.x and MySQL are fixed constraints.
+- Reject unapproved framework migration or new framework introduction.
+- Require schema and rollback notes for database changes.
+- Require query/export performance review for reporting-heavy work.
 
 ## `moodle5-plugin`
 
 ### Summary
 
-Moodle 5 plugin development stack for extending Moodle through approved plugin
-types while respecting Moodle APIs, capabilities, privacy contracts, and upgrade
-paths.
+Moodle plugin extension work inside Moodle 5.
+
+### Purpose
+
+Bounded Moodle 5 extensions delivered as plugins that fit Moodle's plugin APIs,
+lifecycle, permissions, privacy model, and Bootstrap 5-based UI reality.
 
 ### When To Use
 
-- Building or modifying a Moodle plugin.
-- Adding course, classroom, activity, block, local, report, or admin behavior
-  inside Moodle.
-- Integrating learning workflows through Moodle's plugin APIs.
-- Implementing Moodle-specific reporting or coordinator tooling as a plugin.
+- The feature is a discrete Moodle capability that can live inside a standard plugin boundary with clear ownership.
+- The work fits Moodle plugin APIs, capabilities, forms, events, privacy APIs, scheduled tasks, and upgrade steps.
+- UI work can stay inside Moodle's rendering model, Mustache or renderer patterns, and the Bootstrap 5 conventions already present in Moodle 5.
 
 ### When Not To Use
 
-- Building a standalone portal outside Moodle.
-- Implementing a general Laravel admin product.
-- Directly modifying Moodle core.
-- Adding behavior that should live in an external integration layer.
+- Requests that really require a broader portal or cross-area institutional workflow rather than a bounded plugin.
+- Features that only work by patching Moodle core, replacing shared portal navigation, or ignoring Moodle's upgrade lifecycle.
+- Frontend-heavy experiences that assume a custom standalone application shell instead of Moodle's plugin and Bootstrap 5 environment.
 
 ### Core Constraints
 
-- Use Moodle 5 APIs and plugin structure for the selected plugin type.
-- Do not modify Moodle core files.
-- Define required capabilities, roles, events, tasks, and privacy behavior.
-- Respect Moodle upgrade, install, and backup/restore expectations.
-- Use Moodle data APIs and coding conventions.
+- Stay inside Moodle 5 plugin APIs, capability checks, events, privacy handling, versioning, and upgrade-step conventions.
+- Assume Moodle ecosystem compatibility matters: plugin changes must coexist with the host instance, theme, and upgrade path.
+- Treat Bootstrap 5, Moodle form APIs, language strings, and renderer or template conventions as the frontend baseline rather than inventing a separate UI system.
 
 ### Typical Risks
 
-- Capability gaps that expose academic or personal data.
-- Plugin behavior that breaks during Moodle upgrades.
-- Direct SQL or direct table access where Moodle APIs are required.
-- Incomplete privacy provider coverage.
-- Background task or event behavior that creates operational load.
+- Capability, privacy, or data-exposure regressions that leak course, user, grading, or institutional information.
+- Broken installs or upgrades due to missing `version.php`, `db/install.xml`, `db/upgrade.php`, or incomplete capability and privacy changes.
+- Maintenance drag from bypassing Moodle APIs or building frontend behavior that fights Moodle's rendering and theming model.
 
 ### Expected Artifacts
 
-- Plugin type and directory layout.
-- Capability matrix and role mapping.
-- Database install/upgrade notes if tables change.
-- Event, observer, scheduled task, or web service contract notes.
-- Privacy provider and data exposure notes.
-- Moodle test plan for supported roles.
+- Plugin files such as `version.php`, `db/install.xml`, `db/upgrade.php`, language strings, capabilities, privacy metadata, classes, forms, templates, or renderers as applicable.
+- Explicit install, upgrade, rollback, and permissions notes for the plugin and any stored or derived data it introduces.
+- QA coverage for teacher, student, admin, and manager workflows touched by the plugin, including Bootstrap 5 UI states where relevant.
 
-### Stack-Specific Security Guidelines
+### Preferred Practices
 
-- Use Moodle capability checks at every entry point.
-- Minimize access to user, grade, enrollment, and course participation data.
-- Define privacy provider behavior for personal data.
-- Avoid direct output of hidden course or user data.
-- Protect AJAX, web service, and scheduled task entry points with Moodle
-  authentication and capability checks.
+- Use Moodle forms, capability checks, string management, privacy APIs, and plugin upgrade paths consistently.
+- Keep plugin data bounded and document any new tables, scheduled tasks, events, or privacy exports explicitly.
+- Design UI additions to feel native to Moodle 5, including Bootstrap 5-based layout and predictable admin workflows.
+
+### Security Controls
+
+See `.specify/memory/security-guidelines.md` after init. Highlights include
+`require_login`, `require_capability`, `$DB` placeholders, Files API uploads,
+and Privacy API compliance.
 
 ### `speckit-plan` Validation
 
-- Confirms the plan names the plugin type and Moodle 5 APIs involved.
-- Rejects Moodle core modification unless explicitly approved as a deviation.
-- Requires capability, role, and privacy coverage.
-- Requires install/upgrade path for database changes.
-- Checks that tests cover relevant Moodle roles and contexts.
+- Confirm plugin type and Moodle 5 APIs involved.
+- Reject Moodle core modification unless approved as a deviation.
+- Require capability, role, context, and privacy coverage.
+- Require install/upgrade path for database changes.
 
 ## `moodle5-portal`
 
 ### Summary
 
-Moodle 5 portal integration stack for portals that integrate with Moodle while
-presenting custom user, coordinator, reporting, or administrative experiences.
+Institution-facing Moodle 5 portal and cross-area operational workflows.
+
+### Purpose
+
+Institution-facing Moodle 5 portal work that spans multiple workflows,
+operational teams, reports, and user roles while still living inside Moodle's
+ecosystem and Bootstrap 5 UI constraints.
 
 ### When To Use
 
-- Building a portal that depends on Moodle data or Moodle authentication.
-- Creating custom learner, coordinator, or administrative flows adjacent to
-  Moodle.
-- Implementing integrations that aggregate Moodle data with company-specific
-  business processes.
-- Building reporting/export workflows around Moodle-origin data.
+- The feature crosses portal navigation, reporting, enrollment, certification, institution-facing operations, or multiple Moodle touchpoints.
+- Operational users need coordinated workflows, dashboards, filters, reports, exports, or support tooling that go beyond a small isolated plugin.
+- The solution can remain aligned with Moodle 5 services, Bootstrap 5 UI conventions, shared permissions, and portal-wide governance.
 
 ### When Not To Use
 
-- Developing code that must be packaged as a Moodle plugin.
-- Maintaining a legacy CakePHP 2.x platform.
-- Building a portal with no Moodle dependency.
-- Making direct, unsupported changes inside Moodle core.
+- Small self-contained functionality that should remain a bounded Moodle plugin instead of portal work.
+- Greenfield product requests that would be better served by the Laravel + Inertia + React stack rather than portal customizations.
+- Features that need to ignore shared portal permissions, reporting standards, or Moodle ecosystem constraints to be viable.
 
 ### Core Constraints
 
-- Treat Moodle as an external system with explicit integration boundaries.
-- Define authentication, SSO, session, and user identity mapping.
-- Define data synchronization, ownership, freshness, and failure behavior.
-- Avoid direct Moodle database coupling unless explicitly approved.
-- Preserve visibility rules for courses, cohorts, roles, grades, and users.
+- Portal behavior must fit existing Moodle 5 capabilities, service boundaries, navigation patterns, and Bootstrap 5-based operational UI expectations.
+- Treat reporting, pagination, exports, cohort or enrollment flows, and institutional data sensitivity as first-class design constraints.
+- Assume multi-role operational ownership: supportability, traceability, and rollout safety matter as much as the feature itself.
 
 ### Typical Risks
 
-- Mismatched Moodle permissions and portal permissions.
-- Overexposure of academic data through custom reports or dashboards.
-- Fragile integration with Moodle internals.
-- Stale or inconsistent synchronized data.
-- Operational failures around SSO, background sync, or export jobs.
+- Cross-area permission leakage, role confusion, or inconsistent workflow behavior between portal surfaces.
+- Performance and operability failures in large listings, reports, exports, enrollments, or synchronization-heavy flows.
+- Portal drift caused by ad hoc solutions that bypass shared portal conventions, observability needs, or institutional support requirements.
 
 ### Expected Artifacts
 
-- Integration boundary diagram or textual boundary description.
-- Auth/SSO and identity mapping notes.
-- Data flow and synchronization model.
-- Permission and visibility matrix.
-- Failure mode and retry behavior for Moodle integration.
-- Report/export data handling notes.
+- Portal page, renderer, template, integration, permission, and reporting changes mapped clearly to the affected operational flows.
+- Documented pagination, filtering, export, audit, rollout, and rollback expectations for institution-facing screens and jobs.
+- QA and production validation steps that cover real administrative users, support teams, and shared portal operations.
 
-### Stack-Specific Security Guidelines
+### Preferred Practices
 
-- Mirror Moodle visibility constraints in the portal authorization model.
-- Protect SSO/session handoff and identity mapping from confused-deputy issues.
-- Limit report/export scope by role, course, cohort, and business context.
-- Avoid storing sensitive Moodle-origin data unless retention is justified.
-- Audit cross-system actions that affect learners, courses, grades, or
-  enrollment-related records.
+- Use Moodle-native capabilities and services while keeping portal workflows explicit, observable, and supportable.
+- Design for backend pagination, predictable filters, reusable Bootstrap 5 admin patterns, and safe exports or batch actions.
+- Document which roles, institutions, reports, and support teams are affected so delivery planning reflects operational reality.
+
+### Security Controls
+
+See `.specify/memory/security-guidelines.md` after init. Highlights include
+institution-aware capabilities, cohort isolation, audit events, and safe file
+intake through Moodle file storage.
 
 ### `speckit-plan` Validation
 
-- Confirms Moodle integration boundaries are explicit.
-- Requires auth/SSO, identity, and permission mapping.
-- Flags direct Moodle database access as a deviation.
-- Requires synchronization and failure-mode design when data is copied.
-- Requires report/export controls for Moodle-origin data.
+- Confirm portal workflows map to Moodle capabilities and context levels.
+- Require pagination and export limits for large institutional listings.
+- Require audit events for cohort, enrollment, role, and bulk operations.
+- Validate institution isolation in QA.
 
 ## `laravel-inertia-react`
 
 ### Summary
 
-Modern Laravel application stack with Inertia and React for portals,
-administrative products, reporting systems, and operational workflows.
+Modern Laravel/Inertia/React portal or admin product delivery.
+
+### Purpose
+
+The company's standard modern web application stack for business systems that use
+Laravel on the backend and Inertia with React on the frontend.
 
 ### When To Use
 
-- Building a new MAS portal or administrative product.
-- Creating modern coordinator or back-office workflows.
-- Implementing reporting/export-heavy systems with controlled access.
-- Building Laravel products that need React-driven user interactions without a
-  separate API SPA architecture.
+- The feature belongs in a modern Laravel application with server-owned routing, validation, authorization, and data access.
+- The UI benefits from React components and Inertia pages while still fitting a server-driven application model instead of a disconnected SPA.
+- The work can follow the company conventions around React + TypeScript starterkit usage, Tailwind, shadcn/ui, backend pagination, reusable form components, and traceable Laravel delivery practices.
 
 ### When Not To Use
 
-- Maintaining an existing CakePHP 2.x platform.
-- Writing a Moodle plugin.
-- Building a portal whose architecture is dictated by another existing stack.
-- Creating a public API-first product where Inertia is not appropriate.
+- Moodle plugin or portal requests that need to live inside Moodle's ecosystem and Bootstrap 5 reality.
+- Legacy CakePHP 2.x enhancements where compatibility matters more than adopting the modern stack.
+- Features that only make sense as a standalone public API platform or a custom client-only application outside the current Laravel + Inertia operating model.
 
 ### Core Constraints
 
-- Use Laravel as the application boundary and Inertia as the server-driven
-  frontend bridge.
-- Keep authorization in Laravel policies, gates, middleware, or form requests.
-- Use explicit request validation and data transfer boundaries.
-- Treat reports and exports as controlled, auditable operations.
-- Keep React components aligned with Inertia page contracts.
+- Laravel remains the source of truth for routing, validation, authorization, persistence, jobs, notifications, and business rules.
+- Use the React + TypeScript starterkit direction, Tailwind styling, and shadcn/ui-based reusable components rather than ad hoc UI patterns.
+- Follow company defaults such as REST-style routes and controllers, `spatie/laravel-permission` for roles or permissions, Socialite where external auth or SSO is in scope, backend-driven pagination, and disciplined migrations or seeders.
 
 ### Typical Risks
 
-- Authorization drift between frontend state and backend policy checks.
-- Overfetching sensitive data into Inertia props.
-- Missing validation for filters, exports, uploads, and administrative actions.
-- Session, SSO, or CSRF mistakes in portal flows.
-- Slow report queries or unbounded exports.
+- Boundary drift between controllers, requests, policies, Inertia responses, and React pages leading to duplicated or contradictory logic.
+- Authorization, validation, pagination, or form-state problems caused by pushing too much behavior into the client layer.
+- Inconsistent UI, brittle deployments, or broken environments when migrations, seeders, assets, permissions, or auth integrations are handled informally.
 
 ### Expected Artifacts
 
-- Route, controller, request, policy, and Inertia page map.
-- Data model and migration notes.
-- Authorization matrix for roles and administrative actions.
-- Inertia prop contract for sensitive pages.
-- Export/report performance and access-control notes.
-- Test plan covering policies, requests, feature flows, and key React states.
+- Laravel routes, controllers, form requests, policies, actions or services, models, migrations, seeders, and tests as required by the feature.
+- Inertia pages, React + TypeScript components, Tailwind or shadcn/ui composition, and reusable form or table components where the UI changes.
+- Explicit handling of permissions, Socialite integrations when relevant, backend pagination, QA, deployment, and rollback-sensitive migrations or config changes.
 
-### Stack-Specific Security Guidelines
+### Preferred Practices
 
-- Enforce authorization on the server for every route and action.
-- Validate all request payloads with form requests or equivalent validators.
-- Never rely on hidden React UI state for access control.
-- Minimize sensitive data sent through Inertia props.
-- Protect sessions, CSRF, SSO callbacks, file uploads, and exports.
+- Keep business rules, permissions, and validation centered in Laravel while using Inertia page props intentionally.
+- Prefer reusable Tailwind or shadcn/ui components, typed React props, backend pagination, and shared form patterns over feature-by-feature improvisation.
+- Treat migrations, seeders, permission changes, QA, and controlled deployment as part of the feature's standard artifact set rather than optional cleanup.
+
+### Security Controls
+
+See `.specify/memory/security-guidelines.md` after init. Highlights include
+Policies/Gates, dedicated `FormRequest` classes for writes, CSRF, Inertia prop
+minimization, and upload validation.
 
 ### `speckit-plan` Validation
 
-- Confirms Laravel, Inertia, and React are the selected stack boundaries.
-- Requires route/controller/request/policy/page artifact coverage.
-- Checks server-side authorization and validation coverage.
-- Requires Inertia prop review for sensitive data.
-- Requires bounded report/export behavior and tests.
+- Confirm Laravel, Inertia, and React are the selected stack boundaries.
+- Require route/controller/request/policy/page artifact coverage.
+- Check server-side authorization and validation coverage.
+- Require Inertia prop review for sensitive data.
+- Require bounded report/export behavior and tests.
