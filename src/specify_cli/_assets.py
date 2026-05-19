@@ -93,7 +93,7 @@ def _locate_bundled_preset(preset_id: str) -> Path | None:
         if (candidate / "preset.yml").is_file():
             return candidate
 
-    # Source-checkout / editable install: look relative to repo root
+    # Source-checkout / editable install, or presets added after the wheel was built
     candidate = _repo_root() / "presets" / preset_id
     if (candidate / "preset.yml").is_file():
         return candidate
