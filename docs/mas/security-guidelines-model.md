@@ -93,6 +93,31 @@ Plan should validate:
 - reports/exports have role checks and performance bounds;
 - legacy auth/session behavior remains compatible.
 
+### `moodle3`
+
+Security profile:
+
+Moodle 3.x is not an approved company stack. Work MUST be treated as a documented
+exception with rationale, scope, approver, and migration path to Moodle 5.
+
+Required guidelines:
+
+- Record `Deviation / Exception Needed` in the plan with approver and sunset date.
+- Apply only vendor-supported security patches for the exact minor version; track build numbers.
+- Isolate the instance from production Moodle 5 estates.
+- Restrict administrative access; enforce MFA at the identity provider or VPN when Moodle 3 lacks native MFA.
+- Use `require_login` and `require_capability` on every entrypoint for the Moodle 3 API surface in use.
+- Use Moodle database APIs with placeholders; use `format_string` / `format_text` for output.
+- Use the Files API and `pluginfile.php`; declare Privacy API metadata where personal data is stored.
+- Do not ship new privileged features without executive security sign-off.
+- Do not install unmaintained third-party plugins without documented risk acceptance.
+
+Plan should validate:
+
+- exception record, compensating controls, and migration date are present;
+- migration plan to Moodle 5 includes data and capability mapping;
+- patch level and isolation measures are documented.
+
 ### `moodle5-plugin`
 
 Security profile:

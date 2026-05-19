@@ -1,0 +1,27 @@
+schema_version: "1.0"
+
+preset:
+  id: "mas-stack-moodle3"
+  name: "MAS Stack - Moodle 3.x (Legacy Exception)"
+  version: "0.1.0"
+  description: "MAS stack preset for Moodle 3.x legacy exception-track projects with Moodle 5 migration path"
+  author: "MAS Consultores"
+  repository: "internal"
+  license: "UNLICENSED"
+
+requires:
+  speckit_version: ">=0.8.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "mas-stack-moodle3"
+      file: "templates/mas-stack-moodle3.md"
+      description: "Stack scaffold marker for Moodle 3.x legacy exception work"
+
+tags:
+  - "mas"
+  - "stack"
+  - "moodle3"
+  - "legacy"
+  - "exception"

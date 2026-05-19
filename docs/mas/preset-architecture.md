@@ -65,6 +65,7 @@ constitution template followed by one-off replacement.
 Each stack preset contains only the behavior that varies by stack:
 
 - `mas-stack-cakephp2-mysql`
+- `mas-stack-moodle3`
 - `mas-stack-moodle5-plugin`
 - `mas-stack-moodle5-portal`
 - `mas-stack-laravel-inertia-react`

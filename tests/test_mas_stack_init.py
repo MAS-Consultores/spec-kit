@@ -23,6 +23,16 @@ def test_mas_stack_catalog_resolves_preset_composition():
         ("mas-stack-moodle5-plugin", 5),
     )
     assert "moodle5-plugin" in valid_stack_ids()
+    assert "moodle3" in valid_stack_ids()
+
+
+def test_mas_stack_moodle3_is_exception_track():
+    stack = get_mas_stack("moodle3")
+
+    assert stack is not None
+    assert stack.display_name == "Moodle 3.x (Legacy Exception)"
+    assert stack.stack_preset_id == "mas-stack-moodle3"
+    assert "not an approved company stack" in stack.security_profile
 
 
 def test_init_with_valid_stack_persists_stack_metadata(tmp_path):
@@ -317,8 +327,42 @@ def test_init_rejects_missing_stack_before_side_effects(tmp_path):
     assert result.exit_code == 1
     assert "MAS initialization requires an approved stack" in result.output
     assert "cakephp2-mysql" in result.output
+    assert "moodle3" in result.output
     assert "specify init . --integration codex --stack moodle5-plugin" in result.output
     assert not project.exists()
+
+
+def test_init_with_moodle3_stack_writes_exception_track_memory(tmp_path):
+    project = tmp_path / "moodle3-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "moodle3",
+            "--ignore-agent-tools",
+            "--no-git",
+            "--script",
+            "sh",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    memory_dir = project / ".specify" / "memory"
+    stack_md = (memory_dir / "stack.md").read_text()
+    security_md = (memory_dir / "security-guidelines.md").read_text()
+
+    assert "**Canonical ID**: `moodle3`" in stack_md
+    assert "Legacy Exception" in stack_md
+    assert "Deviation / Exception Needed" in stack_md
+    assert "## Security Controls" in security_md
+    assert "migration to Moodle 5" in security_md
+    assert (project / ".specify" / "presets" / "mas-stack-moodle3" / "preset.yml").exists()
 
 
 def test_init_rejects_invalid_stack_before_side_effects(tmp_path):

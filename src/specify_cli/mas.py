@@ -273,6 +273,112 @@ MAS_STACKS: dict[str, MasStack] = {
             "Legacy regression tests or documented manual regression paths.",
         ),
     ),
+    "moodle3": MasStack(
+        id="moodle3",
+        display_name="Moodle 3.x (Legacy Exception)",
+        summary="Legacy Moodle 3.x maintenance on the documented exception track.",
+        purpose=(
+            "Sustained work on Moodle 3.x estates that are not yet on Moodle 5. "
+            "Changes MUST preserve Moodle 3 stability while structuring implementation "
+            "so migration to Moodle 5 is as expedited as possible. Moodle 3.x is not "
+            "an approved company stack; every initiative MUST be treated as a "
+            "documented exception with rationale, scope, approver, and migration path."
+        ),
+        when_to_use=(
+            "The project still runs on Moodle 3.x and the change is approved under the legacy exception track with a recorded migration path to Moodle 5.",
+            "The work is maintenance, security patching, or constrained plugin changes that must not destabilize the existing Moodle 3 instance.",
+            "Implementation can follow Moodle 3 APIs today while mirroring Moodle 5 plugin patterns (capabilities, Files API, privacy metadata) where equivalents exist.",
+        ),
+        when_not_to_use=(
+            "Greenfield products or new platforms that should target Moodle 5 Plugin, Moodle 5 Portal, or Laravel + Inertia + React directly.",
+            "New privileged features on Moodle 3 without executive security sign-off.",
+            "Work that assumes Moodle 5-only APIs, Bootstrap 5 UI, or behaviors that cannot be expressed on the Moodle 3 surface in use.",
+        ),
+        fixed_boundaries=(
+            "Moodle 3.x is not an approved company stack; `Deviation / Exception Needed` MUST appear in the plan with approver and sunset date for Moodle 5 migration.",
+            "Only vendor-supported security patches for the exact minor version in use are in scope; build numbers MUST be tracked.",
+            "The Moodle 3 instance MUST be isolated from production Moodle 5 estates (network segmentation, dedicated credentials, separate backups).",
+            "All entrypoints MUST use the Moodle 3 API surface actually available on the target instance.",
+        ),
+        security_profile=(
+            "Moodle 3.x is not an approved company stack. Work on Moodle 3 MUST be "
+            "treated as a documented exception in the implementation plan (rationale, "
+            "scope, approver, and migration path). Security posture relies on patching, "
+            "isolation, compensating controls, and an explicit sunset toward Moodle 5."
+        ),
+        security_controls=(
+            "Record `Deviation / Exception Needed` in the plan with approver and sunset date for migration to Moodle 5.",
+            "Apply only security patches from the vendor-supported line for the exact minor version in use; track build numbers.",
+            "Isolate the instance (network segmentation, dedicated credentials, separate backups from production Moodle 5 estates).",
+            "Restrict administrative access; enforce MFA at the identity provider or VPN layer when Moodle 3 lacks native MFA.",
+            "Validate capabilities and contexts on every entrypoint (`require_login`, `require_capability`) for the Moodle 3 API surface in use.",
+            "Use Moodle database APIs with placeholders; never concatenate user input into SQL.",
+            "Use `format_string` / `format_text` for output; never echo raw user input.",
+            "Use the Files API and `pluginfile.php` for user content; declare Privacy API metadata where personal data is stored.",
+        ),
+        sensitive_data_surfaces=(
+            "User, grade, enrollment, course, cohort, and participation data on the legacy instance.",
+            "Plugin tables, Moodle file areas, and backup or export outputs.",
+            "AJAX endpoints, web services, scheduled tasks, and administrative scripts touching personal data.",
+        ),
+        security_pitfalls=(
+            "Shipping new privileged features on Moodle 3 without executive security sign-off.",
+            "Installing unmaintained third-party plugins without documented risk acceptance.",
+            "Skipping `require_login` or `require_capability` on internal or AJAX entrypoints.",
+            "Concatenating user input into `$DB` SQL instead of using bound parameters.",
+            "Bypassing the Files API or serving user uploads from executable web paths.",
+            "Omitting Privacy API metadata when storing or exporting personal data.",
+            "Letting the instance share credentials, backups, or network paths with production Moodle 5 estates.",
+        ),
+        security_evidence=(
+            "Plans MUST reference the Moodle 3 legacy exception track when the feature targets Moodle 3.",
+            "Plans MUST list compensating controls: patch level, isolation measures, monitoring, and migration date.",
+            "Plan records approver, exception rationale, scope boundaries, and sunset date for Moodle 5 migration.",
+            "Plan attaches or references a milestone-level migration plan to Moodle 5 with data and capability mapping.",
+            "QA notes cover capability denial paths and regression on supported Moodle 3 roles and contexts.",
+        ),
+        core_constraints=(
+            "Preserve Moodle 3 production behavior; avoid changes that break enrolled users, upgrades, or installed plugins without explicit approval.",
+            "Prefer Moodle 3-native APIs and plugin boundaries; do not patch core unless the exception record explicitly allows it.",
+            "Structure plugin data, capabilities, events, and file handling so they map forward to Moodle 5 conventions where possible.",
+        ),
+        typical_risks=(
+            "Regression on legacy Moodle 3 themes, plugins, or customizations with narrow test coverage.",
+            "Security exposure from unmaintained core, plugins, or missing patches on the exact minor version.",
+            "Rework during Moodle 5 migration when code ignores forward-compatible capability, privacy, or Files API patterns.",
+            "Operational confusion between isolated Moodle 3 estates and production Moodle 5 environments.",
+        ),
+        anti_patterns=(
+            "Do not treat Moodle 3 as a permanent platform without a documented sunset and migration plan.",
+            "Do not introduce Moodle 5-only UI or API assumptions into Moodle 3 deliverables.",
+            "Do not ship exception-track work without executive approval for new privileged capabilities.",
+            "Do not install unmaintained third-party plugins without documented risk acceptance.",
+        ),
+        expected_artifacts=(
+            "Exception record in the plan: rationale, scope, approver, sunset date, and migration path to Moodle 5.",
+            "Patch and minor-version inventory for the target Moodle 3 instance, including build numbers applied.",
+            "Plugin or local changes with `version.php`, install/upgrade steps, capabilities, and privacy metadata appropriate to Moodle 3.",
+            "Milestone-level migration plan to Moodle 5 with data model and capability mapping notes.",
+            "QA coverage for affected roles, contexts, and regression-sensitive legacy flows.",
+        ),
+        preferred_practices=(
+            "Mirror Moodle 5 plugin patterns (capabilities, contexts, Files API, privacy providers) when Moodle 3 supports equivalents.",
+            "Keep diffs minimal, document forward-compatibility notes for the Moodle 5 migration team, and avoid optional abstractions that fight Moodle 3.",
+            "Validate isolation, monitoring, and backup separation from Moodle 5 production estates before each release.",
+        ),
+        plan_validation_checks=(
+            "Confirm `Deviation / Exception Needed` is recorded with approver and Moodle 5 sunset date.",
+            "Reject new privileged features without executive security sign-off.",
+            "Require compensating controls evidence: patch level, isolation, monitoring, and migration date.",
+            "Require migration plan attachment with capability and data mapping toward Moodle 5.",
+            "Reject unmaintained third-party plugins without documented risk acceptance.",
+        ),
+        likely_project_shape=(
+            "Moodle 3 plugin or local extension directories with lang strings, db install/upgrade, and capability definitions.",
+            "Exception and migration sections in plan.md tied to this stack memory.",
+            "Regression tests or documented manual QA for supported Moodle 3 roles and contexts.",
+        ),
+    ),
     "moodle5-plugin": MasStack(
         id="moodle5-plugin",
         display_name="Moodle 5 Plugin",

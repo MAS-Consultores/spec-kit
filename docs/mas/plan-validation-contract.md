@@ -187,6 +187,7 @@ Future MAS plan templates should include a section like:
 | Stack ID | Required Validation Emphasis |
 | --- | --- |
 | `cakephp2-mysql` | legacy compatibility, MySQL schema safety, CakePHP 2.x patterns, regression coverage, report/export query impact |
+| `moodle3` | documented exception with approver and Moodle 5 sunset, patch/isolation controls, compensating controls evidence, migration plan with capability/data mapping, no new privileged features without sign-off |
 | `moodle5-plugin` | plugin type, Moodle APIs, capabilities, roles, privacy provider, install/upgrade path |
 | `moodle5-portal` | integration boundary, SSO/session identity, Moodle visibility mapping, sync/failure model, Moodle-origin data controls |
 | `laravel-inertia-react` | Laravel route/controller/request/policy coverage, Inertia prop safety, React page contract, report/export bounds |

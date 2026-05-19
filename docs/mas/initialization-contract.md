@@ -67,6 +67,7 @@ normal MAS project contract.
 Only the following stack IDs are valid:
 
 - `cakephp2-mysql`
+- `moodle3`
 - `moodle5-plugin`
 - `moodle5-portal`
 - `laravel-inertia-react`
@@ -88,6 +89,7 @@ The implementation must map each stack ID to this preset composition:
 | Stack ID | Installed Presets |
 | --- | --- |
 | `cakephp2-mysql` | `mas-core` + `mas-stack-cakephp2-mysql` |
+| `moodle3` | `mas-core` + `mas-stack-moodle3` |
 | `moodle5-plugin` | `mas-core` + `mas-stack-moodle5-plugin` |
 | `moodle5-portal` | `mas-core` + `mas-stack-moodle5-portal` |
 | `laravel-inertia-react` | `mas-core` + `mas-stack-laravel-inertia-react` |

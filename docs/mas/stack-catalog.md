@@ -18,6 +18,7 @@ Source of truth in code: `src/specify_cli/mas.py` (`MAS_STACKS`).
 | Stack ID | Display Name | Primary Use |
 | --- | --- | --- |
 | `cakephp2-mysql` | CakePHP 2.x + MySQL | Legacy CakePHP platform evolution |
+| `moodle3` | Moodle 3.x (Legacy Exception) | Moodle 3.x maintenance under documented exception track |
 | `moodle5-plugin` | Moodle 5 Plugin | Bounded Moodle 5 plugin extension work |
 | `moodle5-portal` | Moodle 5 Portal | Institution-facing Moodle 5 portal workflows |
 | `laravel-inertia-react` | Laravel + Inertia + React | Modern portal or admin product delivery |
@@ -81,6 +82,74 @@ upload MIME validation, and web-server security headers.
 - Reject unapproved framework migration or new framework introduction.
 - Require schema and rollback notes for database changes.
 - Require query/export performance review for reporting-heavy work.
+
+## `moodle3`
+
+### Summary
+
+Legacy Moodle 3.x maintenance on the documented exception track.
+
+### Purpose
+
+Sustained work on Moodle 3.x estates that are not yet on Moodle 5. Changes MUST
+preserve Moodle 3 stability while structuring implementation so migration to
+Moodle 5 is as expedited as possible. **Moodle 3.x is not an approved company
+stack**; every initiative MUST be a documented exception with rationale, scope,
+approver, and migration path.
+
+### When To Use
+
+- The project still runs on Moodle 3.x and the change is approved under the legacy exception track with a recorded migration path to Moodle 5.
+- The work is maintenance, security patching, or constrained plugin changes that must not destabilize the existing Moodle 3 instance.
+- Implementation can follow Moodle 3 APIs today while mirroring Moodle 5 plugin patterns where equivalents exist.
+
+### When Not To Use
+
+- Greenfield products that should target Moodle 5 Plugin, Moodle 5 Portal, or Laravel + Inertia + React directly.
+- New privileged features on Moodle 3 without executive security sign-off.
+- Work that assumes Moodle 5-only APIs or Bootstrap 5 UI on a Moodle 3 instance.
+
+### Core Constraints
+
+- Record `Deviation / Exception Needed` in the plan with approver and sunset date for Moodle 5 migration.
+- Apply only vendor-supported security patches for the exact minor version in use; track build numbers.
+- Isolate the instance from production Moodle 5 estates.
+- Use the Moodle 3 API surface available on the target instance.
+
+### Typical Risks
+
+- Regression on legacy themes, plugins, or customizations with narrow test coverage.
+- Security exposure from unmaintained core, plugins, or missing patches.
+- Rework during Moodle 5 migration when forward-compatible patterns are ignored.
+- Operational confusion between isolated Moodle 3 estates and Moodle 5 production.
+
+### Expected Artifacts
+
+- Exception record in the plan (rationale, scope, approver, sunset date, migration path).
+- Patch and minor-version inventory including build numbers.
+- Plugin changes with Moodle 3-appropriate install/upgrade, capabilities, and privacy metadata.
+- Milestone-level migration plan to Moodle 5 with data and capability mapping.
+- QA coverage for affected Moodle 3 roles and contexts.
+
+### Preferred Practices
+
+- Mirror Moodle 5 plugin patterns (capabilities, Files API, privacy) when Moodle 3 supports equivalents.
+- Keep diffs minimal and document forward-compatibility notes for the Moodle 5 migration team.
+- Validate isolation, monitoring, and backup separation from Moodle 5 production before release.
+
+### Security Controls
+
+See `.specify/memory/security-guidelines.md` after init. Highlights include
+documented exception approval, vendor patch discipline, instance isolation, MFA
+compensating controls, capability checks, parameterized `$DB` access, safe
+output formatting, Files API usage, and Privacy API metadata.
+
+### `speckit-plan` Validation
+
+- Confirm `Deviation / Exception Needed` with approver and Moodle 5 sunset date.
+- Reject new privileged features without executive security sign-off.
+- Require compensating controls evidence and migration plan attachment.
+- Reject unmaintained third-party plugins without risk acceptance.
 
 ## `moodle5-plugin`
 
