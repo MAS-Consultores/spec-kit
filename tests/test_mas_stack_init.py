@@ -88,10 +88,9 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
     assert result.exit_code == 0, result.output
 
     constitution = (project / ".specify" / "memory" / "constitution.md").read_text()
-    assert "# MAS Project Constitution" in constitution
+    assert "# [PROJECT_NAME] Constitution" in constitution
     assert "Stack-Constrained Design" in constitution
     assert "specify init --stack <stack-id>" in constitution
-    assert "# [PROJECT_NAME] Constitution" not in constitution
 
 
 def test_init_with_valid_stack_writes_selected_stack_memory(tmp_path):

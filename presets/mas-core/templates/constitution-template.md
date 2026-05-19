@@ -1,12 +1,15 @@
-# MAS Project Constitution
+# [PROJECT_NAME] Constitution
 
 ## Core Principles
 
 ### I. Security and Access Control
 
+- Every feature MUST identify its actors, permissions, sensitive data, privacy
+  obligations, and abuse or failure paths before implementation begins.
+
 # Security Standard (Stack-Agnostic)
 
-This document defines cross-stack security expectations aligned with OWASP ASVS Level 2 and the OWASP Top 10. Stack-specific controls are additionally listed in `.specify/memory/security-guidelines.md` under **Security Controls**, **Security Pitfalls**, and **Security Evidence** when a project stack is registered via `specify init --stack`.
+This document defines cross-stack security expectations aligned with OWASP ASVS Level 2 and the OWASP Top 10. Stack-specific constraints and security guidance are materialized in `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and `.specify/memory/stack-context.md` when a project stack is registered via `specify init --stack`.
 
 ## 1. Authentication and Identity Lifecycle
 
@@ -209,40 +212,106 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Rollback and recovery notes in the implementation plan.
 
 ### II. Traceability and Auditability
-Plans MUST identify operationally relevant actions, reports, exports, and data
-changes that require auditability or review history.
+
+- Plans MUST identify operationally relevant actions, reports, exports, and data
+  changes that require auditability or review history.
+- Requirements, decisions, code changes, data migrations, and releases MUST be
+  traceable from specification through deployment.
+- Business-critical, permission-sensitive, and data-changing operations MUST emit
+  audit evidence sufficient to reconstruct who acted, on what, and when.
+- Hotfixes, manual interventions, and emergency changes MUST leave the same
+  reviewable record as standard delivery work.
 
 ### III. Explicit Data Models and Integrity
-Specifications and plans MUST describe the affected entities, relationships,
-validation rules, and persistence changes before tasks are generated.
+
+- Specifications and plans MUST describe the affected entities, relationships,
+  validation rules, and persistence changes before tasks are generated.
+- Core entities, relationships, lifecycle states, validation rules, and ownership
+  boundaries MUST be modeled explicitly before implementation.
+- Persistent changes MUST be backed by an explicit data model, including an ER
+  view and data dictionary or equivalent artifact suitable for the chosen stack.
+- Data changes MUST preserve referential integrity, deterministic business rules,
+  and safe retry behavior where failures or duplicate execution are plausible.
+- Irreversible or high-impact data changes MUST include migration, recovery, and
+  stakeholder communication planning before release.
 
 ### IV. Operational Performance and Reliability
-Reporting, export, integration, and administrative workflows MUST include
-performance assumptions, failure modes, and recovery expectations.
+
+- Reporting, export, integration, and administrative workflows MUST include
+  performance assumptions, failure modes, and recovery expectations.
+- Every feature MUST declare measurable operational expectations such as response
+  time, throughput, latency sensitivity, or batch-processing limits.
+- Systems MUST provide actionable logging, diagnostics, and failure visibility so
+  support and engineering teams can isolate incidents without ad hoc code changes.
+- Integrations, jobs, and high-volume read or write paths MUST be designed for
+  bounded resource usage, graceful degradation, and predictable recovery.
 
 ### V. Administrative Usability
-Coordinator, administrator, and back-office workflows MUST be designed for clear
-state, error handling, and repeatable operational use.
+
+- Coordinator, administrator, and back-office workflows MUST be designed for clear
+  state, error handling, and repeatable operational use.
+- Administrative and back-office workflows are first-class product surfaces and
+  MUST be designed for clarity, efficiency, and safe error recovery.
+- Operational users MUST be able to understand record state, recent changes, and
+  next available actions without requiring direct database or source-code access.
+- Data-heavy screens and operational listings MUST support navigable, bounded
+  result sets and predictable filtering or pagination behavior.
+- Bulk actions, status transitions, and approval flows MUST include safeguards
+  proportionate to their business impact.
 
 ### VI. Stack-Constrained Design
-Implementation plans MUST stay within the stack selected during MAS
-initialization unless an explicit deviation is documented and approved.
+
+- Implementation plans MUST stay within the stack selected during MAS
+  initialization (`specify init --stack <stack-id>`) unless an explicit deviation
+  is documented and approved.
+- Stack-specific constraints, security profiles, and validation expectations live
+  in `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and
+  `.specify/memory/stack-context.md`; this constitution remains principle-driven
+  and stack-agnostic.
 
 ### VII. Maintainability and Standardization
-Solutions MUST follow the selected stack's conventions and avoid introducing
-parallel patterns without documented justification.
+
+- Codebases MUST favor shared patterns, reusable components, disciplined schema
+  handling, and clear module boundaries over ad hoc feature-by-feature design.
+- Repeated form, validation, and administrative interaction patterns MUST be
+  standardized through reusable project-level components or equivalents.
+- Infrastructure, runtime dependencies, and environment assumptions MUST be
+  explicit, reproducible, and appropriate for the selected approved stack.
 
 ### VIII. Controlled Delivery and Rollback Readiness
-Risky changes MUST include rollout, rollback, and data recovery considerations
-before implementation.
+
+- Risky changes MUST include rollout, rollback, and data recovery considerations
+  before implementation.
+- Each release MUST be deployable in controlled increments with validated rollback,
+  mitigation, or containment paths proportional to its operational risk.
+- Database changes, configuration changes, and third-party dependency changes MUST
+  be reversible or explicitly risk-accepted before release.
+- Delivery flow MUST preserve traceability: one branch per functionality, clear
+  incremental commits, QA validation before release, and promotion through
+  testing before master except for justified hotfixes.
+- Production deployment MUST include controlled execution, rollback readiness, and
+  post-release validation of critical operational behavior.
+- Production promotion MUST be blocked when security, data integrity,
+  observability, or recovery readiness cannot be demonstrated.
 
 ## Governance
 
-This constitution is the shared MAS governance baseline. Stack-specific
-constraints and security guidance are loaded from the MAS stack selected during
-`specify init --stack <stack-id>`.
+This constitution is the shared MAS governance baseline and overrides local
+preferences and lower-level guidance whenever they conflict.
 
-Amendments require documentation of the changed rule, expected impact, and any
-migration or communication needed for active projects.
+Stack-specific constraints and security guidance are loaded from the MAS stack
+selected during `specify init --stack <stack-id>` into `.specify/memory/`.
 
-**Version**: 0.1.0 | **Ratified**: 2026-05-13 | **Last Amended**: 2026-05-19
+Constitution compliance MUST be checked during specification, planning, review,
+and release approval; unresolved violations block progression.
+
+Amendments require documented rationale, review of impacted templates and workflow
+artifacts, approval by the maintainers of this internal distribution, and
+documentation of expected impact and migration or communication needed for
+active projects.
+
+Versioning follows semantic intent: MAJOR for incompatible governance changes,
+MINOR for new principles or materially expanded obligations, and PATCH for
+clarifications that do not alter enforcement.
+
+**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
