@@ -300,6 +300,22 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Implementation plans MUST stay within the stack selected during MAS
   initialization (`specify init --stack <stack-id>`) unless an explicit deviation
   is documented and approved.
+- The system MUST prefer native platform, framework, and stack capabilities before
+  introducing custom implementations, custom persistence structures, or duplicated
+  abstractions.
+- Before creating new tables, services, workflows, reports, logs, authentication
+  flows, permission models, or integration mechanisms, the team MUST verify whether
+  the selected stack already provides an equivalent or extensible capability,
+  including official documentation and supported extension points.
+- Custom implementations that replace, duplicate, or bypass existing stack
+  functionality MUST be justified in specifications and plans.
+- That justification MUST state why the native capability is insufficient; which
+  native APIs, tables, modules, services, or extension points were reviewed; and
+  what maintenance, compatibility, upgrade, migration, and data-consistency risks
+  the custom approach introduces.
+- Plans and data models MUST NOT introduce redundant persistence or parallel sources
+  of truth for data the selected stack already stores or exposes unless that
+  justification is documented and approved.
 - Stack-specific constraints, security profiles, and validation expectations live
   in `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and
   `.specify/memory/stack-context.md`; this constitution remains principle-driven

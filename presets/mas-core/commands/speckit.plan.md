@@ -34,5 +34,8 @@ When filling the implementation plan:
 - Treat the constitution as the highest-level governance source.
 - Map failure modes from the feature spec and Constitution section VI into the
   plan's `Failure Modes & Error Handling` section.
+- Complete `Native Capability Reuse Review` before proposing custom persistence,
+  services, or duplicated stack functionality; use stack memory for stack-specific
+  native capability expectations.
 
 {CORE_TEMPLATE}

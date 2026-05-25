@@ -341,6 +341,8 @@ MAS_STACKS: dict[str, MasStack] = {
             "Preserve Moodle 3 production behavior; avoid changes that break enrolled users, upgrades, or installed plugins without explicit approval.",
             "Prefer Moodle 3-native APIs and plugin boundaries; do not patch core unless the exception record explicitly allows it.",
             "Structure plugin data, capabilities, events, and file handling so they map forward to Moodle 5 conventions where possible.",
+            "Moodle implementations MUST reuse Moodle core APIs, database tables, capabilities, events, logging mechanisms, enrolment models, course and user APIs, access tracking, completion tracking, and reporting facilities before introducing custom tables or duplicated logic.",
+            "Before any custom persistence or service, review official Moodle documentation and supported extension points for equivalent native capability.",
         ),
         typical_risks=(
             "Regression on legacy Moodle 3 themes, plugins, or customizations with narrow test coverage.",
@@ -353,6 +355,9 @@ MAS_STACKS: dict[str, MasStack] = {
             "Do not introduce Moodle 5-only UI or API assumptions into Moodle 3 deliverables.",
             "Do not ship exception-track work without executive approval for new privileged capabilities.",
             "Do not install unmaintained third-party plugins without documented risk acceptance.",
+            "Do not create custom Moodle database tables for data Moodle core already stores or exposes—including users, courses, roles, enrolments, capabilities, logs, grades, access records, last access or activity records, or activity completion—unless documented architectural justification exists in the plan.",
+            "Do not duplicate Moodle core data in plugin tables when the existing Moodle source of truth can be queried through supported APIs.",
+            "Custom Moodle plugin tables MUST be limited to plugin-owned domain data not already represented by Moodle core or an existing supported plugin API.",
         ),
         expected_artifacts=(
             "Exception record in the plan: rationale, scope, approver, sunset date, and migration path to Moodle 5.",
@@ -372,6 +377,8 @@ MAS_STACKS: dict[str, MasStack] = {
             "Require compensating controls evidence: patch level, isolation, monitoring, and migration date.",
             "Require migration plan attachment with capability and data mapping toward Moodle 5.",
             "Reject unmaintained third-party plugins without documented risk acceptance.",
+            "Before any custom database table, require `Native Capability Reuse Review` with relevant Moodle core tables and APIs documented.",
+            "If Moodle already stores or exposes the required information, require consuming the existing Moodle source of truth instead of duplicating data.",
         ),
         likely_project_shape=(
             "Moodle 3 plugin or local extension directories with lang strings, db install/upgrade, and capability definitions.",
@@ -444,6 +451,8 @@ MAS_STACKS: dict[str, MasStack] = {
             "Stay inside Moodle 5 plugin APIs, capability checks, events, privacy handling, versioning, and upgrade-step conventions.",
             "Assume Moodle ecosystem compatibility matters: plugin changes must coexist with the host instance, theme, and upgrade path.",
             "Treat Bootstrap 5, Moodle form APIs, language strings, and renderer or template conventions as the frontend baseline rather than inventing a separate UI system.",
+            "Moodle implementations MUST reuse Moodle core APIs, database tables, capabilities, events, logging mechanisms, enrolment models, course and user APIs, access tracking, completion tracking, and reporting facilities before introducing custom tables or duplicated logic.",
+            "Before any custom persistence or service, review official Moodle documentation and supported extension points for equivalent native capability.",
         ),
         typical_risks=(
             "Capability, privacy, or data-exposure regressions that leak course, user, grading, or institutional information.",
@@ -454,6 +463,9 @@ MAS_STACKS: dict[str, MasStack] = {
             "Do not patch Moodle core when a plugin extension point is the correct solution.",
             "Do not skip capability, privacy, versioning, install, or upgrade analysis for seemingly small features.",
             "Do not introduce a separate frontend stack that ignores Moodle's Bootstrap 5 and plugin rendering constraints unless an exception is approved.",
+            "Do not create custom Moodle database tables for data Moodle core already stores or exposes—including users, courses, roles, enrolments, capabilities, logs, grades, access records, last access or activity records, or activity completion—unless documented architectural justification exists in the plan.",
+            "Do not duplicate Moodle core data in plugin tables when the existing Moodle source of truth can be queried through supported APIs.",
+            "Custom Moodle plugin tables MUST be limited to plugin-owned domain data not already represented by Moodle core or an existing supported plugin API.",
         ),
         expected_artifacts=(
             "Plugin files such as `version.php`, `db/install.xml`, `db/upgrade.php`, language strings, capabilities, privacy metadata, classes, forms, templates, or renderers as applicable.",
@@ -470,6 +482,8 @@ MAS_STACKS: dict[str, MasStack] = {
             "Reject Moodle core modification unless approved as a deviation.",
             "Require capability, role, context, and privacy coverage.",
             "Require install/upgrade path for database changes.",
+            "Before any custom database table, require `Native Capability Reuse Review` with relevant Moodle core tables and APIs documented.",
+            "If Moodle already stores or exposes the required information, require consuming the existing Moodle source of truth instead of duplicating data.",
         ),
         likely_project_shape=(
             "Moodle plugin directory for the selected plugin type.",
@@ -542,6 +556,8 @@ MAS_STACKS: dict[str, MasStack] = {
             "Portal behavior must fit existing Moodle 5 capabilities, service boundaries, navigation patterns, and Bootstrap 5-based operational UI expectations.",
             "Treat reporting, pagination, exports, cohort or enrollment flows, and institutional data sensitivity as first-class design constraints.",
             "Assume multi-role operational ownership: supportability, traceability, and rollout safety matter as much as the feature itself.",
+            "Moodle implementations MUST reuse Moodle core APIs, database tables, capabilities, events, logging mechanisms, enrolment models, course and user APIs, access tracking, completion tracking, and reporting facilities before introducing custom tables or duplicated logic.",
+            "Before any custom persistence or service, review official Moodle documentation and supported extension points for equivalent native capability.",
         ),
         typical_risks=(
             "Cross-area permission leakage, role confusion, or inconsistent workflow behavior between portal surfaces.",
@@ -552,6 +568,9 @@ MAS_STACKS: dict[str, MasStack] = {
             "Do not treat institution-wide portal changes as if they were isolated plugin tweaks.",
             "Do not bypass shared portal auth, navigation, reporting, or observability standards for local convenience.",
             "Do not ship operationally sensitive portal changes without controlled deployment and rollback planning.",
+            "Do not create custom Moodle database tables for data Moodle core already stores or exposes—including users, courses, roles, enrolments, capabilities, logs, grades, access records, last access or activity records, or activity completion—unless documented architectural justification exists in the plan.",
+            "Do not duplicate Moodle core data in portal or plugin tables when the existing Moodle source of truth can be queried through supported APIs.",
+            "Custom Moodle plugin tables MUST be limited to plugin-owned domain data not already represented by Moodle core or an existing supported plugin API.",
         ),
         expected_artifacts=(
             "Portal page, renderer, template, integration, permission, and reporting changes mapped clearly to the affected operational flows.",
@@ -569,6 +588,9 @@ MAS_STACKS: dict[str, MasStack] = {
             "Require audit events for cohort, enrollment, role, and bulk operations.",
             "Validate institution isolation in QA.",
             "Reject unbounded reports or dashboards without explicit scoping.",
+            "Before any custom database table, require `Native Capability Reuse Review` with relevant Moodle core tables and APIs documented.",
+            "If Moodle already stores or exposes the required information, require consuming the existing Moodle source of truth instead of duplicating data.",
+            "Reject custom tables or duplicated logic for last access, activity, enrolment, grade, capability, or log data when Moodle core already provides the required information.",
         ),
         likely_project_shape=(
             "Moodle portal pages, renderers, Mustache templates, and local or report plugins as applicable.",
