@@ -44,6 +44,16 @@
 
 [Gates determined based on `.specify/memory/constitution.md`]
 
+## Failure Modes & Error Handling
+
+*Map feature-level handling per Constitution section VI. Start from `spec.md` Edge Cases; fill gaps or mark N/A.*
+
+- **Empty states**: [Non-fatal behavior and user message when no data or results]
+- **Validation errors**: [Behavior, user message, and recovery path]
+- **Permission errors**: [Behavior, user message, and recovery path]
+- **External dependencies**: [Behavior for integration, connectivity, query, or job failures]
+- **Unexpected errors**: [Controlled fallback, user message, logging/traceability notes]
+
 ## MAS Stack Validation
 
 *GATE: Must validate against the stack selected during `specify init --stack`. Use severities: `PASS`, `WARNING`, `DEVIATION_REQUIRED`, `HARD_FAIL`.*

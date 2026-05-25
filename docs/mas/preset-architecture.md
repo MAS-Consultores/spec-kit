@@ -38,8 +38,8 @@ applies to every approved stack.
 
 - company constitution template content;
 - shared governance rules for security, traceability, data integrity,
-  operational reliability, administrative usability, maintainability,
-  controlled delivery, and rollback readiness;
+  operational reliability, administrative usability, error handling and failure
+  management, maintainability, controlled delivery, and rollback readiness;
 - shared command adjustments that tell agents to load MAS memory files;
 - shared sections for specs, plans, and tasks that are independent of stack;
 - common expected artifact language for learning-related business workflows;
@@ -117,6 +117,7 @@ have higher precedence than `mas-core`, while using `append`, `prepend`, or
 | Explicit data models and integrity | Owns common expectations | Defines stack-specific schema/data patterns |
 | Operational performance and reliability | Owns common expectations | Defines stack-specific performance risks |
 | Administrative usability | Owns common UX expectations | Defines stack-specific workflow artifacts |
+| Error handling and failure management | Owns common failure-mode and UX expectations | Defines stack-specific error surfaces and patterns |
 | Stack constraints | References selected stack | Owns details |
 | Stack anti-patterns | Prohibits bypassing stack constraints | Owns concrete anti-pattern list |
 | Stack-specific plan checks | Defines validation framework | Owns check content |

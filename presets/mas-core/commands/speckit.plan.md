@@ -32,5 +32,7 @@ When filling the implementation plan:
   expected artifact coverage, and compatibility / anti-pattern checks.
 - Document deviations explicitly with reason, mitigation, and approval status.
 - Treat the constitution as the highest-level governance source.
+- Map failure modes from the feature spec and Constitution section VI into the
+  plan's `Failure Modes & Error Handling` section.
 
 {CORE_TEMPLATE}
