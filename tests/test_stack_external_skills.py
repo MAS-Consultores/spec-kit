@@ -91,9 +91,11 @@ def test_run_skills_add_passes_resolved_npx_to_subprocess(tmp_path, monkeypatch)
         lambda: fake_npx,
     )
     captured: list[list[str]] = []
+    captured_kwargs: dict = {}
 
     def fake_runner(cmd, **kwargs):
         captured.append(list(cmd))
+        captured_kwargs.update(kwargs)
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     spec = ExternalSkillSpec(source="vercel-labs/skills", skill="find-skills")
@@ -108,6 +110,8 @@ def test_run_skills_add_passes_resolved_npx_to_subprocess(tmp_path, monkeypatch)
     assert reason == ""
     assert len(captured) == 1
     assert captured[0][0] == fake_npx
+    assert captured_kwargs.get("encoding") == "utf-8"
+    assert captured_kwargs.get("errors") == "replace"
 
 
 def test_external_skills_to_init_payload():

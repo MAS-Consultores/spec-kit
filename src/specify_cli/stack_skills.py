@@ -316,6 +316,17 @@ def _npx_available() -> bool:
     return _resolve_npx_executable() is not None
 
 
+def _skills_subprocess_kwargs() -> dict[str, Any]:
+    """Keyword args for capturing npx/skills CLI output cross-platform."""
+    return {
+        "capture_output": True,
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "replace",
+        "check": False,
+    }
+
+
 def _run_skills_add(
     project_root: Path,
     spec: ExternalSkillSpec,
@@ -335,14 +346,14 @@ def _run_skills_add(
         result = run(
             cmd,
             cwd=str(project_root),
-            capture_output=True,
-            text=True,
             timeout=timeout,
-            check=False,
+            **_skills_subprocess_kwargs(),
         )
     except subprocess.TimeoutExpired:
         return False, f"timed out after {timeout}s"
     except OSError as exc:
+        return False, str(exc)
+    except UnicodeDecodeError as exc:
         return False, str(exc)
 
     if result.returncode != 0:
