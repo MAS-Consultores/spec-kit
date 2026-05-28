@@ -3,3 +3,5 @@ schema_version: "1.0"
 skills:
   - source: vercel-labs/skills
     skill: find-skills
+  - source: vercel-labs/skills
+    skill: playwright
