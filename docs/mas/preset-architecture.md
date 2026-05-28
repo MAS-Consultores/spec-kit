@@ -114,6 +114,12 @@ for each entry when the integration supports skills mode. Installed skills keep
 their original directory names (no `speckit-` prefix). Results are recorded in
 `.specify/init-options.json` under `external_skills`.
 
+**Requirements**: Node.js with `npx` on PATH. The CLI resolves `npx` to its full
+executable path (for example `C:\Program Files\nodejs\npx.cmd` on Windows) before
+running `subprocess`, because invoking the bare `npx` name alone often fails with
+`[WinError 2]` on Windows. Use `--skip-external-skills` when Node is unavailable
+or you are offline.
+
 Bundled preset directories must include `stack-skills.yml` when skills are
 required so wheel installs and source checkouts resolve the same paths via
 `_locate_bundled_preset()`.

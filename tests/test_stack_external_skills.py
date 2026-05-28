@@ -12,6 +12,7 @@ from specify_cli import app
 from specify_cli.mas import get_mas_stack
 from specify_cli.stack_skills import (
     ExternalSkillSpec,
+    _run_skills_add,
     build_skills_add_command,
     external_skills_to_init_payload,
     install_stack_external_skills,
@@ -52,7 +53,9 @@ def test_resolve_stack_external_skills_dedupes():
 
 def test_build_skills_add_command():
     spec = ExternalSkillSpec(source="vercel-labs/skills", skill="find-skills")
-    cmd = build_skills_add_command(spec, skills_agent="codex")
+    cmd = build_skills_add_command(
+        spec, skills_agent="codex", npx_executable="npx"
+    )
     assert cmd[:4] == ["npx", "--yes", "skills", "add"]
     assert "vercel-labs/skills" in cmd
     assert "--skill" in cmd
@@ -67,6 +70,44 @@ def test_integration_to_skills_agent_mapping():
     assert integration_to_skills_agent("codex") == "codex"
     assert integration_to_skills_agent("claude") == "claude-code"
     assert integration_to_skills_agent("cursor-agent") == "cursor"
+
+
+def test_build_skills_add_command_uses_resolved_npx_on_windows(monkeypatch):
+    fake_npx = r"C:\Program Files\nodejs\npx.cmd"
+    monkeypatch.setattr(
+        "specify_cli.stack_skills._resolve_npx_executable",
+        lambda: fake_npx,
+    )
+    spec = ExternalSkillSpec(source="vercel-labs/skills", skill="find-skills")
+    cmd = build_skills_add_command(spec, skills_agent="cursor")
+    assert cmd[0] == fake_npx
+    assert cmd[1:4] == ["--yes", "skills", "add"]
+
+
+def test_run_skills_add_passes_resolved_npx_to_subprocess(tmp_path, monkeypatch):
+    fake_npx = r"C:\fake\npx.cmd"
+    monkeypatch.setattr(
+        "specify_cli.stack_skills._resolve_npx_executable",
+        lambda: fake_npx,
+    )
+    captured: list[list[str]] = []
+
+    def fake_runner(cmd, **kwargs):
+        captured.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    spec = ExternalSkillSpec(source="vercel-labs/skills", skill="find-skills")
+    ok, reason = _run_skills_add(
+        tmp_path,
+        spec,
+        skills_agent="codex",
+        timeout=30,
+        runner=fake_runner,
+    )
+    assert ok is True
+    assert reason == ""
+    assert len(captured) == 1
+    assert captured[0][0] == fake_npx
 
 
 def test_external_skills_to_init_payload():
@@ -135,11 +176,16 @@ def test_sync_skills_to_integration_dir_skips_speckit(tmp_path):
     assert (target / "speckit-plan" / "SKILL.md").read_text() == "keep"
 
 
-def test_install_stack_external_skills_mock_runner(tmp_path):
+def test_install_stack_external_skills_mock_runner(tmp_path, monkeypatch):
     from specify_cli.integrations.codex import CodexIntegration
 
     stack = get_mas_stack("moodle5-plugin")
     assert stack is not None
+
+    monkeypatch.setattr(
+        "specify_cli.stack_skills._resolve_npx_executable",
+        lambda: "npx",
+    )
 
     calls: list[list[str]] = []
 

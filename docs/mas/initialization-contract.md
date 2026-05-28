@@ -196,6 +196,9 @@ Users may configure:
   install successfully (default is fail-soft when `npx` or the network is
   unavailable).
 
+External skills need Node.js (`npx` on PATH). On Windows, Specify resolves the
+full `npx` path before spawning the install subprocess to avoid `[WinError 2]`.
+
 Users must not configure:
 
 - arbitrary stack IDs;

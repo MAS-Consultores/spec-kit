@@ -203,15 +203,26 @@ def integration_supports_external_skills(
     return False
 
 
+def _resolve_npx_executable() -> str | None:
+    """Return the absolute path to npx on PATH, or None if unavailable."""
+    return shutil.which("npx")
+
+
 def build_skills_add_command(
     spec: ExternalSkillSpec,
     *,
     skills_agent: str,
+    npx_executable: str | None = None,
 ) -> list[str]:
     """Build argv for a non-interactive project-scoped skills install."""
     agents = list(spec.agents) if spec.agents else [skills_agent]
+    npx = (
+        npx_executable
+        if npx_executable is not None
+        else (_resolve_npx_executable() or "npx")
+    )
     cmd = [
-        "npx",
+        npx,
         "--yes",
         "skills",
         "add",
@@ -302,7 +313,7 @@ def sync_skills_to_integration_dir(
 
 
 def _npx_available() -> bool:
-    return shutil.which("npx") is not None
+    return _resolve_npx_executable() is not None
 
 
 def _run_skills_add(
@@ -314,7 +325,12 @@ def _run_skills_add(
     runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
 ) -> tuple[bool, str]:
     run = runner or subprocess.run
-    cmd = build_skills_add_command(spec, skills_agent=skills_agent)
+    npx = _resolve_npx_executable()
+    if npx is None:
+        return False, "npx_not_available"
+    cmd = build_skills_add_command(
+        spec, skills_agent=skills_agent, npx_executable=npx
+    )
     try:
         result = run(
             cmd,
