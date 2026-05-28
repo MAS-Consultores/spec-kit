@@ -112,19 +112,26 @@ When `--stack` is valid, init should execute this conceptual flow:
    `.specify/templates/`.
 7. Install bundled preset `mas-core`.
 8. Install the stack-specific bundled preset for the selected stack.
-9. Initialize `.specify/memory/constitution.md` from the MAS source of truth.
+9. Install external agent skills declared in `stack-skills.yml` manifests
+   (`mas-core` shared skills plus stack-specific skills) via `npx skills add`,
+   when the selected integration uses skills mode and network tooling is
+   available. Skills are installed without the `speckit-` prefix (for example
+   `find-skills`, `vercel-react-best-practices`). Use `--skip-external-skills`
+   to skip this step or `--strict-external-skills` to fail init when a required
+   skill cannot be installed.
+10. Initialize `.specify/memory/constitution.md` from the MAS source of truth.
    The implementation must install the selected MAS presets early enough that
    constitution initialization uses the `mas-core` constitution content, not the
    upstream generic default followed by ad hoc replacement.
-10. Persist normal init options in `.specify/init-options.json`, extended with
-   stack metadata.
-11. Write MAS project memory files:
+11. Persist normal init options in `.specify/init-options.json`, extended with
+   stack metadata and `external_skills` install results.
+12. Write MAS project memory files:
     - `.specify/memory/stack.md`
     - `.specify/memory/security-guidelines.md`
     - `.specify/memory/stack-context.md`
-12. Install the bundled `speckit` workflow and any default extensions using
+13. Install the bundled `speckit` workflow and any default extensions using
     existing behavior.
-13. Print next steps that show the selected stack and remind the user that
+14. Print next steps that show the selected stack and remind the user that
     `speckit-plan` will validate against it.
 
 ## Invalid Stack Flow
@@ -160,7 +167,15 @@ A recommended shape is:
 {
   "stack": "cakephp2-mysql",
   "stack_display_name": "CakePHP 2.x + MySQL",
-  "mas_presets": ["mas-core", "mas-stack-cakephp2-mysql"]
+  "mas_presets": ["mas-core", "mas-stack-cakephp2-mysql"],
+  "external_skills": [
+    {
+      "source": "vercel-labs/skills",
+      "skill": "find-skills",
+      "status": "installed",
+      "reason": ""
+    }
+  ]
 }
 ```
 
@@ -175,7 +190,11 @@ Users may configure:
 - integration-specific options;
 - shell script type through `--script`;
 - branch numbering;
-- normal `--force` behavior for merging into existing directories.
+- normal `--force` behavior for merging into existing directories;
+- `--skip-external-skills` to skip `npx skills` installation during init;
+- `--strict-external-skills` to require every declared external skill to
+  install successfully (default is fail-soft when `npx` or the network is
+  unavailable).
 
 Users must not configure:
 

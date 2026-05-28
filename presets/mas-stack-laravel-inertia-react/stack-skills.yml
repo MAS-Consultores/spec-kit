@@ -1,0 +1,7 @@
+schema_version: "1.0"
+
+skills:
+  - source: vercel-labs/agent-skills
+    skill: vercel-react-best-practices
+  - source: AsyrafHussin/agent-skills
+    skill: laravel-inertia-react

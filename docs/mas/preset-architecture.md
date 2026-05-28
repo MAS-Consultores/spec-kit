@@ -88,6 +88,36 @@ Each stack preset must provide enough source content to generate
 `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and
 `.specify/memory/stack-context.md`.
 
+## External Skills (`stack-skills.yml`)
+
+MAS presets may declare optional **external agent skills** (skills.sh ecosystem)
+in a sibling manifest `stack-skills.yml`. This file is separate from
+`preset.yml` and does not use `provides.templates`.
+
+| Preset | Typical external skills |
+| --- | --- |
+| `mas-core` | Shared across all stacks (for example `find-skills`) |
+| `mas-stack-<stack-id>` | Stack-specific skills (for example `vercel-react-best-practices` on `laravel-inertia-react`) |
+
+Schema:
+
+```yaml
+schema_version: "1.0"
+skills:
+  - source: vercel-labs/skills   # owner/repo or URL
+    skill: find-skills           # skill name in that repository
+```
+
+During `specify init --stack`, the CLI merges `mas-core` and the selected stack
+manifest, then runs `npx skills add <source> --skill <skill> -y --copy -a <agent>`
+for each entry when the integration supports skills mode. Installed skills keep
+their original directory names (no `speckit-` prefix). Results are recorded in
+`.specify/init-options.json` under `external_skills`.
+
+Bundled preset directories must include `stack-skills.yml` when skills are
+required so wheel installs and source checkouts resolve the same paths via
+`_locate_bundled_preset()`.
+
 ## Composition Priority
 
 The implementation must install `mas-core` and the selected stack preset with

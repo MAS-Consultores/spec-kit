@@ -68,6 +68,10 @@ from .mas import (
     get_mas_stack,
     write_stack_memory_files,
 )
+from .stack_skills import (
+    external_skills_to_init_payload,
+    install_stack_external_skills,
+)
 from .shared_infra import (
     install_shared_infra as _install_shared_infra_impl,
     refresh_shared_templates as _refresh_shared_templates_impl,
@@ -491,6 +495,8 @@ def init(
     branch_numbering: str = typer.Option(None, "--branch-numbering", help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)"),
     integration: str = typer.Option(None, "--integration", help="Use the new integration system (e.g. --integration copilot). Mutually exclusive with --ai."),
     integration_options: str = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
+    skip_external_skills: bool = typer.Option(False, "--skip-external-skills", help="Skip installing external agent skills from stack-skills.yml manifests"),
+    strict_external_skills: bool = typer.Option(False, "--strict-external-skills", help="Fail init when a required external skill from the stack cannot be installed"),
 ):
     """
     Initialize a new Specify project.
@@ -800,6 +806,7 @@ def init(
     tracker.add("integration", "Install integration")
     tracker.add("shared-infra", "Install shared infrastructure")
     tracker.add("mas-presets", "Install MAS presets")
+    tracker.add("stack-skills", "Install stack external skills")
 
     for key, label in [
         ("chmod", "Ensure scripts executable"),
@@ -893,6 +900,61 @@ def init(
             tracker.start("mas-presets")
             install_mas_stack_presets(project_path, mas_stack)
             tracker.complete("mas-presets", " + ".join(mas_stack.preset_composition))
+
+            tracker.start("stack-skills")
+            ai_skills_enabled = bool(init_opts.get("ai_skills"))
+            try:
+                external_skill_results = install_stack_external_skills(
+                    project_path,
+                    mas_stack,
+                    resolved_integration,
+                    selected_ai=selected_ai,
+                    ai_skills=ai_skills_enabled or ai_skills,
+                    skip=skip_external_skills,
+                    strict=strict_external_skills,
+                )
+            except RuntimeError as ext_err:
+                tracker.error("stack-skills", str(ext_err).replace("\n", " ")[:120])
+                raise typer.Exit(1) from ext_err
+
+            init_opts["external_skills"] = external_skills_to_init_payload(
+                external_skill_results
+            )
+            save_init_options(project_path, init_opts)
+
+            installed_count = sum(
+                1 for r in external_skill_results if r.status == "installed"
+            )
+            failed = [r for r in external_skill_results if r.status == "failed"]
+            skipped = [r for r in external_skill_results if r.status == "skipped"]
+            if skip_external_skills:
+                tracker.skip("stack-skills", "--skip-external-skills")
+            elif not external_skill_results:
+                tracker.complete("stack-skills", "none configured")
+            elif failed and not installed_count:
+                tracker.error(
+                    "stack-skills",
+                    f"{len(failed)} failed (npx/network?)",
+                )
+                for item in failed:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] External skill '{item.skill}' "
+                        f"failed: {item.reason}"
+                    )
+            else:
+                summary_parts = []
+                if installed_count:
+                    summary_parts.append(f"{installed_count} installed")
+                if failed:
+                    summary_parts.append(f"{len(failed)} failed")
+                if skipped:
+                    summary_parts.append(f"{len(skipped)} skipped")
+                tracker.complete("stack-skills", ", ".join(summary_parts) or "ok")
+                for item in failed:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] External skill '{item.skill}' "
+                        f"failed: {item.reason}"
+                    )
 
             ensure_constitution_from_template(project_path, tracker=tracker)
             write_stack_memory_files(project_path, mas_stack)
