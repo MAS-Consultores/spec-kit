@@ -36,6 +36,7 @@ Content should include:
 - explicit data models and integrity;
 - operational performance and reliability;
 - administrative usability;
+- error handling and failure management;
 - stack-constrained design;
 - maintainability and standardization;
 - controlled delivery and rollback readiness.
@@ -62,13 +63,16 @@ Example skeleton:
 ### V. Administrative Usability
 [Company-wide rule text.]
 
-### VI. Stack-Constrained Design
+### VI. Error Handling and Failure Management
 [Company-wide rule text.]
 
-### VII. Maintainability and Standardization
+### VII. Stack-Constrained Design
 [Company-wide rule text.]
 
-### VIII. Controlled Delivery and Rollback Readiness
+### VIII. Maintainability and Standardization
+[Company-wide rule text.]
+
+### IX. Controlled Delivery and Rollback Readiness
 [Company-wide rule text.]
 
 ## Governance

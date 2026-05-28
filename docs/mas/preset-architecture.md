@@ -38,8 +38,8 @@ applies to every approved stack.
 
 - company constitution template content;
 - shared governance rules for security, traceability, data integrity,
-  operational reliability, administrative usability, maintainability,
-  controlled delivery, and rollback readiness;
+  operational reliability, administrative usability, error handling and failure
+  management, maintainability, controlled delivery, and rollback readiness;
 - shared command adjustments that tell agents to load MAS memory files;
 - shared sections for specs, plans, and tasks that are independent of stack;
 - common expected artifact language for learning-related business workflows;
@@ -84,7 +84,7 @@ A stack preset must not redefine the company constitution except through a
 documented composition strategy that adds stack-specific references. Company
 governance remains owned by `mas-core`.
 
-Each stack preset must provide enough source content to generate
+Each stack preset should eventually provide enough source content to generate
 `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and
 `.specify/memory/stack-context.md`.
 
@@ -117,6 +117,19 @@ their original directory names (no `speckit-` prefix). Results are recorded in
 Bundled preset directories must include `stack-skills.yml` when skills are
 required so wheel installs and source checkouts resolve the same paths via
 `_locate_bundled_preset()`.
+### Stack memory materialization (current)
+
+During `specify init --stack <stack-id>`, MAS writes the three stack memory
+files under `.specify/memory/`.
+
+**Canonical source today**: `MasStack` entries in `src/specify_cli/mas.py`
+(`write_stack_memory_files`). After initialization, agents and `speckit-plan`
+MUST treat those memory files as authoritative—not the preset scaffold Markdown.
+
+The files under `presets/mas-stack-*/templates/` (for example Moodle native reuse
+rules) are human-readable companions for maintainers. They MUST stay aligned
+with `mas.py` when stack constraints change; update `mas.py` first, then mirror
+the preset template.
 
 ## Composition Priority
 
@@ -147,7 +160,9 @@ have higher precedence than `mas-core`, while using `append`, `prepend`, or
 | Explicit data models and integrity | Owns common expectations | Defines stack-specific schema/data patterns |
 | Operational performance and reliability | Owns common expectations | Defines stack-specific performance risks |
 | Administrative usability | Owns common UX expectations | Defines stack-specific workflow artifacts |
+| Error handling and failure management | Owns common failure-mode and UX expectations | Defines stack-specific error surfaces and patterns |
 | Stack constraints | References selected stack | Owns details |
+| Native capability reuse | Owns general reuse-before-custom rule | Owns stack-specific native APIs, tables, and anti-duplication rules |
 | Stack anti-patterns | Prohibits bypassing stack constraints | Owns concrete anti-pattern list |
 | Stack-specific plan checks | Defines validation framework | Owns check content |
 | Stack-specific examples/tasks | Avoids | Owns |

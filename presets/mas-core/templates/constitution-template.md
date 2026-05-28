@@ -259,17 +259,69 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Bulk actions, status transitions, and approval flows MUST include safeguards
   proportionate to their business impact.
 
-### VI. Stack-Constrained Design
+### VI. Error Handling and Failure Management
+
+- The system MUST handle expected errors in a controlled manner without causing
+  complete failure of pages, views, processes, or user flows.
+- Operations at risk of failure—such as database queries, external integrations,
+  file operations, HTTP calls, jobs, batch processes, and critical validations—MUST
+  include explicit error handling.
+- When the selected stack or language permits, `try/catch` or equivalent mechanisms
+  SHOULD be used to capture exceptions at relevant system boundaries.
+- Errors MUST NOT be suppressed silently. A clear strategy MUST exist to capture
+  the error, log useful diagnostic information, respond with a controlled message,
+  and keep the application in a safe, consistent state.
+- User-visible messages MUST be clear, actionable, and non-technical.
+- User-visible messages MUST NOT expose stack traces, SQL queries, internal table
+  names, file paths, tokens, secrets, credentials, or internal infrastructure
+  details.
+- When a database query returns no rows, that outcome SHOULD be treated as a valid
+  empty state when appropriate—not as a fatal error. For example, show context-
+  appropriate messaging such as “No values were found for this field” rather than
+  failing the entire flow.
+- Empty states, validation errors, permission errors, connectivity errors, and
+  unexpected errors MUST be clearly distinguished in code, logs, and user
+  experience.
+- Logs MUST be sufficiently clear for technical diagnosis, including relevant
+  operational context such as module, action, affected entity, safe identifier when
+  applicable, user or role when applicable, timestamp, and a summarized cause.
+- Logs MUST avoid storing unnecessary sensitive data, credentials, tokens, excessive
+  personal information, or full payloads when not required for diagnosis.
+- Administrative and back-office flows MUST maintain operational continuity when
+  partial errors occur; for example, a table, filter, or field with no results
+  MUST NOT block the entire page when the rest of the view can render safely.
+- Unexpected errors MUST have controlled fallback behavior and sufficient
+  traceability for support or development follow-up.
+- Specifications and plans SHOULD identify the main failure modes of the
+  functionality and how each will be communicated to users.
+
+### VII. Stack-Constrained Design
 
 - Implementation plans MUST stay within the stack selected during MAS
   initialization (`specify init --stack <stack-id>`) unless an explicit deviation
   is documented and approved.
+- The system MUST prefer native platform, framework, and stack capabilities before
+  introducing custom implementations, custom persistence structures, or duplicated
+  abstractions.
+- Before creating new tables, services, workflows, reports, logs, authentication
+  flows, permission models, or integration mechanisms, the team MUST verify whether
+  the selected stack already provides an equivalent or extensible capability,
+  including official documentation and supported extension points.
+- Custom implementations that replace, duplicate, or bypass existing stack
+  functionality MUST be justified in specifications and plans.
+- That justification MUST state why the native capability is insufficient; which
+  native APIs, tables, modules, services, or extension points were reviewed; and
+  what maintenance, compatibility, upgrade, migration, and data-consistency risks
+  the custom approach introduces.
+- Plans and data models MUST NOT introduce redundant persistence or parallel sources
+  of truth for data the selected stack already stores or exposes unless that
+  justification is documented and approved.
 - Stack-specific constraints, security profiles, and validation expectations live
   in `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and
   `.specify/memory/stack-context.md`; this constitution remains principle-driven
   and stack-agnostic.
 
-### VII. Maintainability and Standardization
+### VIII. Maintainability and Standardization
 
 - Codebases MUST favor shared patterns, reusable components, disciplined schema
   handling, and clear module boundaries over ad hoc feature-by-feature design.
@@ -278,7 +330,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Infrastructure, runtime dependencies, and environment assumptions MUST be
   explicit, reproducible, and appropriate for the selected approved stack.
 
-### VIII. Controlled Delivery and Rollback Readiness
+### IX. Controlled Delivery and Rollback Readiness
 
 - Risky changes MUST include rollout, rollback, and data recovery considerations
   before implementation.

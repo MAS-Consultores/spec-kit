@@ -44,6 +44,26 @@
 
 [Gates determined based on `.specify/memory/constitution.md`]
 
+## Failure Modes & Error Handling
+
+*Map feature-level handling per Constitution section VI. Start from `spec.md` Edge Cases; fill gaps or mark N/A.*
+
+- **Empty states**: [Non-fatal behavior and user message when no data or results]
+- **Validation errors**: [Behavior, user message, and recovery path]
+- **Permission errors**: [Behavior, user message, and recovery path]
+- **External dependencies**: [Behavior for integration, connectivity, query, or job failures]
+- **Unexpected errors**: [Controlled fallback, user message, logging/traceability notes]
+
+## Native Capability Reuse Review
+
+*Required before proposing custom tables, services, workflows, or integrations. See Constitution section VII and `.specify/memory/stack-context.md`.*
+
+- **Native APIs/modules/tables reviewed**: [Core platform capabilities, APIs, tables, events, or extension points evaluated]
+- **Existing capability reused**: [Native mechanism to use, or N/A with reason]
+- **Custom implementation required**: [Yes/No — tables, services, jobs, reports, or other custom artifacts proposed]
+- **Justification**: [Why native capability is insufficient; what was reviewed; risks if custom]
+- **Risks introduced**: [Maintenance, upgrade, migration, compatibility, and data-consistency risks]
+
 ## MAS Stack Validation
 
 *GATE: Must validate against the stack selected during `specify init --stack`. Use severities: `PASS`, `WARNING`, `DEVIATION_REQUIRED`, `HARD_FAIL`.*

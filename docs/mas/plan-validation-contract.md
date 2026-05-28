@@ -117,6 +117,10 @@ Validation outcomes should be visible in the plan artifact, not only in chat
 output. The plan should include a validation section that marks each check with
 its severity and required remediation.
 
+Plans SHOULD also complete `Native Capability Reuse Review` before proposing custom
+tables, services, or duplicated stack functionality, mapping constitution section
+VII and stack-specific native capability rules from `.specify/memory/stack-context.md`.
+
 ## Deviations
 
 Some projects may need controlled deviations. Deviations must be explicit and
