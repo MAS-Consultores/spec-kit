@@ -69,9 +69,14 @@ from .mas import (
     write_stack_memory_files,
 )
 from .stack_skills import (
+    DEFAULT_INSTALL_TIMEOUT,
     external_skills_to_init_payload,
     install_stack_external_skills,
+    pending_external_skills_payload,
     render_external_skills_failure_panel,
+    render_external_skills_summary_panel,
+    resolve_stack_external_skills,
+    write_external_skills_status,
 )
 from .shared_infra import (
     install_shared_infra as _install_shared_infra_impl,
@@ -498,6 +503,7 @@ def init(
     integration_options: str = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
     skip_external_skills: bool = typer.Option(False, "--skip-external-skills", help="Skip installing external agent skills from stack-skills.yml manifests"),
     strict_external_skills: bool = typer.Option(False, "--strict-external-skills", help="Fail init when a required external skill from the stack cannot be installed"),
+    external_skills_timeout: int = typer.Option(DEFAULT_INSTALL_TIMEOUT, "--external-skills-timeout", help="Seconds to wait per external skill install (default: 300)"),
 ):
     """
     Initialize a new Specify project.
@@ -905,6 +911,29 @@ def init(
 
             tracker.start("stack-skills")
             ai_skills_enabled = bool(init_opts.get("ai_skills"))
+
+            def _persist_external_skills_progress(
+                results: list,
+            ) -> None:
+                payload = external_skills_to_init_payload(results)
+                init_opts["external_skills"] = payload
+                save_init_options(project_path, init_opts)
+                write_external_skills_status(project_path, payload)
+                installing = next(
+                    (r for r in results if r.status == "installing"),
+                    None,
+                )
+                if installing is not None:
+                    tracker.start("stack-skills", installing.reason)
+
+            if not skip_external_skills:
+                pending_specs = resolve_stack_external_skills(mas_stack)
+                if pending_specs:
+                    pending_payload = pending_external_skills_payload(pending_specs)
+                    init_opts["external_skills"] = pending_payload
+                    save_init_options(project_path, init_opts)
+                    write_external_skills_status(project_path, pending_payload)
+
             try:
                 external_skill_results = install_stack_external_skills(
                     project_path,
@@ -914,6 +943,8 @@ def init(
                     ai_skills=ai_skills_enabled or ai_skills,
                     skip=skip_external_skills,
                     strict=strict_external_skills,
+                    timeout=external_skills_timeout,
+                    progress_callback=_persist_external_skills_progress,
                 )
             except RuntimeError as ext_err:
                 tracker.error("stack-skills", str(ext_err).replace("\n", " ")[:120])
@@ -1109,22 +1140,42 @@ def init(
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
 
+    if external_skill_results:
+        summary_report = render_external_skills_summary_panel(external_skill_results)
+        failed_count = sum(1 for r in external_skill_results if r.status == "failed")
+        panel_style = "red" if failed_count else "green"
+        panel_title = (
+            "[bold red]External Skills — Installation Failed[/bold red]"
+            if failed_count
+            else "[bold green]External Skills[/bold green]"
+        )
+        console.print()
+        console.print(
+            Panel(
+                summary_report,
+                title=panel_title,
+                border_style=panel_style,
+                padding=(1, 2),
+            )
+        )
+
     failure_report = render_external_skills_failure_panel(external_skill_results)
     if failure_report:
         console.print()
         console.print(
             Panel(
                 failure_report,
-                title="[bold red]External Skills — Installation Failed[/bold red]",
+                title="[bold red]External Skills — Error Details[/bold red]",
                 border_style="red",
                 padding=(1, 2),
             )
         )
         console.print(
-            "[dim]Details are also saved in .specify/init-options.json under "
-            "external_skills. For private GitHub repos, export GH_TOKEN or "
-            "GITHUB_TOKEN before init, or use --strict-external-skills to fail "
-            "fast.[/dim]"
+            "[dim]Progress and logs: .specify/init-options.json, "
+            f".specify/external-skills-status.json, .specify/logs/. "
+            "For private GitHub repos, export GH_TOKEN/GITHUB_TOKEN or run "
+            "'gh auth login' (token is read automatically). Use "
+            "--strict-external-skills to fail fast.[/dim]"
         )
 
     # Agent folder security notice

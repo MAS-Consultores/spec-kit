@@ -20,9 +20,99 @@ from specify_cli.stack_skills import (
     install_stack_external_skills,
     integration_to_skills_agent,
     load_stack_skill_manifest,
+    pending_external_skills_payload,
     resolve_stack_external_skills,
     sync_skills_to_integration_dir,
 )
+
+
+def test_pending_external_skills_payload():
+    specs = [
+        ExternalSkillSpec(source="vercel-labs/skills", skill="find-skills"),
+        ExternalSkillSpec(source="vercel-labs/skills", skill="playwright"),
+    ]
+    payload = pending_external_skills_payload(specs)
+    assert len(payload) == 2
+    assert all(item["status"] == "pending" for item in payload)
+    assert payload[0]["skill"] == "find-skills"
+
+
+def test_write_external_skills_status(tmp_path):
+    from specify_cli.stack_skills import (
+        EXTERNAL_SKILLS_STATUS_FILE,
+        write_external_skills_status,
+    )
+
+    payload = [{"source": "org/repo", "skill": "x", "status": "installing", "reason": ""}]
+    write_external_skills_status(tmp_path, payload)
+    saved = json.loads((tmp_path / EXTERNAL_SKILLS_STATUS_FILE).read_text(encoding="utf-8"))
+    assert saved[0]["status"] == "installing"
+
+
+def test_install_stack_external_skills_progress_callback(tmp_path, monkeypatch):
+    from specify_cli.integrations.codex import CodexIntegration
+    from specify_cli.stack_skills import ExternalSkillResult
+
+    stack = get_mas_stack("moodle5-plugin")
+    assert stack is not None
+    monkeypatch.setattr(
+        "specify_cli.stack_skills._resolve_npx_executable",
+        lambda: "npx",
+    )
+    snapshots: list[list[str]] = []
+
+    def fake_runner(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    def on_progress(results: list[ExternalSkillResult]) -> None:
+        snapshots.append([r.status for r in results])
+
+    install_stack_external_skills(
+        tmp_path,
+        stack,
+        CodexIntegration(),
+        selected_ai="codex",
+        ai_skills=True,
+        runner=fake_runner,
+        get_skills_dir=lambda _root, _ai: tmp_path / ".agents" / "skills",
+        progress_callback=on_progress,
+    )
+
+    assert snapshots
+    assert snapshots[0] and all(s == "pending" for s in snapshots[0])
+    assert any("installing" in snap for snap in snapshots)
+    assert snapshots[-1] and all(s == "installed" for s in snapshots[-1])
+
+
+def test_inject_gh_token_from_cli(monkeypatch):
+    from specify_cli.stack_skills import _inject_gh_token_from_cli
+
+    env = {"PATH": "/usr/bin"}
+    monkeypatch.setattr("specify_cli.stack_skills.shutil.which", lambda _: "/usr/bin/gh")
+    monkeypatch.setattr(
+        "specify_cli.stack_skills.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, "gho_test_token\n", ""
+        ),
+    )
+    updated = _inject_gh_token_from_cli(env)
+    assert updated["GH_TOKEN"] == "gho_test_token"
+    assert updated["GITHUB_TOKEN"] == "gho_test_token"
+
+
+def test_render_external_skills_summary_panel():
+    from specify_cli.stack_skills import ExternalSkillResult, render_external_skills_summary_panel
+
+    text = render_external_skills_summary_panel(
+        [
+            ExternalSkillResult("src/a", "find-skills", "installed"),
+            ExternalSkillResult("src/b", "playwright", "failed", reason="timeout"),
+        ]
+    )
+    assert "find-skills" in text
+    assert "playwright" in text
+    assert "installed" in text
+    assert "failed" in text
 
 
 def test_load_stack_skill_manifest_supports_legacy_filename(tmp_path):

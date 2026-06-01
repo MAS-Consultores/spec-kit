@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -21,8 +22,11 @@ if TYPE_CHECKING:
 
 STACK_SKILLS_FILENAME = "stack-skills.yml"
 STACK_SKILLS_LEGACY_FILENAME = "stack-skill.yml"
-DEFAULT_INSTALL_TIMEOUT = 120
+EXTERNAL_SKILLS_STATUS_FILE = ".specify/external-skills-status.json"
+EXTERNAL_SKILLS_LOG_DIR = ".specify/logs"
+DEFAULT_INSTALL_TIMEOUT = 300
 MAX_FAILURE_REASON_CHARS = 2000
+LOG_TAIL_LINES = 40
 
 # Spec Kit integration key -> skills CLI --agent value
 INTEGRATION_TO_SKILLS_AGENT: dict[str, str] = {
@@ -349,12 +353,57 @@ def _skills_subprocess_env() -> dict[str, str]:
     env = os.environ.copy()
     # Prevent git from blocking on interactive credential prompts.
     env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GCM_INTERACTIVE"] = "Never"
     # Forward GitHub tokens commonly used for private repo access.
     for token_var in ("GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ENTERPRISE_TOKEN"):
         if token_var in os.environ and os.environ[token_var].strip():
             env.setdefault("GH_TOKEN", os.environ[token_var].strip())
             break
+    return _inject_gh_token_from_cli(env)
+
+
+def _inject_gh_token_from_cli(env: dict[str, str]) -> dict[str, str]:
+    """Use `gh auth token` when GH_TOKEN is not already exported."""
+    if env.get("GH_TOKEN", "").strip() or env.get("GITHUB_TOKEN", "").strip():
+        return env
+    gh = shutil.which("gh")
+    if gh is None:
+        return env
+    try:
+        result = subprocess.run(
+            [gh, "auth", "token"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return env
+    token = (result.stdout or "").strip()
+    if result.returncode == 0 and token:
+        env["GH_TOKEN"] = token
+        # skills/git may read either variable depending on host tooling.
+        env.setdefault("GITHUB_TOKEN", token)
     return env
+
+
+def _read_log_tail(log_path: Path, *, max_lines: int = LOG_TAIL_LINES) -> str:
+    if not log_path.is_file():
+        return ""
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return ""
+    if not lines:
+        return ""
+    return "\n".join(lines[-max_lines:])
+
+
+def _external_skill_log_path(project_root: Path, skill_name: str) -> Path:
+    safe_name = re.sub(r"[^\w.-]+", "-", skill_name).strip("-") or "skill"
+    return project_root / EXTERNAL_SKILLS_LOG_DIR / f"external-skill-{safe_name}.log"
 
 
 def _shell_join(argv: list[str]) -> str:
@@ -402,6 +451,7 @@ def format_skills_cli_failure(
     stdout: str = "",
     stderr: str = "",
     timeout_message: str = "",
+    log_path: Path | None = None,
 ) -> str:
     """Build a user-visible failure message for a skills CLI install attempt."""
     lines = [
@@ -409,6 +459,8 @@ def format_skills_cli_failure(
         f"source: {spec.source}",
         f"command: {_shell_join(cmd)}",
     ]
+    if log_path is not None:
+        lines.append(f"log: {log_path.as_posix()}")
     if timeout_message:
         lines.append(f"error: {timeout_message}")
     elif returncode is not None:
@@ -419,6 +471,8 @@ def format_skills_cli_failure(
         for part in (stderr.strip(), stdout.strip())
         if part.strip()
     )
+    if not combined and log_path is not None:
+        combined = _read_log_tail(log_path)
     if combined:
         lines.append("output:")
         lines.append(combined)
@@ -450,28 +504,39 @@ def _run_skills_add(
         spec, skills_agent=skills_agent, npx_executable=npx
     )
     command_str = _shell_join(cmd)
+    log_path = _external_skill_log_path(project_root, spec.skill)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    env = _skills_subprocess_env()
     try:
-        result = run(
-            cmd,
-            cwd=str(project_root),
-            timeout=timeout,
-            **_skills_subprocess_kwargs(),
-        )
+        with log_path.open("w", encoding="utf-8") as log_file:
+            log_file.write(f"command: {command_str}\n\n")
+            log_file.flush()
+            result = run(
+                cmd,
+                cwd=str(project_root),
+                timeout=timeout,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+                env=env,
+            )
     except subprocess.TimeoutExpired:
         reason = format_skills_cli_failure(
             spec,
             cmd,
-            timeout_message=f"timed out after {timeout}s (private repos may need GH_TOKEN)",
+            timeout_message=(
+                f"timed out after {timeout}s installing '{spec.skill}'. "
+                "Check the log file for progress; private repos may need GH_TOKEN."
+            ),
+            log_path=log_path,
         )
         return False, reason, command_str
     except OSError as exc:
         reason = format_skills_cli_failure(
-            spec, cmd, timeout_message=str(exc)
-        )
-        return False, reason, command_str
-    except UnicodeDecodeError as exc:
-        reason = format_skills_cli_failure(
-            spec, cmd, timeout_message=str(exc)
+            spec, cmd, timeout_message=str(exc), log_path=log_path
         )
         return False, reason, command_str
 
@@ -480,11 +545,35 @@ def _run_skills_add(
             spec,
             cmd,
             returncode=result.returncode,
-            stdout=result.stdout or "",
-            stderr=result.stderr or "",
+            log_path=log_path,
         )
         return False, reason, command_str
     return True, "", command_str
+
+
+def pending_external_skills_payload(
+    specs: list[ExternalSkillSpec],
+) -> list[dict[str, str]]:
+    """Build init-options payload before any install attempt."""
+    return [
+        {
+            "source": s.source,
+            "skill": s.skill,
+            "status": "pending",
+            "reason": "",
+        }
+        for s in specs
+    ]
+
+
+def write_external_skills_status(
+    project_root: Path,
+    payload: list[dict[str, str]],
+) -> None:
+    """Persist live external-skills progress for debugging interrupted inits."""
+    dest = project_root / EXTERNAL_SKILLS_STATUS_FILE
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def install_stack_external_skills(
@@ -499,6 +588,7 @@ def install_stack_external_skills(
     timeout: int = DEFAULT_INSTALL_TIMEOUT,
     get_skills_dir: Callable[[Path, str], Path] | None = None,
     runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
+    progress_callback: Callable[[list[ExternalSkillResult]], None] | None = None,
 ) -> list[ExternalSkillResult]:
     """Install bundled external skills for a MAS stack-aware project.
 
@@ -565,10 +655,32 @@ def install_stack_external_skills(
         get_skills_dir = _default_get_skills_dir
 
     integration_skills_dir = get_skills_dir(project_root, selected_ai)
-    results: list[ExternalSkillResult] = []
+    total = len(specs)
+    results: list[ExternalSkillResult] = [
+        ExternalSkillResult(
+            source=spec.source,
+            skill=spec.skill,
+            status="pending",
+        )
+        for spec in specs
+    ]
     installed_names: list[str] = []
 
-    for spec in specs:
+    def _notify() -> None:
+        if progress_callback is not None:
+            progress_callback(list(results))
+
+    _notify()
+
+    for index, spec in enumerate(specs):
+        results[index] = ExternalSkillResult(
+            source=spec.source,
+            skill=spec.skill,
+            status="installing",
+            reason=f"Installing ({index + 1}/{total})",
+        )
+        _notify()
+
         ok, reason, command_str = _run_skills_add(
             project_root,
             spec,
@@ -577,30 +689,28 @@ def install_stack_external_skills(
             runner=runner,
         )
         if ok:
-            results.append(
-                ExternalSkillResult(
-                    source=spec.source,
-                    skill=spec.skill,
-                    status="installed",
-                    command=command_str,
-                )
+            results[index] = ExternalSkillResult(
+                source=spec.source,
+                skill=spec.skill,
+                status="installed",
+                command=command_str,
             )
             installed_names.append(spec.skill)
         else:
-            results.append(
-                ExternalSkillResult(
-                    source=spec.source,
-                    skill=spec.skill,
-                    status="failed",
-                    reason=reason,
-                    command=command_str,
-                )
+            results[index] = ExternalSkillResult(
+                source=spec.source,
+                skill=spec.skill,
+                status="failed",
+                reason=reason,
+                command=command_str,
             )
             if strict:
+                _notify()
                 raise RuntimeError(
                     f"Failed to install external skill '{spec.skill}' "
                     f"from {spec.source}.\n{reason}"
                 )
+        _notify()
 
     if installed_names:
         sync_skills_to_integration_dir(
@@ -642,8 +752,34 @@ def render_external_skills_failure_panel(results: list[ExternalSkillResult]) -> 
         blocks.append(f"[bold]{idx}. {item.skill}[/bold] ({item.source})")
         if item.command:
             blocks.append(f"   [dim]command:[/dim] {item.command}")
+        log_path = _external_skill_log_path(Path("."), item.skill)
+        blocks.append(f"   [dim]log:[/dim] {EXTERNAL_SKILLS_LOG_DIR}/{log_path.name}")
         if item.reason:
             for line in item.reason.splitlines():
                 blocks.append(f"   {line}")
         blocks.append("")
     return "\n".join(blocks).rstrip()
+
+
+def render_external_skills_summary_panel(results: list[ExternalSkillResult]) -> str:
+    """Build a post-init summary for all external skill outcomes."""
+    if not results:
+        return ""
+
+    lines: list[str] = []
+    for item in results:
+        if item.status == "installed":
+            marker = "[green]installed[/green]"
+        elif item.status == "failed":
+            marker = "[red]failed[/red]"
+        elif item.status == "skipped":
+            marker = "[yellow]skipped[/yellow]"
+        elif item.status in ("pending", "installing"):
+            marker = f"[yellow]{item.status}[/yellow]"
+        else:
+            marker = item.status
+        lines.append(f"  {marker}  {item.skill} ({item.source})")
+        if item.status == "failed":
+            log_name = _external_skill_log_path(Path("."), item.skill).name
+            lines.append(f"         [dim]log: {EXTERNAL_SKILLS_LOG_DIR}/{log_name}[/dim]")
+    return "\n".join(lines)
