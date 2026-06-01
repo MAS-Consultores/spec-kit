@@ -32,6 +32,33 @@ provides:
       description: "MAS stack-aware task list template"
       replaces: "tasks-template"
 
+    - type: "template"
+      name: "spec-template"
+      file: "templates/spec-template-append.md"
+      description: "MAS user-facing copy section for feature specs"
+      strategy: "append"
+
+    - type: "command"
+      name: "speckit.specify"
+      file: "commands/speckit.specify.md"
+      description: "MAS language-aware specification workflow"
+      replaces: "speckit.specify"
+      strategy: "wrap"
+
+    - type: "command"
+      name: "speckit.clarify"
+      file: "commands/speckit.clarify.md"
+      description: "MAS language-aware clarification workflow"
+      replaces: "speckit.clarify"
+      strategy: "wrap"
+
+    - type: "command"
+      name: "speckit.checklist"
+      file: "commands/speckit.checklist.md"
+      description: "MAS language-aware checklist workflow"
+      replaces: "speckit.checklist"
+      strategy: "wrap"
+
     - type: "command"
       name: "speckit.plan"
       file: "commands/speckit.plan.md"
