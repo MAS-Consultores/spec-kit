@@ -71,6 +71,7 @@ from .mas import (
 from .stack_skills import (
     external_skills_to_init_payload,
     install_stack_external_skills,
+    render_external_skills_failure_panel,
 )
 from .shared_infra import (
     install_shared_infra as _install_shared_infra_impl,
@@ -818,6 +819,7 @@ def init(
         tracker.add(key, label)
 
     git_default_notice = False
+    external_skill_results: list = []
 
     with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
@@ -934,13 +936,8 @@ def init(
             elif failed and not installed_count:
                 tracker.error(
                     "stack-skills",
-                    f"{len(failed)} failed (npx/network?)",
+                    f"{len(failed)} failed — see report below",
                 )
-                for item in failed:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] External skill '{item.skill}' "
-                        f"failed: {item.reason}"
-                    )
             else:
                 summary_parts = []
                 if installed_count:
@@ -950,11 +947,6 @@ def init(
                 if skipped:
                     summary_parts.append(f"{len(skipped)} skipped")
                 tracker.complete("stack-skills", ", ".join(summary_parts) or "ok")
-                for item in failed:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] External skill '{item.skill}' "
-                        f"failed: {item.reason}"
-                    )
 
             ensure_constitution_from_template(project_path, tracker=tracker)
             write_stack_memory_files(project_path, mas_stack)
@@ -1116,6 +1108,24 @@ def init(
 
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
+
+    failure_report = render_external_skills_failure_panel(external_skill_results)
+    if failure_report:
+        console.print()
+        console.print(
+            Panel(
+                failure_report,
+                title="[bold red]External Skills — Installation Failed[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
+        )
+        console.print(
+            "[dim]Details are also saved in .specify/init-options.json under "
+            "external_skills. For private GitHub repos, export GH_TOKEN or "
+            "GITHUB_TOKEN before init, or use --strict-external-skills to fail "
+            "fast.[/dim]"
+        )
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)

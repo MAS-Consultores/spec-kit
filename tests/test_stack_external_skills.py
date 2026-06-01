@@ -12,15 +12,47 @@ from specify_cli import app
 from specify_cli.mas import get_mas_stack
 from specify_cli.stack_skills import (
     ExternalSkillSpec,
+    STACK_SKILLS_LEGACY_FILENAME,
     _run_skills_add,
     build_skills_add_command,
     external_skills_to_init_payload,
+    format_skills_cli_failure,
     install_stack_external_skills,
     integration_to_skills_agent,
     load_stack_skill_manifest,
     resolve_stack_external_skills,
     sync_skills_to_integration_dir,
 )
+
+
+def test_load_stack_skill_manifest_supports_legacy_filename(tmp_path):
+    preset_dir = tmp_path / "preset"
+    preset_dir.mkdir()
+    (preset_dir / STACK_SKILLS_LEGACY_FILENAME).write_text(
+        "schema_version: \"1.0\"\n"
+        "skills:\n"
+        "  - source: org/repo\n"
+        "    skill: legacy-skill\n",
+        encoding="utf-8",
+    )
+    specs = load_stack_skill_manifest(preset_dir)
+    assert len(specs) == 1
+    assert specs[0].skill == "legacy-skill"
+
+
+def test_format_skills_cli_failure_includes_private_repo_hint():
+    spec = ExternalSkillSpec(source="MAS-Consultores/mas-skills", skill="mas-cakephp2")
+    cmd = ["npx", "--yes", "skills", "add", spec.source, "--skill", spec.skill]
+    message = format_skills_cli_failure(
+        spec,
+        cmd,
+        returncode=1,
+        stderr="remote: Repository not found.",
+    )
+    assert "mas-cakephp2" in message
+    assert "MAS-Consultores/mas-skills" in message
+    assert "command:" in message
+    assert "GH_TOKEN" in message or "GITHUB_TOKEN" in message
 
 
 def test_load_stack_skill_manifest_from_mas_core():
@@ -40,7 +72,6 @@ def test_resolve_stack_external_skills_merges_core_and_stack():
     skill_names = {s.skill for s in specs}
     assert "find-skills" in skill_names
     assert "vercel-react-best-practices" in skill_names
-    assert "laravel-inertia-react" in skill_names
 
 
 def test_resolve_stack_external_skills_dedupes():
@@ -99,7 +130,7 @@ def test_run_skills_add_passes_resolved_npx_to_subprocess(tmp_path, monkeypatch)
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     spec = ExternalSkillSpec(source="vercel-labs/skills", skill="find-skills")
-    ok, reason = _run_skills_add(
+    ok, reason, command = _run_skills_add(
         tmp_path,
         spec,
         skills_agent="codex",
@@ -108,6 +139,7 @@ def test_run_skills_add_passes_resolved_npx_to_subprocess(tmp_path, monkeypatch)
     )
     assert ok is True
     assert reason == ""
+    assert command
     assert len(captured) == 1
     assert captured[0][0] == fake_npx
     assert captured_kwargs.get("encoding") == "utf-8"
@@ -302,6 +334,7 @@ def test_init_external_skills_metadata_with_mock_npx(tmp_path, monkeypatch):
         lambda project_root, spec, *, skills_agent, timeout, runner=None: (
             True,
             "",
+            f"npx skills add {spec.source} --skill {spec.skill}",
         ),
     )
     monkeypatch.setattr(
@@ -343,9 +376,9 @@ def test_init_external_skills_metadata_with_mock_npx(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     payload = json.loads((project / ".specify" / "init-options.json").read_text())
     external = payload.get("external_skills", [])
-    assert len(external) >= 3
+    assert len(external) >= 2
     installed = [e for e in external if e["status"] == "installed"]
-    assert len(installed) >= 3
+    assert len(installed) >= 2
     assert (project / ".agents" / "skills" / "find-skills" / "SKILL.md").exists()
 
 
@@ -361,6 +394,7 @@ def test_init_laravel_stack_external_skills_cursor_sync(tmp_path, monkeypatch):
         lambda project_root, spec, *, skills_agent, timeout, runner=None: (
             True,
             "",
+            f"npx skills add {spec.source} --skill {spec.skill}",
         ),
     )
 

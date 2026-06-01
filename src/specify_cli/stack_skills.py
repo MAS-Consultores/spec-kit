@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -18,7 +20,9 @@ if TYPE_CHECKING:
     from .mas import MasStack
 
 STACK_SKILLS_FILENAME = "stack-skills.yml"
+STACK_SKILLS_LEGACY_FILENAME = "stack-skill.yml"
 DEFAULT_INSTALL_TIMEOUT = 120
+MAX_FAILURE_REASON_CHARS = 2000
 
 # Spec Kit integration key -> skills CLI --agent value
 INTEGRATION_TO_SKILLS_AGENT: dict[str, str] = {
@@ -112,12 +116,24 @@ class ExternalSkillResult:
     skill: str
     status: str  # installed | skipped | failed
     reason: str = ""
+    command: str = ""
+
+
+def _stack_skills_manifest_path(preset_dir: Path) -> Path | None:
+    """Return the stack skills manifest path, including legacy filename."""
+    primary = preset_dir / STACK_SKILLS_FILENAME
+    if primary.is_file():
+        return primary
+    legacy = preset_dir / STACK_SKILLS_LEGACY_FILENAME
+    if legacy.is_file():
+        return legacy
+    return None
 
 
 def load_stack_skill_manifest(preset_dir: Path) -> list[ExternalSkillSpec]:
     """Load external skill specs from a preset's stack-skills.yml."""
-    manifest_path = preset_dir / STACK_SKILLS_FILENAME
-    if not manifest_path.is_file():
+    manifest_path = _stack_skills_manifest_path(preset_dir)
+    if manifest_path is None:
         return []
 
     try:
@@ -324,7 +340,97 @@ def _skills_subprocess_kwargs() -> dict[str, Any]:
         "encoding": "utf-8",
         "errors": "replace",
         "check": False,
+        "env": _skills_subprocess_env(),
     }
+
+
+def _skills_subprocess_env() -> dict[str, str]:
+    """Build subprocess env so private git repos fail fast instead of hanging."""
+    env = os.environ.copy()
+    # Prevent git from blocking on interactive credential prompts.
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    # Forward GitHub tokens commonly used for private repo access.
+    for token_var in ("GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ENTERPRISE_TOKEN"):
+        if token_var in os.environ and os.environ[token_var].strip():
+            env.setdefault("GH_TOKEN", os.environ[token_var].strip())
+            break
+    return env
+
+
+def _shell_join(argv: list[str]) -> str:
+    """Render argv as a copy-pastable shell command."""
+    parts: list[str] = []
+    for arg in argv:
+        if re.search(r"\s|\"|'|&", arg):
+            escaped = arg.replace('"', '\\"')
+            parts.append(f'"{escaped}"')
+        else:
+            parts.append(arg)
+    return " ".join(parts)
+
+
+def _hint_for_private_repo_failure(detail: str) -> str:
+    """Return a short hint when failure looks like private-repo auth."""
+    lower = detail.lower()
+    auth_markers = (
+        "authentication failed",
+        "could not read username",
+        "permission denied",
+        "repository not found",
+        "404",
+        "401",
+        "403",
+        "auth",
+        "denied",
+        "terminal prompts disabled",
+        "git_terminal_prompt",
+    )
+    if any(marker in lower for marker in auth_markers):
+        return (
+            "Private GitHub repos require credentials. Set GH_TOKEN or GITHUB_TOKEN, "
+            "use an SSH source (git@github.com:org/repo.git), or run "
+            "'gh auth login' / 'git credential' before specify init."
+        )
+    return ""
+
+
+def format_skills_cli_failure(
+    spec: ExternalSkillSpec,
+    cmd: list[str],
+    *,
+    returncode: int | None = None,
+    stdout: str = "",
+    stderr: str = "",
+    timeout_message: str = "",
+) -> str:
+    """Build a user-visible failure message for a skills CLI install attempt."""
+    lines = [
+        f"skill: {spec.skill}",
+        f"source: {spec.source}",
+        f"command: {_shell_join(cmd)}",
+    ]
+    if timeout_message:
+        lines.append(f"error: {timeout_message}")
+    elif returncode is not None:
+        lines.append(f"exit code: {returncode}")
+
+    combined = "\n".join(
+        part.strip()
+        for part in (stderr.strip(), stdout.strip())
+        if part.strip()
+    )
+    if combined:
+        lines.append("output:")
+        lines.append(combined)
+
+    hint = _hint_for_private_repo_failure(combined or timeout_message)
+    if hint:
+        lines.append(f"hint: {hint}")
+
+    message = "\n".join(lines)
+    if len(message) > MAX_FAILURE_REASON_CHARS:
+        return message[: MAX_FAILURE_REASON_CHARS - 3] + "..."
+    return message
 
 
 def _run_skills_add(
@@ -334,14 +440,16 @@ def _run_skills_add(
     skills_agent: str,
     timeout: int,
     runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
-) -> tuple[bool, str]:
+) -> tuple[bool, str, str]:
+    """Run npx skills add. Returns (ok, reason, command_string)."""
     run = runner or subprocess.run
     npx = _resolve_npx_executable()
     if npx is None:
-        return False, "npx_not_available"
+        return False, "npx_not_available", ""
     cmd = build_skills_add_command(
         spec, skills_agent=skills_agent, npx_executable=npx
     )
+    command_str = _shell_join(cmd)
     try:
         result = run(
             cmd,
@@ -350,18 +458,33 @@ def _run_skills_add(
             **_skills_subprocess_kwargs(),
         )
     except subprocess.TimeoutExpired:
-        return False, f"timed out after {timeout}s"
+        reason = format_skills_cli_failure(
+            spec,
+            cmd,
+            timeout_message=f"timed out after {timeout}s (private repos may need GH_TOKEN)",
+        )
+        return False, reason, command_str
     except OSError as exc:
-        return False, str(exc)
+        reason = format_skills_cli_failure(
+            spec, cmd, timeout_message=str(exc)
+        )
+        return False, reason, command_str
     except UnicodeDecodeError as exc:
-        return False, str(exc)
+        reason = format_skills_cli_failure(
+            spec, cmd, timeout_message=str(exc)
+        )
+        return False, reason, command_str
 
     if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        stdout = (result.stdout or "").strip()
-        detail = stderr or stdout or f"exit code {result.returncode}"
-        return False, detail[:500]
-    return True, ""
+        reason = format_skills_cli_failure(
+            spec,
+            cmd,
+            returncode=result.returncode,
+            stdout=result.stdout or "",
+            stderr=result.stderr or "",
+        )
+        return False, reason, command_str
+    return True, "", command_str
 
 
 def install_stack_external_skills(
@@ -446,7 +569,7 @@ def install_stack_external_skills(
     installed_names: list[str] = []
 
     for spec in specs:
-        ok, reason = _run_skills_add(
+        ok, reason, command_str = _run_skills_add(
             project_root,
             spec,
             skills_agent=skills_agent,
@@ -459,6 +582,7 @@ def install_stack_external_skills(
                     source=spec.source,
                     skill=spec.skill,
                     status="installed",
+                    command=command_str,
                 )
             )
             installed_names.append(spec.skill)
@@ -469,12 +593,13 @@ def install_stack_external_skills(
                     skill=spec.skill,
                     status="failed",
                     reason=reason,
+                    command=command_str,
                 )
             )
             if strict:
                 raise RuntimeError(
                     f"Failed to install external skill '{spec.skill}' "
-                    f"from {spec.source}: {reason}"
+                    f"from {spec.source}.\n{reason}"
                 )
 
     if installed_names:
@@ -492,12 +617,33 @@ def external_skills_to_init_payload(
     results: list[ExternalSkillResult],
 ) -> list[dict[str, str]]:
     """Serialize install results for init-options.json."""
-    return [
-        {
+    payload: list[dict[str, str]] = []
+    for r in results:
+        entry: dict[str, str] = {
             "source": r.source,
             "skill": r.skill,
             "status": r.status,
             "reason": r.reason,
         }
-        for r in results
-    ]
+        if r.command:
+            entry["command"] = r.command
+        payload.append(entry)
+    return payload
+
+
+def render_external_skills_failure_panel(results: list[ExternalSkillResult]) -> str:
+    """Build Rich-friendly text for failed external skill installs."""
+    failed = [r for r in results if r.status == "failed"]
+    if not failed:
+        return ""
+
+    blocks: list[str] = []
+    for idx, item in enumerate(failed, start=1):
+        blocks.append(f"[bold]{idx}. {item.skill}[/bold] ({item.source})")
+        if item.command:
+            blocks.append(f"   [dim]command:[/dim] {item.command}")
+        if item.reason:
+            for line in item.reason.splitlines():
+                blocks.append(f"   {line}")
+        blocks.append("")
+    return "\n".join(blocks).rstrip()
