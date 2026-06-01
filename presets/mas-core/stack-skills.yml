@@ -1,7 +1,7 @@
-schema_version: "1.0"
+schema_version: "1.0"x||
 
 skills:
   - source: vercel-labs/skills
     skill: find-skills
   - source: microsoft/playwright-cli
-    skill: playwright
+    skill: playwright-cli
