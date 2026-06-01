@@ -11,6 +11,7 @@ Before executing core task generation, read and treat the following files as req
 - `.specify/memory/stack.md`
 - `.specify/memory/security-guidelines.md`
 - `.specify/memory/stack-context.md`
+- `.specify/memory/language-policy.md`
 - The generated `plan.md`, especially its `MAS Stack Validation` section
 
 For MAS-initialized projects, the stack is fixed project context selected during `specify init --stack <stack-id>`. Do not choose, infer, or substitute a different stack during task generation.
@@ -34,5 +35,12 @@ When generating tasks, translate MAS context into practical work items where rel
 - admin/coordinator workflows, pagination, bulk operations, operational load, and rollback readiness
 
 Preserve the Spec Kit task model: phases, user-story grouping, independent delivery, `[P]` parallelization cues, MVP-first sequencing, and exact file paths.
+
+## MAS Language Policy Requirements
+
+Read `.specify/memory/language-policy.md`. Write `tasks.md` in English. When tasks
+touch user-visible text, reference the spec's `## User-Facing Copy` and the plan's
+`Language Strings & User-Facing Copy` section; include tasks for Moodle `lang/` files
+or equivalent when applicable.
 
 {CORE_TEMPLATE}

@@ -54,6 +54,27 @@
 - **External dependencies**: [Behavior for integration, connectivity, query, or job failures]
 - **Unexpected errors**: [Controlled fallback, user message, logging/traceability notes]
 
+## Language Strings & User-Facing Copy
+
+*Map spec user-facing copy to implementation. Required for Moodle stacks; use for any stack with localized UI.*
+
+**Product Locale**: [From `.specify/memory/language-policy.md`]
+
+### Spec Cross-Reference
+
+- [Link to spec `## User-Facing Copy` section or "N/A"]
+
+### New or Changed Strings
+
+| String Key | English (en) | Product Locale ([locale]) | Used In |
+| --- | --- | --- | --- |
+| [pluginname:key] | [English reference value] | [Literal product-locale value] | [Page/form/component] |
+
+### Moodle Implementation Notes *(Moodle stacks only)*
+
+- [ ] Files under `lang/en/` and `lang/es/` (or configured locale) updated
+- [ ] All user-visible text uses `get_string()` — no hardcoded UI copy in PHP/templates
+
 ## Native Capability Reuse Review
 
 *Required before proposing custom tables, services, workflows, or integrations. See Constitution section VII and `.specify/memory/stack-context.md`.*
