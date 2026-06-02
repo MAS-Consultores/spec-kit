@@ -7,7 +7,12 @@ import json
 from typer.testing import CliRunner
 
 from specify_cli import app
-from specify_cli.mas import get_mas_stack, valid_stack_ids
+from specify_cli.mas import (
+    get_mas_stack,
+    language_policy_init_options,
+    render_language_policy_md,
+    valid_stack_ids,
+)
 
 _MAS_INIT_OPTS = [
     "--ignore-agent-tools",
@@ -79,6 +84,157 @@ def test_init_with_valid_stack_persists_stack_metadata(tmp_path):
     assert (memory_dir / "stack.md").exists()
     assert (memory_dir / "security-guidelines.md").exists()
     assert (memory_dir / "stack-context.md").exists()
+    assert (memory_dir / "language-policy.md").exists()
+
+
+def test_mas_language_policy_defaults():
+    options = language_policy_init_options()
+    assert options["artifact_language"] == "en"
+    assert options["product_locale"] == "es-ES"
+
+    policy = render_language_policy_md()
+    assert "# MAS Language Policy" in policy
+    assert "**Artifact Language**: `en`" in policy
+    assert "**Product Locale**: `es-ES`" in policy
+    assert "### 1. Conversation (match the user)" in policy
+    assert "### 2. Persisted Artifacts (English only)" in policy
+    assert "### 3. User-Facing Copy (product locale)" in policy
+
+
+def test_init_persists_language_policy_init_options(tmp_path):
+    project = tmp_path / "language-policy-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "moodle5-plugin",
+            "--ignore-agent-tools",
+            "--no-git",
+            "--script",
+            "sh",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    payload = json.loads((project / ".specify" / "init-options.json").read_text())
+    assert payload["artifact_language"] == "en"
+    assert payload["product_locale"] == "es-ES"
+
+    policy_md = (project / ".specify" / "memory" / "language-policy.md").read_text()
+    assert "Three Language Zones" in policy_md
+    assert "Moodle Language Strings" in policy_md
+
+
+def test_mas_spec_template_includes_user_facing_copy_section(tmp_path):
+    project = tmp_path / "spec-template-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "moodle5-plugin",
+            "--ignore-agent-tools",
+            "--no-git",
+            "--script",
+            "sh",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    from specify_cli.presets import PresetResolver
+
+    spec_template = PresetResolver(project).resolve_content("spec-template")
+    assert spec_template is not None
+    assert "## User-Facing Copy" in spec_template
+    assert "Product Locale" in spec_template
+    assert "Literal Text" in spec_template
+
+
+def test_mas_plan_template_includes_language_strings_section(tmp_path):
+    project = tmp_path / "language-plan-template-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "moodle5-plugin",
+            "--ignore-agent-tools",
+            "--no-git",
+            "--script",
+            "sh",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    from specify_cli.presets import PresetResolver
+
+    plan_template = PresetResolver(project).resolve_content("plan-template")
+    assert plan_template is not None
+    assert "## Language Strings & User-Facing Copy" in plan_template
+    assert "Moodle Implementation Notes" in plan_template
+
+
+def test_init_installs_mas_language_aware_core_commands(tmp_path):
+    project = tmp_path / "language-commands-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "moodle5-plugin",
+            "--ignore-agent-tools",
+            "--no-git",
+            "--script",
+            "sh",
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    specify_skill = project / ".agents" / "skills" / "speckit-specify" / "SKILL.md"
+    clarify_skill = project / ".agents" / "skills" / "speckit-clarify" / "SKILL.md"
+    checklist_skill = project / ".agents" / "skills" / "speckit-checklist" / "SKILL.md"
+    plan_skill = project / ".agents" / "skills" / "speckit-plan" / "SKILL.md"
+    tasks_skill = project / ".agents" / "skills" / "speckit-tasks" / "SKILL.md"
+
+    specify_content = specify_skill.read_text(encoding="utf-8")
+    assert "MAS Language Policy Requirements" in specify_content
+    assert ".specify/memory/language-policy.md" in specify_content
+    assert "## User-Facing Copy" in specify_content
+
+    clarify_content = clarify_skill.read_text(encoding="utf-8")
+    assert "MAS Language Policy Requirements" in clarify_content
+
+    checklist_content = checklist_skill.read_text(encoding="utf-8")
+    assert "MAS Language Policy Checklist Requirements" in checklist_content
+    assert "Language Policy" in checklist_content
+    assert "product-locale strings" in checklist_content
+
+    plan_content = plan_skill.read_text(encoding="utf-8")
+    assert "Language Strings & User-Facing Copy" in plan_content
+
+    tasks_content = tasks_skill.read_text(encoding="utf-8")
+    assert "MAS Language Policy Requirements" in tasks_content
 
 
 def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):

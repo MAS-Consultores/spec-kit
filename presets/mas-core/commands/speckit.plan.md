@@ -12,6 +12,7 @@ files:
 - `.specify/memory/stack.md`
 - `.specify/memory/security-guidelines.md`
 - `.specify/memory/stack-context.md`
+- `.specify/memory/language-policy.md`
 
 If `stack.md`, `security-guidelines.md`, or `stack-context.md` is missing,
 return `HARD_FAIL` and stop planning. Do not infer a stack, ask the user to pick
@@ -37,5 +38,17 @@ When filling the implementation plan:
 - Complete `Native Capability Reuse Review` before proposing custom persistence,
   services, or duplicated stack functionality; use stack memory for stack-specific
   native capability expectations.
+
+## MAS Language Policy Requirements
+
+Read `.specify/memory/language-policy.md` and honor `artifact_language` /
+`product_locale` from `.specify/init-options.json` when present.
+
+- **Conversation**: Match the user's language for questions and summaries.
+- **Persisted artifacts**: Write `plan.md` and related design artifacts in English only.
+- **User-facing copy**: Fill the plan's `Language Strings & User-Facing Copy` section;
+  cross-reference the spec's `## User-Facing Copy`. Quote product-locale strings
+  literally — do not translate them into English inside English requirement text.
+- **Moodle stacks**: List new/changed strings with keys and `lang/en` + product-locale files.
 
 {CORE_TEMPLATE}

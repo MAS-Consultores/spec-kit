@@ -10,6 +10,9 @@ MAS_CORE_PRESET_ID = "mas-core"
 MAS_CORE_PRESET_PRIORITY = 10
 MAS_STACK_PRESET_PRIORITY = 5
 
+DEFAULT_ARTIFACT_LANGUAGE = "en"
+DEFAULT_PRODUCT_LOCALE = "es-ES"
+
 
 @dataclass(frozen=True)
 class MasStack:
@@ -57,6 +60,7 @@ class MasStack:
             "stack": self.id,
             "stack_display_name": self.display_name,
             "mas_presets": list(self.preset_composition),
+            **language_policy_init_options(),
         }
 
     def render_stack_md(self) -> str:
@@ -167,6 +171,101 @@ class MasStack:
 
 def _bullets(items: tuple[str, ...]) -> str:
     return "\n".join(f"- {item}" for item in items)
+
+
+def language_policy_init_options(
+    artifact_language: str = DEFAULT_ARTIFACT_LANGUAGE,
+    product_locale: str = DEFAULT_PRODUCT_LOCALE,
+) -> dict[str, str]:
+    """Return machine-readable language policy defaults for init-options.json."""
+    return {
+        "artifact_language": artifact_language,
+        "product_locale": product_locale,
+    }
+
+
+def render_language_policy_md(
+    artifact_language: str = DEFAULT_ARTIFACT_LANGUAGE,
+    product_locale: str = DEFAULT_PRODUCT_LOCALE,
+) -> str:
+    """Render the MAS language policy for `.specify/memory/language-policy.md`."""
+    return "\n".join([
+        "# MAS Language Policy",
+        "",
+        f"**Artifact Language**: `{artifact_language}` (English)",
+        f"**Product Locale**: `{product_locale}` (Spanish — Spain)",
+        "",
+        "## Purpose",
+        "",
+        "MAS projects separate **conversation language** from **persisted artifact "
+        "language** from **product copy locale**. Agents must follow all three "
+        "zones consistently.",
+        "",
+        "## Three Language Zones",
+        "",
+        "### 1. Conversation (match the user)",
+        "",
+        "- Respond to the user in the language they use (Spanish, Catalan, English, etc.).",
+        "- Clarifying questions, summaries, and status updates belong in the user's language.",
+        "- When the user switches language mid-session, follow their most recent messages.",
+        "",
+        "### 2. Persisted Artifacts (English only)",
+        "",
+        "Write and update these exclusively in English:",
+        "",
+        "- `.specify/memory/*` (constitution, stack memory, this file)",
+        "- Feature `spec.md`, `plan.md`, `tasks.md`, checklists, and related SDD artifacts",
+        "- Branch short names, file paths, API identifiers, and language string **keys**",
+        "",
+        "Requirements, user stories, acceptance criteria, functional requirements, and "
+        "technical plans MUST be expressed in English even when the user described them "
+        "in another language. Translate faithfully; do not drop nuance—ask in the user's "
+        "language when meaning is ambiguous, then record the resolved requirement in English.",
+        "",
+        "### 3. User-Facing Copy (product locale)",
+        "",
+        "Text that end users see in the application stays in the **product locale** "
+        f"(`{product_locale}` by default), quoted verbatim:",
+        "",
+        "- Button labels, titles, help text, validation messages, empty states",
+        "- Notification and error strings shown in the UI",
+        "- Marketing or instructional copy embedded in the product",
+        "",
+        "Do **not** translate product copy into English inside specs or plans. Capture it "
+        "in dedicated sections (see spec and plan templates) with literal quoted strings.",
+        "",
+        "## Technical Identifiers",
+        "",
+        "Always use English for:",
+        "",
+        "- Git branch short names (e.g., `user-auth`, not `autenticacion-usuario`)",
+        "- File and directory names",
+        "- Code symbols, database columns, API endpoints where applicable",
+        "- Moodle language string keys (e.g., `pluginname:submit`) — keys in English; "
+        "values in the product locale",
+        "",
+        "## Moodle Language Strings",
+        "",
+        "For Moodle stacks (`moodle3`, `moodle5-plugin`, `moodle5-portal`):",
+        "",
+        "- Define new strings in `lang/en/` with English identifier keys.",
+        f"- Provide product-locale values in `lang/es/` (or the project's `{product_locale}` locale).",
+        "- List new or changed strings in the plan's **Language Strings & User-Facing Copy** "
+        "section and in the spec's **User-Facing Copy** section.",
+        "",
+        "## Consumption",
+        "",
+        "| Workflow Stage | Read This File |",
+        "| --- | --- |",
+        "| All MAS workflow commands | `.specify/memory/language-policy.md` |",
+        "| `speckit-specify`, `speckit-clarify` | Apply conversation + artifact rules |",
+        "| `speckit-plan`, `speckit-tasks`, `speckit-implement` | English artifacts; preserve product copy |",
+        "| `speckit-checklist` | Validate English artifacts + separated localized copy |",
+        "",
+        "Machine-readable defaults: `.specify/init-options.json` keys `artifact_language` "
+        "and `product_locale`.",
+        "",
+    ])
 
 
 MAS_STACKS: dict[str, MasStack] = {
@@ -715,6 +814,7 @@ def write_stack_memory_files(project_root: Path, stack: MasStack) -> None:
         "stack.md": stack.render_stack_md(),
         "security-guidelines.md": stack.render_security_guidelines_md(),
         "stack-context.md": stack.render_stack_context_md(),
+        "language-policy.md": render_language_policy_md(),
     }
     for filename, content in files.items():
         (memory_dir / filename).write_text(content, encoding="utf-8")
