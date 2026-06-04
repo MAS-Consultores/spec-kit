@@ -68,6 +68,16 @@ from .mas import (
     get_mas_stack,
     write_stack_memory_files,
 )
+from .stack_skills import (
+    DEFAULT_INSTALL_TIMEOUT,
+    external_skills_to_init_payload,
+    install_stack_external_skills,
+    pending_external_skills_payload,
+    render_external_skills_failure_panel,
+    render_external_skills_summary_panel,
+    resolve_stack_external_skills,
+    write_external_skills_status,
+)
 from .shared_infra import (
     install_shared_infra as _install_shared_infra_impl,
     refresh_shared_templates as _refresh_shared_templates_impl,
@@ -491,6 +501,9 @@ def init(
     branch_numbering: str = typer.Option(None, "--branch-numbering", help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)"),
     integration: str = typer.Option(None, "--integration", help="Use the new integration system (e.g. --integration copilot). Mutually exclusive with --ai."),
     integration_options: str = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
+    skip_external_skills: bool = typer.Option(False, "--skip-external-skills", help="Skip installing external agent skills from stack-skills.yml manifests"),
+    strict_external_skills: bool = typer.Option(False, "--strict-external-skills", help="Fail init when a required external skill from the stack cannot be installed"),
+    external_skills_timeout: int = typer.Option(DEFAULT_INSTALL_TIMEOUT, "--external-skills-timeout", help="Seconds to wait per external skill install (default: 300)"),
 ):
     """
     Initialize a new Specify project.
@@ -800,6 +813,7 @@ def init(
     tracker.add("integration", "Install integration")
     tracker.add("shared-infra", "Install shared infrastructure")
     tracker.add("mas-presets", "Install MAS presets")
+    tracker.add("stack-skills", "Install stack external skills")
 
     for key, label in [
         ("chmod", "Ensure scripts executable"),
@@ -811,6 +825,7 @@ def init(
         tracker.add(key, label)
 
     git_default_notice = False
+    external_skill_results: list = []
 
     with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
@@ -893,6 +908,76 @@ def init(
             tracker.start("mas-presets")
             install_mas_stack_presets(project_path, mas_stack)
             tracker.complete("mas-presets", " + ".join(mas_stack.preset_composition))
+
+            tracker.start("stack-skills")
+            ai_skills_enabled = bool(init_opts.get("ai_skills"))
+
+            def _persist_external_skills_progress(
+                results: list,
+            ) -> None:
+                payload = external_skills_to_init_payload(results)
+                init_opts["external_skills"] = payload
+                save_init_options(project_path, init_opts)
+                write_external_skills_status(project_path, payload)
+                installing = next(
+                    (r for r in results if r.status == "installing"),
+                    None,
+                )
+                if installing is not None:
+                    tracker.start("stack-skills", installing.reason)
+
+            if not skip_external_skills:
+                pending_specs = resolve_stack_external_skills(mas_stack)
+                if pending_specs:
+                    pending_payload = pending_external_skills_payload(pending_specs)
+                    init_opts["external_skills"] = pending_payload
+                    save_init_options(project_path, init_opts)
+                    write_external_skills_status(project_path, pending_payload)
+
+            try:
+                external_skill_results = install_stack_external_skills(
+                    project_path,
+                    mas_stack,
+                    resolved_integration,
+                    selected_ai=selected_ai,
+                    ai_skills=ai_skills_enabled or ai_skills,
+                    skip=skip_external_skills,
+                    strict=strict_external_skills,
+                    timeout=external_skills_timeout,
+                    progress_callback=_persist_external_skills_progress,
+                )
+            except RuntimeError as ext_err:
+                tracker.error("stack-skills", str(ext_err).replace("\n", " ")[:120])
+                raise typer.Exit(1) from ext_err
+
+            init_opts["external_skills"] = external_skills_to_init_payload(
+                external_skill_results
+            )
+            save_init_options(project_path, init_opts)
+
+            installed_count = sum(
+                1 for r in external_skill_results if r.status == "installed"
+            )
+            failed = [r for r in external_skill_results if r.status == "failed"]
+            skipped = [r for r in external_skill_results if r.status == "skipped"]
+            if skip_external_skills:
+                tracker.skip("stack-skills", "--skip-external-skills")
+            elif not external_skill_results:
+                tracker.complete("stack-skills", "none configured")
+            elif failed and not installed_count:
+                tracker.error(
+                    "stack-skills",
+                    f"{len(failed)} failed — see report below",
+                )
+            else:
+                summary_parts = []
+                if installed_count:
+                    summary_parts.append(f"{installed_count} installed")
+                if failed:
+                    summary_parts.append(f"{len(failed)} failed")
+                if skipped:
+                    summary_parts.append(f"{len(skipped)} skipped")
+                tracker.complete("stack-skills", ", ".join(summary_parts) or "ok")
 
             ensure_constitution_from_template(project_path, tracker=tracker)
             write_stack_memory_files(project_path, mas_stack)
@@ -1054,6 +1139,44 @@ def init(
 
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
+
+    if external_skill_results:
+        summary_report = render_external_skills_summary_panel(external_skill_results)
+        failed_count = sum(1 for r in external_skill_results if r.status == "failed")
+        panel_style = "red" if failed_count else "green"
+        panel_title = (
+            "[bold red]External Skills — Installation Failed[/bold red]"
+            if failed_count
+            else "[bold green]External Skills[/bold green]"
+        )
+        console.print()
+        console.print(
+            Panel(
+                summary_report,
+                title=panel_title,
+                border_style=panel_style,
+                padding=(1, 2),
+            )
+        )
+
+    failure_report = render_external_skills_failure_panel(external_skill_results)
+    if failure_report:
+        console.print()
+        console.print(
+            Panel(
+                failure_report,
+                title="[bold red]External Skills — Error Details[/bold red]",
+                border_style="red",
+                padding=(1, 2),
+            )
+        )
+        console.print(
+            "[dim]Progress and logs: .specify/init-options.json, "
+            f".specify/external-skills-status.json, .specify/logs/. "
+            "For private GitHub repos, export GH_TOKEN/GITHUB_TOKEN or run "
+            "'gh auth login' (token is read automatically). Use "
+            "--strict-external-skills to fail fast.[/dim]"
+        )
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)

@@ -1,0 +1,5 @@
+schema_version: "1.0"
+
+skills:
+  - source: vercel-labs/agent-skills
+    skill: vercel-react-best-practices

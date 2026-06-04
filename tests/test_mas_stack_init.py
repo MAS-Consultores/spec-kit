@@ -14,6 +14,14 @@ from specify_cli.mas import (
     valid_stack_ids,
 )
 
+_MAS_INIT_OPTS = [
+    "--ignore-agent-tools",
+    "--no-git",
+    "--script",
+    "sh",
+    "--skip-external-skills",
+]
+
 
 def test_mas_stack_catalog_resolves_preset_composition():
     stack = get_mas_stack("moodle5-plugin")
@@ -51,10 +59,7 @@ def test_init_with_valid_stack_persists_stack_metadata(tmp_path):
             "codex",
             "--stack",
             "moodle5-plugin",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )
@@ -243,17 +248,16 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
             "codex",
             "--stack",
             "laravel-inertia-react",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )
 
     assert result.exit_code == 0, result.output
 
-    constitution = (project / ".specify" / "memory" / "constitution.md").read_text()
+    constitution = (
+        project / ".specify" / "memory" / "constitution.md"
+    ).read_text(encoding="utf-8")
     assert "# [PROJECT_NAME] Constitution" in constitution
     assert "Stack-Constrained Design" in constitution
     assert "specify init --stack <stack-id>" in constitution
@@ -270,10 +274,7 @@ def test_init_with_valid_stack_writes_selected_stack_memory(tmp_path):
             "codex",
             "--stack",
             "laravel-inertia-react",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )
@@ -317,10 +318,7 @@ def test_init_installs_mas_stack_aware_plan_command(tmp_path):
             "codex",
             "--stack",
             "moodle5-plugin",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )
@@ -349,10 +347,7 @@ def test_mas_plan_template_contains_stack_validation_structure(tmp_path):
             "codex",
             "--stack",
             "cakephp2-mysql",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )
@@ -389,10 +384,7 @@ def test_init_installs_mas_stack_aware_tasks_command(tmp_path):
             "codex",
             "--stack",
             "moodle5-portal",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )
@@ -428,10 +420,7 @@ def test_mas_tasks_template_preserves_story_structure_and_validation_guidance(tm
             "codex",
             "--stack",
             "cakephp2-mysql",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )
@@ -499,10 +488,7 @@ def test_init_with_moodle3_stack_writes_exception_track_memory(tmp_path):
             "codex",
             "--stack",
             "moodle3",
-            "--ignore-agent-tools",
-            "--no-git",
-            "--script",
-            "sh",
+            *_MAS_INIT_OPTS,
         ],
         catch_exceptions=False,
     )

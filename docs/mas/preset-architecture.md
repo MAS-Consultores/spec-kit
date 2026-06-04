@@ -88,6 +88,41 @@ Each stack preset should eventually provide enough source content to generate
 `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and
 `.specify/memory/stack-context.md`.
 
+## External Skills (`stack-skills.yml`)
+
+MAS presets may declare optional **external agent skills** (skills.sh ecosystem)
+in a sibling manifest `stack-skills.yml`. This file is separate from
+`preset.yml` and does not use `provides.templates`.
+
+| Preset | Typical external skills |
+| --- | --- |
+| `mas-core` | Shared across all stacks (for example `find-skills`) |
+| `mas-stack-<stack-id>` | Stack-specific skills (for example `vercel-react-best-practices` on `laravel-inertia-react`) |
+
+Schema:
+
+```yaml
+schema_version: "1.0"
+skills:
+  - source: vercel-labs/skills   # owner/repo or URL
+    skill: find-skills           # skill name in that repository
+```
+
+During `specify init --stack`, the CLI merges `mas-core` and the selected stack
+manifest, then runs `npx skills add <source> --skill <skill> -y --copy -a <agent>`
+for each entry when the integration supports skills mode. Installed skills keep
+their original directory names (no `speckit-` prefix). Results are recorded in
+`.specify/init-options.json` under `external_skills`.
+
+**Requirements**: Node.js with `npx` on PATH. The CLI resolves `npx` to its full
+executable path (for example `C:\Program Files\nodejs\npx.cmd` on Windows) before
+running `subprocess`, because invoking the bare `npx` name alone often fails with
+`[WinError 2]` on Windows. Use `--skip-external-skills` when Node is unavailable
+or you are offline.
+
+Bundled preset directories must include `stack-skills.yml` when skills are
+required so wheel installs and source checkouts resolve the same paths via
+`_locate_bundled_preset()`.
 ### Stack memory materialization (current)
 
 During `specify init --stack <stack-id>`, MAS writes the three stack memory
