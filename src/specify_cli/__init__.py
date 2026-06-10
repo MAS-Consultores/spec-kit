@@ -408,6 +408,38 @@ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker |
             console.print(f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]")
 
 
+def ensure_specify_gitignored(project_path: Path, tracker: StepTracker | None = None) -> None:
+    """Ensure generated Spec Kit state is ignored by git."""
+    gitignore = project_path / ".gitignore"
+    entry = ".specify/"
+
+    try:
+        if gitignore.exists():
+            content = gitignore.read_text(encoding="utf-8")
+            lines = content.splitlines()
+            if any(line.strip() == entry for line in lines):
+                if tracker:
+                    tracker.complete("gitignore", "already ignored")
+                return
+
+            separator = "" if content == "" or content.endswith(("\n", "\r")) else "\n"
+            gitignore.write_text(f"{content}{separator}{entry}\n", encoding="utf-8")
+            detail = "updated"
+        else:
+            gitignore.write_text(f"{entry}\n", encoding="utf-8")
+            detail = "created"
+
+        if tracker:
+            tracker.complete("gitignore", detail)
+        else:
+            console.print(f"[cyan]{detail.capitalize()} .gitignore with .specify/[/cyan]")
+    except Exception as e:
+        if tracker:
+            tracker.error("gitignore", str(e))
+        else:
+            console.print(f"[yellow]Warning: Could not update .gitignore: {e}[/yellow]")
+
+
 INIT_OPTIONS_FILE = ".specify/init-options.json"
 
 
@@ -818,6 +850,7 @@ def init(
     for key, label in [
         ("chmod", "Ensure scripts executable"),
         ("constitution", "Constitution setup"),
+        ("gitignore", "Protect generated Spec Kit state"),
         ("git", "Install git extension"),
         ("workflow", "Install bundled workflow"),
         ("final", "Finalize"),
@@ -981,6 +1014,8 @@ def init(
 
             ensure_constitution_from_template(project_path, tracker=tracker)
             write_stack_memory_files(project_path, mas_stack)
+            tracker.start("gitignore")
+            ensure_specify_gitignored(project_path, tracker=tracker)
 
             if not no_git:
                 tracker.start("git")

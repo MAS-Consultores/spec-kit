@@ -259,8 +259,57 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
         project / ".specify" / "memory" / "constitution.md"
     ).read_text(encoding="utf-8")
     assert "# [PROJECT_NAME] Constitution" in constitution
+    assert "### V. Unit Testing" in constitution
+    assert "Every code modification MUST include unit tests" in constitution
+    assert "Bug fixes MUST add a regression unit test" in constitution
     assert "Stack-Constrained Design" in constitution
     assert "specify init --stack <stack-id>" in constitution
+
+
+def test_init_creates_gitignore_with_specify_entry(tmp_path):
+    project = tmp_path / "gitignore-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "laravel-inertia-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (project / ".gitignore").read_text(encoding="utf-8") == ".specify/\n"
+
+
+def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
+    project = tmp_path / "existing-gitignore-project"
+    project.mkdir()
+    (project / ".gitignore").write_text("node_modules/\ndist/", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--force",
+            "--integration",
+            "codex",
+            "--stack",
+            "laravel-inertia-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    gitignore = (project / ".gitignore").read_text(encoding="utf-8")
+    assert gitignore == "node_modules/\ndist/\n.specify/\n"
+    assert gitignore.splitlines().count(".specify/") == 1
 
 
 def test_init_with_valid_stack_writes_selected_stack_memory(tmp_path):

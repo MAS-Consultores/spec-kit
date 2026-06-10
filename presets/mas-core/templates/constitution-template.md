@@ -246,7 +246,22 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Integrations, jobs, and high-volume read or write paths MUST be designed for
   bounded resource usage, graceful degradation, and predictable recovery.
 
-### V. Administrative Usability
+### V. Unit Testing
+
+- Every code modification MUST include unit tests for the changed behavior, or
+  document an explicit, reviewed exception when unit coverage is not technically
+  feasible.
+- Unit tests MUST cover normal behavior, relevant edge cases, and failure paths
+  for business rules, validation, authorization decisions, data transformations,
+  and reusable components affected by the change.
+- Bug fixes MUST add a regression unit test that fails before the fix whenever
+  the selected stack and test tooling make that practical.
+- Refactors MUST preserve or improve existing unit coverage and MUST NOT remove
+  meaningful assertions without a documented replacement.
+- Plans and tasks MUST identify the unit test files, suites, or cases required
+  for each implementation area before coding starts.
+
+### VI. Administrative Usability
 
 - Coordinator, administrator, and back-office workflows MUST be designed for clear
   state, error handling, and repeatable operational use.
@@ -259,7 +274,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Bulk actions, status transitions, and approval flows MUST include safeguards
   proportionate to their business impact.
 
-### VI. Error Handling and Failure Management
+### VII. Error Handling and Failure Management
 
 - The system MUST handle expected errors in a controlled manner without causing
   complete failure of pages, views, processes, or user flows.
@@ -295,7 +310,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Specifications and plans SHOULD identify the main failure modes of the
   functionality and how each will be communicated to users.
 
-### VII. Stack-Constrained Design
+### VIII. Stack-Constrained Design
 
 - Implementation plans MUST stay within the stack selected during MAS
   initialization (`specify init --stack <stack-id>`) unless an explicit deviation
@@ -321,7 +336,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
   `.specify/memory/stack-context.md`; this constitution remains principle-driven
   and stack-agnostic.
 
-### VIII. Maintainability and Standardization
+### IX. Maintainability and Standardization
 
 - Codebases MUST favor shared patterns, reusable components, disciplined schema
   handling, and clear module boundaries over ad hoc feature-by-feature design.
@@ -330,7 +345,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Infrastructure, runtime dependencies, and environment assumptions MUST be
   explicit, reproducible, and appropriate for the selected approved stack.
 
-### IX. Controlled Delivery and Rollback Readiness
+### X. Controlled Delivery and Rollback Readiness
 
 - Risky changes MUST include rollout, rollback, and data recovery considerations
   before implementation.
