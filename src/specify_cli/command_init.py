@@ -27,6 +27,13 @@ from ._assets import (
 )
 from ._console import StepTracker, console, select_with_arrows, show_banner
 from ._utils import check_tool
+from .mas_init import (
+    apply_mas_project_layer,
+    finalize_mas_memory,
+    print_external_skills_report,
+    require_mas_stack,
+)
+from .stack_skills import DEFAULT_INSTALL_TIMEOUT
 
 
 def _stdin_is_interactive() -> bool:
@@ -332,6 +339,26 @@ def register(app: typer.Typer) -> None:
             "--preset",
             help="Install a preset during initialization (by preset ID)",
         ),
+        stack: str = typer.Option(
+            None,
+            "--stack",
+            help="Required MAS stack ID for stack-aware initialization",
+        ),
+        skip_external_skills: bool = typer.Option(
+            False,
+            "--skip-external-skills",
+            help="Skip installing external agent skills from stack-skills.yml manifests",
+        ),
+        strict_external_skills: bool = typer.Option(
+            False,
+            "--strict-external-skills",
+            help="Fail init when a required external skill from the stack cannot be installed",
+        ),
+        external_skills_timeout: int = typer.Option(
+            DEFAULT_INSTALL_TIMEOUT,
+            "--external-skills-timeout",
+            help="Seconds to wait per external skill install (default: 300)",
+        ),
         integration: str = typer.Option(
             None,
             "--integration",
@@ -390,6 +417,7 @@ def register(app: typer.Typer) -> None:
             specify init --here --integration gemini
             specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"  # Bring your own agent; requires --commands-dir
             specify init my-project --integration claude --preset healthcare-compliance  # With preset
+            specify init my-project --integration codex --stack moodle5-plugin
             specify init my-project --integration copilot --extension git  # With bundled extension
             specify init my-project --extension git --extension selftest  # Multiple extensions
             specify init my-project --extension ./my-extensions/custom-ext  # Local path extension
@@ -412,6 +440,7 @@ def register(app: typer.Typer) -> None:
         )
 
         show_banner()
+        mas_stack = require_mas_stack(stack, preset)
 
         from .integrations import INTEGRATION_REGISTRY, get_integration
 
@@ -596,8 +625,15 @@ def register(app: typer.Typer) -> None:
             "[cyan]Specify Project Setup[/cyan]",
             "",
             f"{'Project':<15} [green]{_escape_markup(project_path.name)}[/green]",
-            f"{'Working Path':<15} [dim]{_escape_markup(str(current_dir))}[/dim]",
         ]
+        if mas_stack is not None:
+            setup_lines.append(
+                f"{'MAS Stack':<15} [green]{_escape_markup(mas_stack.display_name)}[/green] "
+                f"[dim]({_escape_markup(mas_stack.id)})[/dim]"
+            )
+        setup_lines.append(
+            f"{'Working Path':<15} [dim]{_escape_markup(str(current_dir))}[/dim]"
+        )
 
         if not here:
             setup_lines.append(
@@ -648,6 +684,10 @@ def register(app: typer.Typer) -> None:
 
         console.print(f"[cyan]Selected coding agent integration:[/cyan] {selected_ai}")
         console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+        if mas_stack is not None:
+            console.print(
+                f"[cyan]Selected MAS stack:[/cyan] {mas_stack.display_name} ({mas_stack.id})"
+            )
 
         tracker = StepTracker("Initialize Specify Project")
 
@@ -660,6 +700,9 @@ def register(app: typer.Typer) -> None:
 
         tracker.add("integration", "Install integration")
         tracker.add("shared-infra", "Install shared infrastructure")
+        if mas_stack is not None:
+            tracker.add("mas-presets", "Install MAS presets")
+            tracker.add("stack-skills", "Install stack external skills")
 
         for key, label in [
             ("chmod", "Ensure scripts executable"),
@@ -675,6 +718,7 @@ def register(app: typer.Typer) -> None:
                 )
 
         tracker.add("final", "Finalize")
+        external_skill_results: list = []
 
         # Resolve trust for URL-based extensions BEFORE entering the Live
         # display: the confirmation prompt cannot be shown/answered underneath
@@ -863,9 +907,26 @@ def register(app: typer.Typer) -> None:
                     init_opts["ai_skills"] = True
                 else:
                     init_opts.pop("ai_skills", None)
+                if mas_stack is not None:
+                    init_opts.update(mas_stack.init_options_payload())
                 save_init_options(project_path, init_opts)
 
                 ensure_executable_scripts(project_path, tracker=tracker)
+
+                if mas_stack is not None:
+                    external_skill_results = apply_mas_project_layer(
+                        project_path,
+                        mas_stack,
+                        init_opts=init_opts,
+                        resolved_integration=resolved_integration,
+                        selected_ai=selected_ai,
+                        ai_skills=bool(init_opts.get("ai_skills")),
+                        skip_external_skills=skip_external_skills,
+                        strict_external_skills=strict_external_skills,
+                        external_skills_timeout=external_skills_timeout,
+                        tracker=tracker,
+                        save_init_options=save_init_options,
+                    )
 
                 if preset:
                     try:
@@ -987,6 +1048,8 @@ def register(app: typer.Typer) -> None:
                 # preset-provided constitution-template (resolved via the
                 # priority stack) wins over the core template.
                 ensure_constitution_from_template(project_path, tracker=tracker)
+                if mas_stack is not None:
+                    finalize_mas_memory(project_path, mas_stack)
 
                 tracker.complete("final", "project ready")
             except (typer.Exit, SystemExit):
@@ -1030,6 +1093,7 @@ def register(app: typer.Typer) -> None:
         if _transient:
             console.print(tracker.render())
         lifecycle_success("\n[bold green]Project ready.[/bold green]")
+        print_external_skills_report(external_skill_results)
 
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config:

@@ -16,6 +16,16 @@ maintainers keep a stack-less path for upstream compatibility, testing, or prese
 development, it must be explicitly framed as maintainer/dev-only and must not
 write MAS stack memory.
 
+The current base is upstream spec-kit **v1.2.2**, packaged as `1.2.2+mas.1`.
+`--stack` stays mandatory when `--non-interactive` is set: a missing or unknown
+stack fails before any project files are written. The environment variable
+`SPECIFY_ALLOW_STACKLESS=1` is a maintainer-only escape for upstream tests and
+preset development. It skips MAS presets and stack memory. It is not a
+delivery default. Init records shareable Spec Kit files and writes
+machine-local ignores to `.specify/.gitignore`; it does not append `.specify/`
+to the repository `.gitignore`. `mas-core` wraps `speckit.converge` with the
+same language policy as the other artifact-writing commands.
+
 ## Concept
 
 `--stack` is a first-class selector of bundled MAS company presets. It is not a

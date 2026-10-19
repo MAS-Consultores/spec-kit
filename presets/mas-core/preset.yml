@@ -10,7 +10,7 @@ preset:
   license: "UNLICENSED"
 
 requires:
-  speckit_version: ">=0.8.0"
+  speckit_version: ">=1.2.0"
 
 provides:
   templates:
@@ -71,6 +71,13 @@ provides:
       file: "commands/speckit.tasks.md"
       description: "MAS stack-aware task generation workflow"
       replaces: "speckit.tasks"
+      strategy: "wrap"
+
+    - type: "command"
+      name: "speckit.converge"
+      file: "commands/speckit.converge.md"
+      description: "MAS language-aware convergence workflow"
+      replaces: "speckit.converge"
       strategy: "wrap"
 
 tags:

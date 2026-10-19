@@ -10,7 +10,7 @@ preset:
   license: "UNLICENSED"
 
 requires:
-  speckit_version: ">=0.8.0"
+  speckit_version: ">=1.2.0"
 
 provides:
   templates:

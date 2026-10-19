@@ -1,13 +1,25 @@
 # MAS Spec Kit Customization Design
 
-This directory defines the Phase 1 design package for the MAS internal fork of
-GitHub Spec Kit. The fork will remain aligned with upstream Spec Kit while
-adding company-governed, stack-aware initialization for MAS learning-platform
-delivery work.
+This directory defines the MAS internal fork of GitHub Spec Kit. The fork stays
+aligned with upstream Spec Kit and adds company-governed, stack-aware
+initialization for MAS learning-platform delivery work.
+
+## Current baseline
+
+The customization layer is rebased on upstream **spec-kit v1.2.2**. The package
+version is `1.2.2+mas.1`. `specify init` requires `--stack`, including
+`--non-interactive` runs. Implementation hooks live in
+`src/specify_cli/command_init.py` and `src/specify_cli/mas_init.py`. Presets
+live in the `src/specify_cli/presets/` package. Repeatable upgrade steps are in
+[upstream-upgrade.md](upstream-upgrade.md).
+
+Generated Spec Kit state is versioned. Init writes `.specify/.gitignore` for
+machine-local files and does not add a blanket `.specify/` rule to the project
+`.gitignore`.
 
 The objective is to turn `specify init` into the entry point for selecting an
-approved company stack. A selected stack will preload company governance,
-stack-specific rules, and security context so later workflow stages can validate
+approved company stack. A selected stack preloads company governance,
+stack-specific rules, and security context so later workflow stages validate
 against the original decision instead of asking the user to choose a technology
 stack during planning.
 
@@ -41,15 +53,16 @@ builds on:
 - `templates/commands/` contains agent command templates, including
   `plan.md`, which currently instructs agents to load the feature spec and
   `.specify/memory/constitution.md`.
-- `src/specify_cli/__init__.py` implements `specify init`. It installs the
-  selected integration, installs shared scripts/templates through
-  `shared_infra.py`, initializes `.specify/memory/constitution.md` from the
-  constitution template, persists `.specify/init-options.json`, and optionally
-  installs one preset through `--preset`.
-- `src/specify_cli/presets.py` implements installable presets, preset
-  registries, catalog lookup, command registration, and template resolution.
-  Presets are priority ordered and support `replace`, `prepend`, `append`, and
-  `wrap` composition strategies.
+- `src/specify_cli/command_init.py` implements `specify init`, with MAS hooks in
+  `src/specify_cli/mas_init.py`. It installs the selected integration, installs
+  shared scripts/templates through `shared_infra.py`, installs `mas-core` and
+  the selected stack preset, initializes `.specify/memory/constitution.md` from
+  the resolved constitution template, persists `.specify/init-options.json`, and
+  writes stack memory.
+- `src/specify_cli/presets/` implements installable presets, preset registries,
+  catalog lookup, command registration, and template resolution. Presets are
+  priority ordered and support `replace`, `prepend`, `append`, and `wrap`
+  composition strategies.
 - `presets/ARCHITECTURE.md` documents the current preset resolution order:
   project overrides, installed presets, extensions, core project templates, and
   bundled/source fallbacks.

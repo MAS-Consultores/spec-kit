@@ -45,13 +45,10 @@ INTEGRATION_TO_SKILLS_AGENT: dict[str, str] = {
     "trae-cn": "trae-cn",
     "vibe": "mistral-vibe",
     "agy": "agy",
-    "windsurf": "windsurf",
     "goose": "goose",
     "qwen": "qwen-code",
-    "roo": "roo",
     "kilocode": "kilo",
     "kiro-cli": "kiro-cli",
-    "iflow": "iflow-cli",
     "codebuddy": "codebuddy",
     "cline": "cline",
     "auggie": "augment",
@@ -81,13 +78,10 @@ SKILLS_AGENT_PROJECT_DIRS: dict[str, str] = {
     "trae": ".trae/skills",
     "trae-cn": ".trae/skills",
     "mistral-vibe": ".vibe/skills",
-    "windsurf": ".windsurf/skills",
     "goose": ".goose/skills",
     "qwen-code": ".qwen/skills",
-    "roo": ".roo/skills",
     "kilo": ".kilocode/skills",
     "kiro-cli": ".kiro/skills",
-    "iflow-cli": ".iflow/skills",
     "codebuddy": ".codebuddy/skills",
     "cline": ".agents/skills",
     "augment": ".augment/skills",
@@ -208,19 +202,14 @@ def integration_supports_external_skills(
     integration: IntegrationBase,
     *,
     ai_skills: bool = False,
+    parsed_options: dict[str, Any] | None = None,
+    project_root: Path | None = None,
 ) -> bool:
     """Return True when external skills should be installed for this integration."""
-    from .integrations.base import SkillsIntegration
-
-    if isinstance(integration, SkillsIntegration):
-        return True
-    if getattr(integration, "_skills_mode", False):
-        return True
-    if integration.key == "kimi":
-        return True
-    if integration.key == "copilot" and ai_skills:
-        return True
-    return False
+    options = dict(parsed_options or {})
+    if ai_skills:
+        options["skills"] = True
+    return bool(integration.is_skills_mode(options or None, project_root))
 
 
 def _resolve_npx_executable() -> str | None:

@@ -16,7 +16,7 @@ from specify_cli.mas import (
 
 _MAS_INIT_OPTS = [
     "--ignore-agent-tools",
-    "--no-git",
+    "--non-interactive",
     "--script",
     "sh",
     "--skip-external-skills",
@@ -113,7 +113,7 @@ def test_init_persists_language_policy_init_options(tmp_path):
             "--stack",
             "moodle5-plugin",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -143,7 +143,7 @@ def test_mas_spec_template_includes_user_facing_copy_section(tmp_path):
             "--stack",
             "moodle5-plugin",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -173,7 +173,7 @@ def test_mas_plan_template_includes_language_strings_section(tmp_path):
             "--stack",
             "moodle5-plugin",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -202,7 +202,7 @@ def test_init_installs_mas_language_aware_core_commands(tmp_path):
             "--stack",
             "moodle5-plugin",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -266,7 +266,7 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
     assert "specify init --stack <stack-id>" in constitution
 
 
-def test_init_creates_gitignore_with_specify_entry(tmp_path):
+def test_init_uses_managed_specify_gitignore(tmp_path):
     project = tmp_path / "gitignore-project"
     result = CliRunner().invoke(
         app,
@@ -283,10 +283,14 @@ def test_init_creates_gitignore_with_specify_entry(tmp_path):
     )
 
     assert result.exit_code == 0, result.output
-    assert (project / ".gitignore").read_text(encoding="utf-8") == ".specify/\n"
+    managed = (project / ".specify" / ".gitignore").read_text(encoding="utf-8")
+    assert "feature.json" in managed
+    root_gitignore = project / ".gitignore"
+    if root_gitignore.exists():
+        assert ".specify/" not in root_gitignore.read_text(encoding="utf-8").splitlines()
 
 
-def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
+def test_init_preserves_existing_root_gitignore(tmp_path):
     project = tmp_path / "existing-gitignore-project"
     project.mkdir()
     (project / ".gitignore").write_text("node_modules/\ndist/", encoding="utf-8")
@@ -307,9 +311,8 @@ def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
     )
 
     assert result.exit_code == 0, result.output
-    gitignore = (project / ".gitignore").read_text(encoding="utf-8")
-    assert gitignore == "node_modules/\ndist/\n.specify/\n"
-    assert gitignore.splitlines().count(".specify/") == 1
+    assert (project / ".gitignore").read_text(encoding="utf-8") == "node_modules/\ndist/"
+    assert "feature.json" in (project / ".specify" / ".gitignore").read_text(encoding="utf-8")
 
 
 def test_init_with_valid_stack_writes_selected_stack_memory(tmp_path):
@@ -501,7 +504,11 @@ def test_mas_tasks_template_preserves_story_structure_and_validation_guidance(tm
     assert "## Format: `[ID] [P?] [Story] Description`" in tasks_template
 
 
-def test_init_rejects_missing_stack_before_side_effects(tmp_path):
+def test_init_rejects_missing_stack_before_side_effects(tmp_path, monkeypatch):
+    import specify_cli.mas_init as mas_init
+
+    monkeypatch.delenv("SPECIFY_ALLOW_STACKLESS", raising=False)
+    monkeypatch.setattr(mas_init, "ALLOW_STACKLESS", False)
     project = tmp_path / "missing-stack"
     result = CliRunner().invoke(
         app,
@@ -511,7 +518,7 @@ def test_init_rejects_missing_stack_before_side_effects(tmp_path):
             "--integration",
             "codex",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -568,7 +575,7 @@ def test_init_rejects_invalid_stack_before_side_effects(tmp_path):
             "--stack",
             "Moodle5-Plugin",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -596,7 +603,7 @@ def test_init_rejects_stack_and_preset_conflict(tmp_path):
             "--preset",
             "lean",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -608,3 +615,26 @@ def test_init_rejects_stack_and_preset_conflict(tmp_path):
     assert "mas-core" in result.output
     assert "mas-stack-<stack-id>" in result.output
     assert not project.exists()
+
+
+def test_init_installs_mas_language_aware_converge_command(tmp_path):
+    project = tmp_path / "converge-command-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "moodle5-plugin",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    content = (project / ".agents" / "skills" / "speckit-converge" / "SKILL.md").read_text()
+    assert "MAS Language Policy Requirements" in content
+    assert "tasks.md" in content
+    assert "product_locale" in content

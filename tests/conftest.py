@@ -11,6 +11,13 @@ import pytest
 import yaml
 
 from specify_cli.presets import PresetRegistry
+import specify_cli.mas_init as _mas_init
+
+# Maintainer escape so the upstream suite can initialize projects without a MAS
+# stack. Product `specify init` still requires --stack when this is off.
+# The module flag covers Typer's CliRunner, which isolates os.environ.
+os.environ.setdefault("SPECIFY_ALLOW_STACKLESS", "1")
+_mas_init.ALLOW_STACKLESS = True
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 

@@ -2,6 +2,21 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.2.2+mas.1] - 2026-10-19
+
+### Changed
+
+- Merge upstream spec-kit v1.2.2 and keep the MAS stack layer (`--stack`,
+  bundled `mas-core` and stack presets, external skills, language policy).
+- Require `--stack` for interactive and `--non-interactive` initialization.
+- Track shareable `.specify/` files and ignore only machine-local state via
+  `.specify/.gitignore`.
+- Wrap `speckit.converge` with the MAS language policy.
+- Drop external-skill mappings for the removed `windsurf`, `roo`, and `iflow`
+  integrations.
+- Keep a maintainer-only `SPECIFY_ALLOW_STACKLESS=1` escape so the upstream
+  test suite can initialize projects without a MAS stack.
+
 ## [1.2.2] - 2026-10-19
 
 ### Changed
