@@ -177,9 +177,16 @@ Compatibility requirements.
 
 What the extension provides.
 
-**Optional sub-fields**:
+**Optional sub-fields:**
 
-- `commands`: Array of command objects (at least one command or hook is required)
+- `commands`: Array of command objects
+- `templates`: Array of template objects
+- `scripts`: Array of script objects
+
+`hooks` and `events` are separate top-level manifest fields (siblings of
+`provides`, not nested under it — see [`hooks`](#hooks) below). At least one
+of `provides.commands`, `provides.templates`, `provides.scripts`, `hooks`, or
+`events` is required.
 
 **Command object**:
 
@@ -187,6 +194,21 @@ What the extension provides.
 - `file`: Path to command file (relative to extension root)
 - `description`: Command description (optional)
 - `aliases`: Alternative command names (optional, array; each must match `speckit.{ext-id}.{command}`)
+
+**Template object**:
+
+- `name`: Template name (lowercase, alphanumeric, hyphens — e.g. `myext-template`)
+- `file`: Path to template file (relative to extension root)
+- `description`: Template description (optional)
+
+**Script object**:
+
+- `name`: Script name (lowercase, alphanumeric, hyphens — e.g. `myext-collect`)
+- `file`: Path to script file (relative to extension root)
+- `description`: Script description (optional)
+- `runtimes`: Runtimes the script supports (optional, array; subset of `bash`, `powershell`, `python` — informational only, not used to select or invoke the script)
+
+Extension-provided templates and scripts always resolve as `replace`; a manifest that includes a `strategy` key on one of these entries is rejected with a `ValidationError`. Composable strategies (`wrap`/`prepend`/`append`) are preset-only.
 
 ### Optional Fields
 
@@ -205,10 +227,16 @@ Available hook points:
 - `before_clarify` / `after_clarify`: Before/after spec clarification
 - `before_constitution` / `after_constitution`: Before/after constitution update
 - `before_taskstoissues` / `after_taskstoissues`: Before/after tasks-to-issues conversion
+- `before_bug_assess` / `after_bug_assess`: Before/after bug assessment (bundled `bug` extension)
+- `before_bug_fix` / `after_bug_fix`: Before/after bug remediation (bundled `bug` extension)
+- `before_bug_test` / `after_bug_test`: Before/after bug verification (bundled `bug` extension)
+
+Each event accepts a single hook object or a list of hook objects (multiple commands on one event).
 
 Hook object:
 
 - `command`: Command to execute (typically from `provides.commands`, but can reference any registered command)
+- `priority`: Run order within the event (integer ≥ 1, default 10; lower runs first; equal priorities keep authoring order)
 - `optional`: If true, prompt user before executing
 - `prompt`: Prompt text for optional hooks
 - `description`: Hook description
@@ -249,6 +277,7 @@ Use standard Markdown with special placeholders:
 
 - `$ARGUMENTS`: User-provided arguments
 - `{SCRIPT}`: Replaced with script path during registration
+- `__SPECKIT_COMMAND_<NAME>__`: Replaced with the invocation of another command, rendered using the active integration's separator (see [Referencing other commands](#referencing-other-commands))
 
 **Example**:
 
@@ -263,6 +292,45 @@ args="$ARGUMENTS"
 echo "Running with args: $args"
 ```
 ````
+
+### Referencing other commands
+
+A command body is a *template* that Spec Kit renders once per agent. Different agents invoke commands with different surface syntax — for example `/speckit.plan` (dot separator) or `/speckit-plan` (hyphen separator). Some agents also use different prefixes in skills mode (e.g. Kimi `/skill:speckit-plan`, Codex/ZCode `$speckit-plan`). So when you reference a sibling command from a body, **do not hard-code a literal invocation** like `/speckit.my-ext.prepare`. A literal is correct for exactly one agent and breaks on the rest.
+
+Instead use the agent-neutral token `__SPECKIT_COMMAND_<NAME>__`. Spec Kit resolves it to a `/speckit<separator>...` invocation using the active integration's `invoke_separator` (and integrations may post-process that further in skills output).
+
+Encode the command name in upper case, dropping the `speckit.` prefix and turning each dotted segment separator into an underscore. A hyphen inside a segment is kept as a hyphen:
+
+| Command file | Token |
+| --- | --- |
+| `speckit.plan.md` | `__SPECKIT_COMMAND_PLAN__` |
+| `speckit.bug.fix.md` | `__SPECKIT_COMMAND_BUG_FIX__` |
+| `speckit.git.commit.md` | `__SPECKIT_COMMAND_GIT_COMMIT__` |
+| `speckit.agent-context.update.md` | `__SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__` |
+
+The resolver maps each underscore back to the active agent's separator. An underscore separates segments and a hyphen belongs to the segment it sits in, so `AGENT-CONTEXT_UPDATE` is the two segments `agent-context` and `update` rather than three.
+
+**Example** — a command body that points the user at the next step:
+
+```markdown
+Once the assessment exists, the next step is `__SPECKIT_COMMAND_BUG_FIX__ slug=<slug>`.
+```
+
+This renders as `/speckit.bug.fix slug=<slug>` for a slash-based agent, `/speckit-bug-fix slug=<slug>` for a skills-based agent, and so on — the author writes it once and it stays portable. The first-party `bug` and `git` extensions use this token exclusively; see `extensions/bug/commands/` for working examples.
+
+> **Skills mode.** Token resolution runs in both paths, so the token is safe to
+> use either way. Command files go through the command-rendering path
+> (`CommandRegistrar`). Skill bodies go through `_resolve_command_ref_tokens` in
+> `_register_extension_skills`, which resolves the same token shape against the
+> active skill style, so `__SPECKIT_COMMAND_BUG_FIX__` renders as:
+>
+> | Agent | Rendered |
+> | --- | --- |
+> | Codex, ZCode, Command Code | `$speckit-bug-fix` |
+> | Claude, Copilot, Cursor, Devin, Droid, Grok and the other slash agents | `/speckit-bug-fix` |
+> | Kimi | `/skill:speckit-bug-fix` |
+>
+> Anything else falls through to the integration's own `build_command_invocation`.
 
 ### Script Path Rewriting
 
@@ -560,6 +628,13 @@ See the [Extension Publishing Guide](EXTENSION-PUBLISHING-GUIDE.md) for detailed
 - **MAJOR**: Breaking changes
 - **MINOR**: New features
 - **PATCH**: Bug fixes
+- **Bump on every content change**: update offers from `specify extension
+  update` are version-driven, so a content change shipped without a
+  version bump is never delivered automatically to already-installed
+  copies. For the bundled extensions in this repository the bump is
+  enforced by CI (`extension-version-guard.yml`): a PR that changes
+  files under `extensions/<id>/` must also bump that extension's
+  `extension.yml` version and keep `extensions/catalog.json` in sync.
 
 ### Security
 
@@ -655,6 +730,23 @@ hooks:
     description: "Analyze tasks after generation"
 ```
 
+Multiple commands on one event, ordered by `priority` (lower runs first):
+
+```yaml
+# extension.yml
+hooks:
+  after_plan:
+    - command: "speckit.my-ext.verify"
+      priority: 5
+      optional: false
+      description: "Verify the plan"
+    - command: "speckit.my-ext.report"
+      priority: 10
+      optional: true
+      prompt: "Generate the report?"
+      description: "Generate a report from the plan"
+```
+
 ---
 
 ## Troubleshooting
@@ -667,7 +759,7 @@ hooks:
 
 **Error**: `Extension requires spec-kit >=0.2.0`
 
-- **Fix**: Update spec-kit with `uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git`. The bare `specify-cli` package on PyPI is a different, unrelated project — installing it without `--from git+...` will give you a stub CLI that does not include `extension`, `preset`, or other spec-kit commands.
+- **Fix**: Upgrade Spec Kit using the [Upgrade Guide](../docs/upgrade.md). `uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git` remains available as a source-install fallback. If you installed from PyPI and want to stay on that route, follow the [PyPI upgrade guidance](../docs/install/pypi.md#upgrade).
 
 **Error**: `Command file not found`
 

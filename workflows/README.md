@@ -4,7 +4,11 @@ Workflows are multi-step, resumable automation pipelines defined in YAML. They o
 
 ## How It Works
 
-A workflow definition declares a sequence of steps. The engine executes them in order, dispatching commands to AI integrations, running shell commands, evaluating conditions for branching, and pausing at gates for human review. State is persisted after each step, so workflows can be resumed after interruption.
+A workflow definition declares a sequence of steps. The engine executes them in
+order, dispatching commands to AI integrations, running shell commands,
+evaluating conditions for branching, and pausing at gates for human review.
+Persisted execution transitions let workflows resume after interruption without
+re-running completed work.
 
 ```yaml
 steps:
@@ -70,15 +74,25 @@ specify workflow run ./my-workflow.yml --input spec="Build a user authentication
 
 ### Multiple Inputs
 
+When a workflow declares more than one input, pass each with a separate
+`--input` flag. For example, a custom workflow that gates steps on a
+`scope` selector:
+
 ```bash
-specify workflow run speckit \
+specify workflow run ./my-workflow.yml \
   --input spec="Build a user authentication system with OAuth support" \
   --input scope="backend-only"
 ```
 
+The bundled `speckit` workflow only declares `spec` (and optional
+`integration`); it does not take a `scope` input.
+
 ## Step Types
 
-Workflows support 10 built-in step types:
+Workflows support 14 built-in step types, including `workflow` for calling an
+installed workflow with private inputs and declared outputs. See
+[workflow composition and resume](../docs/reference/workflows.md#workflow-composition)
+for the scope and execution identity contracts.
 
 ### Command Steps (default)
 
@@ -93,6 +107,39 @@ Invoke an installed Spec Kit command by name via the integration CLI:
   model: "claude-sonnet-4-20250514"   # Optional: override model
 ```
 
+CLI integrations can expose per-step positional arguments and named runtime
+options. For example, Docker Agent accepts an agent reference plus validated
+`agent` and `safety` options. Use the command step's top-level `model` field for
+model selection:
+
+```yaml
+- id: specify-with-docker-agent
+  command: speckit.specify
+  integration: docker-agent
+  integration_args:
+    - "{{ inputs.agent_config }}"
+  integration_options:
+    agent: root
+    safety: balanced
+  model: "openai/gpt-5"
+  input:
+    args: "{{ inputs.spec }}"
+```
+
+`integration_args` must be an ordered list of strings. Expressions are resolved
+one element at a time. `integration_options` must be a mapping with string keys;
+its values are likewise expression-resolved and validated by the selected
+integration. Non-empty runtime configuration is rejected when an integration
+does not support it. Resolved values are stored in workflow run state for audit
+and recovery. On resume, the complete dispatch configuration (`integration`,
+`model`, `integration_args`, and `integration_options`) is re-resolved from the
+current workflow inputs; without updated inputs this reproduces the prior values.
+
+When Docker Agent `integration_args` supplies an agent reference for a command
+step, it takes precedence over `SPECKIT_INTEGRATION_DOCKER_AGENT_EXTRA_ARGS`;
+the entire legacy environment value is ignored for that step. Without a per-step
+agent reference, the legacy environment behavior is unchanged.
+
 ### Prompt Steps
 
 Send an arbitrary inline prompt to an integration CLI (no command file needed):
@@ -104,6 +151,32 @@ Send an arbitrary inline prompt to an integration CLI (no command file needed):
   integration: claude
 ```
 
+### Capturing Command and Prompt Output
+
+Command and prompt steps stream the CLI's output to the terminal, so their
+`output.stdout` and `output.stderr` are empty. Set `capture: true` to retain the
+output for later steps instead:
+
+```yaml
+- id: verdict
+  type: prompt
+  prompt: "Reply with exactly READY or BLOCKED for {{ inputs.spec }}"
+  capture: true
+  capture_max_bytes: 4096   # Optional: per-stream limit (default 1 MiB, -1 = no limit)
+  timeout: 120              # Optional: seconds before the CLI is killed
+```
+
+A captured step prints nothing while it runs. Output past the limit is
+discarded and reported in `output.stdout_truncated` / `output.stderr_truncated`;
+a timeout or interruption fails the step, sets `output.timed_out` or
+`output.interrupted`, and keeps the partial output. Check those fields before
+parsing the text.
+
+> ⚠️ Captured output is stored unredacted in the run's `state.json`, and it is
+> untrusted agent text. See
+> [Capturing Command and Prompt Output](../docs/reference/workflows.md#capturing-command-and-prompt-output)
+> for the full contract.
+
 ### Shell Steps
 
 Run a shell command and capture output:
@@ -111,8 +184,70 @@ Run a shell command and capture output:
 ```yaml
 - id: run-tests
   type: shell
-  run: "cd {{ inputs.project_dir }} && npm test"
+  run: "npm test"       # runs from the project root; no interpolation needed
+  timeout: 1800   # Optional: max seconds before the command is killed (default 300)
 ```
+
+> ⚠️ **Constrain interpolated values in `run` fields.** A `run` field is executed
+> by the system shell, and `{{ ... }}` expressions are substituted as raw text
+> with no automatic quoting or escaping. An `inputs.*` value or prior-step output
+> (including AI-generated `prompt` output) is parsed as shell syntax and can
+> change the command that runs. The only reliable control is to restrict such a
+> value at the source with an `enum`/allowlist, or to keep values you cannot
+> constrain out of `run` entirely. Quoting a substitution helps a trusted value
+> survive word-splitting but is **not** a security boundary — there is no
+> shell-escaping filter, and a value containing the matching quote can still
+> break out. See
+> [Interpolation and shell safety](../docs/reference/workflows.md#interpolation-and-shell-safety).
+
+`timeout` is the maximum time in seconds the command may run before it is
+killed and the step fails; it must be a positive number and defaults to
+`300` (five minutes) when omitted. Raise it for long-running gates such as
+full builds, linter aggregators, or integration-test targets.
+
+### GitHub Steps
+
+The built-in `github` step adds an explicitly configured issue or pull-request
+label when a workflow uses `type: github`. It does not install or invoke the
+opt-in GitHub agent-command extension. See the
+[GitHub step reference](../docs/reference/workflows.md#github-step) for
+configuration, credentials, and retry behavior.
+
+### Init Steps
+
+Bootstrap a project the same way `specify init` does — scaffolding
+templates, scripts, shared infrastructure, and the selected coding agent
+integration. Runs non-interactively (defaults to `--ignore-agent-tools`)
+and resolves the integration from the step config or the workflow default:
+
+```yaml
+- id: bootstrap
+  type: init
+  here: true                 # or: project: my-project
+  integration: copilot       # Optional: defaults to workflow integration
+  integration_options: "--skills"  # Optional: extra options for the integration
+  script: sh                 # Optional: sh, ps, or py
+  force: true                # Optional: required when target directory already exists
+  preset: healthcare-compliance   # Optional preset ID
+```
+
+### Workflow Slots
+
+Declare a named workflow slot that downstream projects can fill with a
+workflow overlay. The slot is skipped when unfilled; its `id` is the overlay
+anchor and `name` is a required human-readable label:
+
+```yaml
+- id: post-implement
+  type: slot
+  name: "Post-implementation checks"
+```
+
+Use an overlay `replace` edit anchored on `post-implement` to fill the slot.
+Keep the same `id` when downstream expressions or fan-in steps reference it,
+and preserve any output keys they consume. Slot steps are invalid inside
+`fan-out.step` templates because those runtime-multiplied templates cannot be
+targeted by overlays.
 
 ### Gate Steps
 
@@ -219,6 +354,88 @@ Aggregate results from fan-out steps:
   output: {}
 ```
 
+`wait_for` references declared step IDs. For a fan-out, use the fan-out step's
+own `id` (`parallel-impl` above); its ordered item results are available as
+`steps.<fan-out-id>.output.results`. Generated item aliases such as
+`fan:template:0` are reporting-only and are not valid `wait_for` targets.
+
+## Error Handling
+
+By default, any step that returns `StepResult(status=StepStatus.FAILED, ...)`
+at runtime halts the entire run — most commonly a `shell` or
+`command` step exiting non-zero. Set `continue_on_error: true` on
+a step to record its result and continue to the next sibling step
+instead. When the failure was a non-zero exit, the exit code
+remains available on `steps.<id>.output.exit_code` so a downstream
+`if` or `switch` can branch on it (or a `gate` can surface it to
+the operator via `{{ }}` interpolation in `message`):
+
+```yaml
+- id: heavy-thing
+  type: command
+  integration: claude
+  command: speckit.heavy-thing
+  continue_on_error: true
+
+- id: check-result
+  type: if
+  condition: "{{ steps.heavy-thing.output.exit_code != 0 }}"
+  then:
+    - id: review
+      type: gate
+      message: "Step failed (exit {{ steps.heavy-thing.output.exit_code }}). Approve to run the recovery path, or reject to leave the failure recorded and move on."
+      on_reject: skip
+    - id: recover
+      type: if
+      condition: "{{ steps.review.output.choice == 'approve' }}"
+      then:
+        - id: rerun
+          command: speckit.recovery
+  else:
+    - id: next-thing
+      command: speckit.next-thing
+```
+
+A few things worth knowing about that example:
+
+- Both gate options (`approve`, `reject`) return `StepStatus.COMPLETED`;
+  `on_reject: skip` controls only whether the engine aborts on reject
+  (it doesn't, with `skip`) — it does **not** auto-skip subsequent
+  sibling steps in the `then:` list. Downstream branching is the
+  workflow author's responsibility: read
+  `{{ steps.<gate-id>.output.choice }}` in a follow-up `if`, `switch`,
+  or expression, as the `recover` step above does.
+- `on_reject` has three values: `abort` (default — reject → `StepStatus.FAILED`
+  with `output.aborted = True`, halts the run), `skip` (reject →
+  `StepStatus.COMPLETED`, author handles branching as shown), and `retry`
+  (reject → `StepStatus.PAUSED` so the next `specify workflow resume` re-runs
+  the gate).
+- Gates do not automatically re-run the failed step. To express a
+  retry path, either define custom gate options and branch on the
+  choice downstream, or wrap the failing step in your own loop.
+
+**Notes:**
+
+- The field must be a literal boolean (`true` / `false`); coerced
+  strings like `"true"` are rejected at validation time.
+- **Scope: returned failures only.** The flag applies to step results
+  with `status=StepStatus.FAILED`. Unhandled exceptions raised out of a step's
+  `execute()` method are caught one level up by `WorkflowEngine.execute()`,
+  logged as `workflow_failed`, and abort the run regardless of
+  `continue_on_error`. If a step author wants the flag to cover an
+  exceptional path, the step must catch the exception internally and
+  return `StepResult(status=StepStatus.FAILED, ...)` with the failure encoded in
+  `output` (e.g. `exit_code`, `stderr`, or a custom field).
+- Gate aborts (`on_reject: abort` chosen by the operator) always halt
+  the run — `continue_on_error` does not override them. The flag is
+  for transient/expected step failures, not for overriding deliberate
+  operator decisions.
+- Structural validation runs up-front: `specify workflow run` rejects
+  invalid workflow definitions before the run is created, so
+  validation failures never reach this code path.
+- When the flag is omitted, behaviour is byte-equivalent to before
+  this feature.
+
 ## Expressions
 
 Workflow definitions use `{{ expression }}` syntax for dynamic values:
@@ -235,9 +452,59 @@ condition: "{{ steps.run-tests.output.exit_code != 0 }}"
 
 # Filters
 message: "{{ status | default('pending') }}"
+ids: "{{ rows | split(',') | length }}"
 ```
 
-Supported filters: `default`, `join`, `contains`, `map`.
+Supported filters: `default`, `join`, `contains`, `map`, `from_json`, `to_json`, `upper`, `lower`, `split`, `length`.
+
+The new filters validate their input types and raise a `ValueError` naming
+the problem instead of coercing — so `upper`/`lower` take strings only, `split`
+takes a string value and a non-empty string separator, `length` accepts
+lists and strings but rejects mappings, and `to_json` rejects what it cannot
+serialize: non-finite floats (`NaN`, `Infinity`, `-Infinity`), which would
+otherwise serialize to tokens that are not valid JSON, and mapping keys that
+are not strings, which JSON objects cannot carry. A filter used with the wrong
+number of
+arguments
+(`| upper('x')`, `| split(',', 1)`, bare `| split`) is reported as a known
+filter misused, which is
+distinct from an entirely unknown filter name. The older filters are more
+permissive and unchanged: `join` stringifies unsupported values, and
+`map`/`contains` return fallbacks rather than raising. See
+[ARCHITECTURE.md](ARCHITECTURE.md#expression-evaluation) for the full table.
+
+### Runtime Context
+
+`{{ context.* }}` exposes engine-managed runtime metadata for the
+current run:
+
+| Variable | Description |
+|----------|-------------|
+| `context.run_id` | The current workflow run id (the same value Spec Kit prints as `Run ID:` at the end of `workflow run`). Auto-generated runs are 8-character hex from `uuid4`; operator-supplied ids may be any alphanumeric string with hyphens or underscores. Empty string outside a run context. |
+| `context.workflow_dir` | The resolved absolute path to the directory containing the workflow source file. For file-loaded workflows this is the parent directory of the YAML file; for installed-by-ID workflows it is the absolute path to the installation directory (e.g. `<project>/.specify/workflows/<id>/`); for string-loaded workflows it is an empty string. On resume the original source directory is preserved from the first execution. |
+
+```yaml
+# Stamp telemetry events with the run id for cross-system join.
+- id: emit-event
+  type: shell
+  run: 'echo "{\"run_id\":\"{{ context.run_id }}\",\"event\":\"started\"}" >> events.jsonl'
+
+# Per-run scratch directory.
+- id: prep-scratch
+  type: shell
+  run: 'mkdir -p /tmp/run-{{ context.run_id }}'
+
+# Pass run id into a command for artifact metadata.
+- id: tag-artifact
+  command: speckit.specify
+  input:
+    args: "{{ context.run_id }}"
+
+# Reference a sibling file shipped alongside the workflow definition.
+- id: apply-config
+  type: shell
+  run: 'cp "{{ context.workflow_dir }}/defaults.yml" ./config.yml'
+```
 
 ## Input Types
 
@@ -301,9 +568,11 @@ specify workflow catalog list
 # Add a custom catalog
 specify workflow catalog add https://example.com/catalog.json --name my-org
 
-# Remove a catalog
+# Remove a project catalog by its index in the priority-ordered list
 specify workflow catalog remove <index>
 ```
+
+Environment-provided sources cannot be removed this way; unset `SPECKIT_WORKFLOW_CATALOG_URL` to manage project sources.
 
 ## Creating a Workflow
 
@@ -317,6 +586,7 @@ specify workflow catalog remove <index>
 | Variable | Description |
 |----------|-------------|
 | `SPECKIT_WORKFLOW_CATALOG_URL` | Override the catalog URL (replaces all defaults) |
+| `SPECKIT_WORKFLOW_DIR` | Set automatically for shell steps; contains the resolved absolute path to the workflow source directory (same value as `{{ context.workflow_dir }}`). Not set when the workflow has no source path (string-loaded workflows). |
 
 ## Configuration Files
 
@@ -327,13 +597,17 @@ specify workflow catalog remove <index>
 
 ## Repository Layout
 
-```
+```text
 workflows/
 ├── ARCHITECTURE.md                         # Internal architecture documentation
 ├── PUBLISHING.md                           # Guide for submitting workflows to the catalog
 ├── README.md                               # This file
 ├── catalog.json                            # Official workflow catalog
 ├── catalog.community.json                  # Community workflow catalog
-└── speckit/                                # Built-in SDD cycle workflow
+├── speckit/                                # Built-in SDD cycle workflow
+│   └── workflow.yml
+├── bugfix/                                 # Built-in bug-fixing pipeline
+│   └── workflow.yml
+└── assess/                                 # Built-in idea-assessment pipeline
     └── workflow.yml
 ```

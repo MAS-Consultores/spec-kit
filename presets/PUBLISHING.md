@@ -19,7 +19,7 @@ Before publishing a preset, ensure you have:
 
 1. **Valid Preset**: A working preset with a valid `preset.yml` manifest
 2. **Git Repository**: Preset hosted on GitHub (or other public git hosting)
-3. **Documentation**: README.md with description and usage instructions
+3. **Documentation**: A preset-scoped README.md that explains how to use **this preset**, including a valid `specify preset add ...` install command (see [Usage README Requirements](#usage-readme-requirements))
 4. **License**: Open source license file (MIT, Apache 2.0, etc.)
 5. **Versioning**: Semantic versioning (e.g., 1.0.0)
 6. **Testing**: Preset tested on real projects with `specify preset add --dev`
@@ -68,6 +68,8 @@ preset:
 
 requires:
   speckit_version: ">=0.1.0"      # Required spec-kit version
+  extensions:                      # Optional: extensions this preset needs
+    - "companion-extension"
 
 provides:
   templates:
@@ -92,6 +94,41 @@ tags:                              # 2-5 relevant tags
 - ✅ Template names are lowercase with hyphens only
 - ✅ Command names use dot notation (e.g. `speckit.specify`)
 - ✅ Tags are lowercase and descriptive
+
+#### Declaring extension dependencies
+
+If your preset overrides commands that call into an extension, declare it in
+`requires.extensions`. Without the extension the preset still installs and the
+overrides fall through to the core workflow, so nothing errors — the feature
+just silently does less than the user expects. Declaring the dependency makes
+`specify preset add` say so, and spell out how to resolve it.
+
+Use a bare id, or a mapping when you need a version constraint or an optional
+dependency:
+
+```yaml
+requires:
+  speckit_version: ">=0.9.0"
+  extensions:
+    - "companion-extension"              # required, any version
+    - id: "other-extension"
+      version: ">=1.2.0,<2"              # optional PEP 440 specifier
+      required: false                    # optional, defaults to true
+```
+
+`version` accepts any PEP 440 specifier, not just a lower bound — upper bounds
+(`<2`), exact pins (`==1.2.0`), and exclusions (`!=1.3.0`) all work.
+
+Notes:
+
+- The field is optional. A preset that declares nothing behaves exactly as before.
+- A dependency that is missing, stale, disabled, or version-unsatisfied produces a **warning, not a failure** — the install still succeeds.
+- A disabled extension counts as unmet, and so does one whose registry entry survives after its files were removed. Resolution skips both, so the preset is just as inert as if the extension were absent.
+- The warning names an exact command for the missing, stale, and disabled cases. For a version mismatch it states the constraint to satisfy rather than naming a command, because `specify extension update` only moves forward to the catalog release and cannot satisfy an upper bound, a pin, or a downgrade.
+- A recorded version that cannot be parsed is treated as uncomparable rather than as a mismatch, so an extension whose registry version reads `unknown` is not reported as failing a constraint it was never evaluated against.
+- An extension present on disk but absent from the registry counts as satisfied. Resolution admits unregistered directories, so the preset works and warning about it would be a false alarm — though with no recorded version, a `version` constraint cannot be checked against it.
+- `required: false` documents an enhancing-but-optional extension and is never warned about.
+- Declare it in `preset.yml`, not only in your catalog entry. The catalog is not consulted for `--dev` and `--from <url>` installs, so the manifest is the only copy present on every install path.
 
 ### 3. Test Locally
 
@@ -147,6 +184,46 @@ https://github.com/your-org/spec-kit-preset-your-preset/archive/refs/tags/v1.0.0
 specify preset add --from https://github.com/your-org/spec-kit-preset-your-preset/archive/refs/tags/v1.0.0.zip
 ```
 
+### Usage README Requirements
+
+The catalog `documentation` field must point at a README that explains how to use
+**this preset** — not a product pitch for a broader framework or a separate CLI.
+
+The submission workflow **mechanically enforces** that the linked README is a GitHub-hosted
+URL whose path ends with `README.md`, resolves to a readable file, and contains at least one
+valid `specify preset add ...` command. The remaining items (preferring a preset-scoped README
+in monorepos, covering the minimum structure) are expectations a human reviewer checks —
+follow them so your submission isn't sent back for changes.
+
+- **Point `documentation` at the preset-scoped README.** In a monorepo where the preset
+  lives in a subdirectory (e.g. `presets/<id>/`), link the README inside that directory
+  (`presets/<id>/README.md`) rather than the repository-root README. The root README is
+  often a marketing/overview page; the catalog should surface preset usage instead. The key
+  requirement is that this README is reachable at the `documentation` URL so users can read
+  it *before* downloading the release artifact — it's fine for the same file to also ship
+  inside the release ZIP.
+- **Include a valid Spec Kit CLI install command** *(enforced)*. The linked README must
+  contain at least one `specify preset add ...` invocation. Preferably use the
+  catalog-install form whose URL matches your Download URL:
+
+  ```bash
+  # <download-url> is the same URL you submit as the catalog Download URL —
+  # either the tag archive or a release asset, e.g.:
+  specify preset add --from https://github.com/<org>/<repo>/archive/refs/tags/vX.Y.Z.zip
+  specify preset add --from https://github.com/<org>/<repo>/releases/download/vX.Y.Z/<id>-X.Y.Z.zip
+  ```
+
+  `specify preset add <id>` and `specify preset add --dev <path>` are also accepted, but the
+  `--from <download-url>` form is the clearest signal that the README documents this exact
+  preset release.
+- **Cover the minimum structure** so a reader can decide whether the preset fits:
+  - What the preset does / what it provides
+  - The install command using Spec Kit CLI syntax (above)
+  - When to use it / when not to use it
+
+A submission whose linked README lacks a valid `specify preset add ...` command **fails
+validation** (workflow check 2d) and will not be added until corrected.
+
 ---
 
 ## Submit to Catalog
@@ -181,11 +258,14 @@ Edit `presets/catalog.community.json` and add your preset.
   "presets": {
     "your-preset": {
       "name": "Your Preset Name",
+      "id": "your-preset",
       "description": "Brief description of what your preset provides",
       "author": "Your Name",
       "version": "1.0.0",
       "download_url": "https://github.com/your-org/spec-kit-preset-your-preset/archive/refs/tags/v1.0.0.zip",
+      "sha256": "OPTIONAL: SHA-256 hex digest of the archive above; verified before install",
       "repository": "https://github.com/your-org/spec-kit-preset-your-preset",
+      "documentation": "https://github.com/your-org/spec-kit-preset-your-preset/blob/main/README.md",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.1.0"
@@ -242,7 +322,7 @@ git push origin add-your-preset
 
 ### Checklist
 - [ ] Valid preset.yml manifest
-- [ ] README.md with description and usage
+- [ ] Usage README with a valid `specify preset add ...` command, linked from `documentation` (preset-scoped README recommended for monorepos)
 - [ ] LICENSE file included
 - [ ] GitHub release created
 - [ ] Preset tested with `specify preset add --dev`
@@ -257,13 +337,29 @@ git push origin add-your-preset
 
 ## Verification Process
 
-After submission, maintainers will review:
+### What Happens After You Submit
+
+1. GitHub applies the `triage-must-have` verdict when the issue is opened through the Preset Submission form. This intake automation is specific to preset submissions and does not change the manual triage rubric for other issues.
+2. A maintainer reviews the issue during issue triage and applies the separate `preset-submission` label, which starts the automated catalog validation. On this public repository, contributors cannot apply that label themselves, so there is nothing to label or re-request — the issue simply waits in triage.
+3. The automated workflow validates the submission and, when validation passes, updates `presets/catalog.community.json` and `docs/community/presets.md` in a draft pull request
+4. A maintainer reviews the generated pull request and merges it when approved
+5. Your preset becomes discoverable via `specify preset search`
+
+### What Maintainers Check
 
 1. **Manifest validation** — valid `preset.yml`, all files exist
 2. **Template quality** — templates are useful and well-structured
 3. **Command coherence** — commands reference sections that exist in templates
 4. **Security** — no malicious content, safe file operations
-5. **Documentation** — clear README explaining what the preset does
+5. **Documentation** — the README linked from `documentation` explains how to use *this* preset and contains a valid `specify preset add ...` command
+
+> **Reviewer note:** the workflow can mechanically check *structure* (the linked README
+> resolves and contains a valid `specify preset add ...` snippet; when that snippet uses the
+> `--from <url>` form, its URL must match the submitted download URL exactly — other accepted
+> forms like `specify preset add <id>` don't reference the download URL at all). Whether the
+> README genuinely documents *this* preset is partly a content judgment, so a human reviewer
+> should still confirm the linked doc isn't just a funnel to a separate product or CLI before
+> approving.
 
 Once verified, `verified: true` is set and the preset appears in `specify preset search`.
 

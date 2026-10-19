@@ -8,22 +8,133 @@ import shutil
 import stat
 import subprocess
 import tempfile
-from pathlib import Path
+import yaml
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 from ._console import console
+from ._download_security import normalize_zip_member_name
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 CLAUDE_NPM_LOCAL_PATH = Path.home() / ".claude" / "local" / "node_modules" / ".bin" / "claude"
+DOCKER_AGENT_CHECK_TIMEOUT = 5
 
 
-def run_command(cmd: list[str], check_return: bool = True, capture: bool = False, shell: bool = False) -> str | None:
-    """Run a shell command and optionally capture output."""
+def docker_agent_command(executable: str | None = None) -> list[str] | None:
+    """Return a runnable Docker Agent command, or ``None`` if unavailable.
+
+    Docker Agent is distributed either as the standalone ``docker-agent``
+    executable or as the ``docker agent`` Docker CLI plugin. The plugin form
+    is verified with a bounded, read-only version probe so a plain Docker CLI
+    is not mistaken for an installed Docker Agent.
+    """
+    resolved_from_path = executable is None
+    if executable is None:
+        if shutil.which("docker-agent"):
+            return ["docker-agent", "run"]
+        executable = shutil.which("docker")
+        if executable is None:
+            return None
+
+    executable_name = Path(executable).name.lower()
+    if executable_name in {"docker", "docker.exe"}:
+        command = [executable, "agent", "version"]
+        run_command = [executable, "agent", "run"]
+    else:
+        # An explicit non-Docker executable is an operator override. Preserve
+        # the existing override contract without probing a custom binary.
+        return [executable, "run"]
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            check=False,
+            timeout=DOCKER_AGENT_CHECK_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return ["docker", "agent", "run"] if resolved_from_path else run_command
+
+
+def relative_extension_path_violation(value: Any) -> str | None:
+    """Return why ``value`` is unsafe as an extension-relative ``file`` path.
+
+    Single source of truth for the path-safety policy shared by
+    ``ExtensionManifest._validate()`` (manifest-load validation) and
+    ``CommandRegistrar.register_commands()`` (runtime guard), so the two cannot
+    drift. Returns a human-readable reason string when ``value`` is unsafe, or
+    ``None`` when it is an acceptable relative path within the extension
+    directory.
+
+    Policy: the value must be a non-empty, portable file path with no
+    leading/trailing whitespace, absolute/anchored form, ``..`` traversal,
+    platform-reserved component, or directory-only suffix. The value is
+    evaluated under both POSIX and Windows path semantics because a native
+    ``Path`` is OS-dependent (a ``PurePosixPath`` on POSIX does not interpret
+    Windows drive/UNC forms, and ``C:foo`` is anchored but not
+    ``is_absolute()`` yet resolves against the CWD on its drive). Rejecting any
+    non-empty anchor covers POSIX-absolute (``/abs``), Windows drive-relative
+    (``C:foo``), Windows absolute (``C:\\foo``), and UNC/rooted forms.
+    """
+    if not isinstance(value, str) or not value:
+        return "must be a non-empty string"
+    if value.strip() != value:
+        return "must not have leading or trailing whitespace"
+    if "\\" in value:
+        return "must use forward slashes as path separators"
+    posix_path = PurePosixPath(value)
+    win_path = PureWindowsPath(value)
+    if (
+        posix_path.anchor
+        or win_path.anchor
+        or ".." in posix_path.parts
+        or ".." in win_path.parts
+    ):
+        return (
+            "must be a relative path within the extension directory "
+            "(no absolute paths, drive letters, or '..' segments)"
+        )
+    if value.endswith(("/", "\\")):
+        return "must name a file or command, not a directory"
+    try:
+        normalize_zip_member_name(value)
+    except ValueError:
+        return (
+            "must use portable path components "
+            "(no reserved names or platform-invalid characters)"
+        )
+    return None
+
+
+def dump_frontmatter(data: dict[str, Any]) -> str:
+    """Serialize skill/command frontmatter to a YAML string.
+
+    Centralizes the dump options used for SKILL.md frontmatter: ``allow_unicode``
+    preserves Unicode descriptions and ``sort_keys=False`` keeps key order, so no
+    call site can silently drop either.
+    """
+    return yaml.safe_dump(data, sort_keys=False, allow_unicode=True).strip()
+
+
+def run_command(
+    cmd: list[str],
+    check_return: bool = True,
+    capture: bool = False,
+) -> str | None:
+    """Run a command without invoking a shell and optionally capture output.
+
+    Commands are always executed with ``shell=False`` and must be passed as an
+    argv ``list[str]``. There is deliberately no ``shell`` parameter: the
+    argv-list contract makes shell interpolation impossible by construction, so
+    the shell-injection surface cannot be re-enabled at a call site.
+    """
     try:
         if capture:
-            result = subprocess.run(cmd, check=check_return, capture_output=True, text=True, shell=shell)
+            result = subprocess.run(cmd, check=check_return, capture_output=True, text=True)
             return result.stdout.strip()
         else:
-            subprocess.run(cmd, check=check_return, shell=shell)
+            subprocess.run(cmd, check=check_return)
             return None
     except subprocess.CalledProcessError as e:
         if check_return:
@@ -58,10 +169,15 @@ def check_tool(tool: str, tracker=None) -> bool:
                 tracker.complete(tool, "available")
             return True
 
+    # Per-integration executable resolution.
     if tool == "kiro-cli":
         # Kiro currently supports both executable names. Prefer kiro-cli and
         # accept kiro as a compatibility fallback.
         found = shutil.which("kiro-cli") is not None or shutil.which("kiro") is not None
+    elif tool == "rovodev":
+        found = shutil.which("acli") is not None
+    elif tool == "docker-agent":
+        found = docker_agent_command() is not None
     else:
         found = shutil.which(tool) is not None
 
@@ -73,51 +189,6 @@ def check_tool(tool: str, tracker=None) -> bool:
 
     return found
 
-
-def is_git_repo(path: Path | None = None) -> bool:
-    """Check if the specified path is inside a git repository."""
-    if path is None:
-        path = Path.cwd()
-
-    if not path.is_dir():
-        return False
-
-    try:
-        subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            check=True,
-            capture_output=True,
-            cwd=path,
-        )
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
-
-def init_git_repo(project_path: Path, quiet: bool = False) -> tuple[bool, str | None]:
-    """Initialize a git repository in the specified path."""
-    try:
-        original_cwd = Path.cwd()
-        os.chdir(project_path)
-        if not quiet:
-            console.print("[cyan]Initializing git repository...[/cyan]")
-        subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
-        subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
-        subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True, text=True)
-        if not quiet:
-            console.print("[green]✓[/green] Git repository initialized")
-        return True, None
-    except subprocess.CalledProcessError as e:
-        error_msg = f"Command: {' '.join(e.cmd)}\nExit code: {e.returncode}"
-        if e.stderr:
-            error_msg += f"\nError: {e.stderr.strip()}"
-        elif e.stdout:
-            error_msg += f"\nOutput: {e.stdout.strip()}"
-        if not quiet:
-            console.print(f"[red]Error initializing git repository:[/red] {e}")
-        return False, error_msg
-    finally:
-        os.chdir(original_cwd)
 
 
 def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker=None) -> None:
@@ -162,8 +233,8 @@ def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker
 
             os.replace(temp_path, target_file)
         except Exception:
-            if temp_path and temp_path.exists():
-                temp_path.unlink()
+            if temp_path:
+                temp_path.unlink(missing_ok=True)
             raise
 
     try:
@@ -183,7 +254,7 @@ def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker
             shutil.copy2(sub_item, dest_file)
             log("Copied (no existing settings.json):", "blue")
 
-    except Exception as e:
+    except (OSError, ValueError, KeyError) as e:
         log(f"Warning: Could not merge settings: {e}", "yellow")
         if not dest_file.exists():
             shutil.copy2(sub_item, dest_file)
@@ -219,7 +290,7 @@ def merge_json_files(existing_path: Path, new_content: Any, verbose: bool = Fals
         except FileNotFoundError:
             # Handle race condition where file is deleted after exists() check
             exists = False
-        except Exception as e:
+        except (OSError, ValueError) as e:
             if verbose:
                 console.print(f"[yellow]Warning: Could not read or parse existing JSON in {existing_path.name} ({e}).[/yellow]")
             # Skip merge to preserve existing file if unparseable or inaccessible (e.g. PermissionError)
@@ -280,3 +351,27 @@ def _display_project_path(project_root: Path, path: str | Path) -> str:
         except (OSError, ValueError):
             return path_obj.as_posix()
     return rel_path.as_posix()
+
+
+def version_satisfies(current: str, required: str) -> bool:
+    """Check if current version satisfies required version specifier.
+
+    Evaluates the version against the specifier using the project's
+    prerelease policy (prereleases are allowed).
+
+    Args:
+        current: Current version (e.g., "0.1.5")
+        required: Required version specifier (e.g., ">=0.1.0,<2.0.0")
+
+    Returns:
+        True if version satisfies requirement
+    """
+    from packaging import version as pkg_version
+    from packaging.specifiers import InvalidSpecifier, SpecifierSet
+
+    try:
+        current_ver = pkg_version.Version(current)
+        specifier = SpecifierSet(required)
+        return specifier.contains(current_ver, prereleases=True)
+    except (pkg_version.InvalidVersion, InvalidSpecifier):
+        return False

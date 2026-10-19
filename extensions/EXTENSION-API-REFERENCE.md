@@ -40,11 +40,24 @@ requires:
       required: boolean    # Optional, default: false
 
 provides:
-  commands:              # Required, at least one command
+  commands:              # At least one of commands/templates/scripts/hooks/events required
     - name: string       # Required, pattern: ^speckit\.[a-z0-9-]+\.[a-z0-9-]+$
       file: string       # Required, relative path to command file
       description: string # Required
       aliases: [string]  # Optional, same pattern as name; namespace must match extension.id and must not shadow core or installed extension commands
+
+  templates:             # Optional, array of declared templates. Always resolve
+                          # as "replace" -- 'strategy' is not an authorable field here.
+    - name: string       # Required, pattern: ^[a-z0-9-]+$
+      file: string       # Required, relative path to template file
+      description: string # Optional
+
+  scripts:               # Optional, array of declared scripts. Always resolve
+                          # as "replace" -- 'strategy' is not an authorable field here.
+    - name: string       # Required, pattern: ^[a-z0-9-]+$
+      file: string       # Required, relative path to script file
+      description: string # Optional
+      runtimes: [string] # Optional, subset of: bash, powershell, python
 
   config:                # Optional, array of config files
     - name: string       # Config file name
@@ -52,13 +65,19 @@ provides:
       description: string
       required: boolean  # Default: false
 
-hooks:                   # Optional, event hooks
+hooks:                   # Optional, event hooks. Each event accepts either form below.
   event_name:            # e.g., "after_specify", "after_plan", "after_tasks", "after_implement"
     command: string      # Command to execute
+    priority: integer    # Optional, >= 1, default 10 (lower runs first)
     optional: boolean    # Default: true
     prompt: string       # Prompt text for optional hooks
     description: string  # Hook description
     condition: string    # Optional, condition expression
+  another_event:         # Any event may instead use a list of mappings (multiple commands)
+    - command: string    # Same fields as the single mapping, per entry
+      priority: integer
+    - command: string
+      priority: integer
 
 tags:                    # Optional, array of tags (2-10 recommended)
   - string
@@ -105,12 +124,37 @@ defaults:                # Optional, default configuration values
 - **Examples**: `speckit.jira.specstoissues`, `speckit.linear.sync`
 - **Invalid**: `jira.specstoissues`, `speckit.command`, `speckit.jira.CreateIssues`
 
+#### `provides.templates[].name` / `provides.scripts[].name`
+
+- **Type**: string
+- **Pattern**: `^[a-z0-9-]+$`
+- **Description**: Unlike commands, templates and scripts are not invoked by
+  name, so they use the same plain slug pattern as `extension.id` rather than
+  the namespaced command pattern.
+- **Examples**: `myext-template`, `myext-collect`
+
+#### `provides.templates[].strategy` / `provides.scripts[].strategy`
+
+- Not an authorable field. Extension-contributed templates and scripts are
+  always resolved as `replace`; a manifest that includes a `strategy` key on
+  one of these entries is rejected with a `ValidationError`. Composable
+  strategies (`wrap`/`prepend`/`append`) are preset-only.
+
+#### `provides.scripts[].runtimes`
+
+- **Type**: array of strings
+- **Values**: `bash`, `powershell`, `python`
+- **Description**: Declares which runtimes the script supports. Purely
+  informational metadata — it is not used to select or invoke the script.
+
 #### `hooks`
 
 - **Type**: object
 - **Keys**: Event names (e.g., `after_specify`, `after_plan`, `after_tasks`, `after_implement`, `before_analyze`)
+- **Value**: A single hook mapping, or a list of hook mappings to register multiple commands on one event
 - **Description**: Hooks that execute at lifecycle events
 - **Events**: Defined by core spec-kit commands
+- **Ordering**: Within an event, hooks run by ascending `priority` (integer ≥ 1, default 10; lower runs first; equal priorities keep authoring order via a stable sort)
 
 ---
 
@@ -135,6 +179,8 @@ manifest.version                   # str: Version
 manifest.description               # str: Description
 manifest.requires_speckit_version  # str: Required spec-kit version
 manifest.commands                  # List[Dict]: Command definitions
+manifest.templates                 # List[Dict]: Declared template definitions
+manifest.scripts                   # List[Dict]: Declared script definitions
 manifest.hooks                     # Dict: Hook definitions
 ```
 
@@ -535,7 +581,9 @@ Examples:
 
 ### Hook Definition
 
-**In extension.yml**:
+Each event accepts either a single hook mapping or a list of mappings. A list registers multiple commands on the same event.
+
+**Single mapping (in extension.yml)**:
 
 ```yaml
 hooks:
@@ -546,6 +594,24 @@ hooks:
     description: "Automatically create Jira hierarchy"
     condition: null
 ```
+
+**List of mappings with priority**:
+
+```yaml
+hooks:
+  after_plan:
+    - command: "speckit.my-ext.verify"
+      priority: 5
+      optional: false
+      description: "Verify the plan"
+    - command: "speckit.my-ext.report"
+      priority: 10
+      optional: true
+      prompt: "Generate the report?"
+      description: "Generate a report from the plan"
+```
+
+Within a single manifest list, a repeated `command` is deduped as "last wins" and moved to the end, so it also breaks equal-priority ties in authoring order.
 
 ### Hook Events
 
@@ -569,6 +635,17 @@ Standard events (defined by core):
 - `after_constitution` - After constitution update
 - `before_taskstoissues` - Before tasks-to-issues conversion
 - `after_taskstoissues` - After tasks-to-issues conversion
+
+#### Bundled `bug` extension events (available when the extension is installed)
+
+Hooks are prompts run in the same session; they reuse the resolved `BUG_SLUG` and `BUG_DIR` (and, for post-hooks, the written report) from the conversation, and no variables are injected. Pre-hooks run after slug resolution and prerequisites; post-hooks run after the report is written and before completion is reported.
+
+- `before_bug_assess` - After the bug directory exists, before ingesting the report
+- `after_bug_assess` - After writing `assessment.md`; not reached when an unintelligible report causes an early stop
+- `before_bug_fix` - Before applying the remediation
+- `after_bug_fix` - After writing `fix.md`
+- `before_bug_test` - Before running verification
+- `after_bug_test` - After writing `test.md`
 
 ### Hook Configuration
 
