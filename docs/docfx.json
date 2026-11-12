@@ -6,7 +6,15 @@
           "*.md",
           "toc.yml",
           "community/*.md",
-          "concepts/*.md",
+          "bundles/*.md",
+          "extensions/*.md",
+          "guides/*.md",
+          "how-to/*.md",
+          "overview/*.md",
+          "integrations/*.md",
+          "presets/*.md",
+          "workflows/*.md",
+          "workflow-steps/*.md",
           "reference/*.md",
           "install/*.md"
         ]
@@ -63,6 +71,8 @@
     "globalMetadata": {
       "_appTitle": "Spec Kit Documentation",
       "_appName": "Spec Kit",
+      "_appLogoPath": "images/spec-kit-logo.webp",
+      "_appFaviconPath": "images/spec-kit-logo.webp",
       "_appFooter": "Spec Kit - A specification-driven development toolkit",
       "_enableSearch": true,
       "_disableContribution": false,
@@ -78,4 +88,3 @@
     }
   }
 }
-
