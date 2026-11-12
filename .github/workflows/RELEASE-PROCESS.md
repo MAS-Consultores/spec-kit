@@ -158,8 +158,9 @@ GitHub Release creation may finish before or after the development bump and PR c
 
 ## Version Constraints
 
-- Tags must follow format: `v{MAJOR}.{MINOR}.{PATCH}`
-- Example valid versions: `v0.1.11`, `v0.2.0`, `v1.0.0`
+- Tags must follow format: `v{MAJOR}.{MINOR}.{PATCH}` or `v{MAJOR}.{MINOR}.{PATCH}-mas.{N}`
+- Example valid versions: `v0.1.11`, `v0.2.0`, `v1.0.0`, `v1.4.0-mas.1`
+- The `-mas.N` suffix is used for fork-specific releases and creates normal (not pre-release) GitHub releases
 - The release workflow rejects malformed tags before checking or creating a release, and passes the validated version to later shell steps through environment variables rather than interpolating it into shell source
 - Auto-increment only bumps patch version
 - Cannot create duplicate tags (workflow will fail)
