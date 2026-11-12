@@ -324,28 +324,32 @@ function Format-SpecKitCommand {
     return "/speckit$separator$name"
 }
 
-# Find a usable Python 3 executable (python3, python, or py -3).
-# Returns the command/arguments as an array, or $null if none found.
+# Probe every candidate, including PATH aliases, before using it for YAML parsing.
+function Test-Python3Command {
+    param(
+        [Parameter(Mandatory=$true)][string]$Executable,
+        [string[]]$Arguments = @()
+    )
+
+    if (-not (Get-Command $Executable -ErrorAction SilentlyContinue)) { return $false }
+    try {
+        # A WindowsApps alias, a Python 2 executable, or an interpreter without
+        # PyYAML is not a usable resolver. Existence/--version alone is insufficient.
+        $probe = & $Executable @Arguments -c 'import sys, yaml; print(sys.version_info[0])' 2>$null
+        return ($LASTEXITCODE -eq 0 -and ($probe -join "`n").Trim() -eq '3')
+    } catch {
+        return $false
+    }
+}
+
+# Find Python 3 with PyYAML; return command/arguments or $null.
 function Get-Python3Command {
-    # SPECKIT_PYTHON_EXECUTABLE is the canonical override; SPECKIT_PYTHON is
-    # kept as a deprecated fallback (still used by update-agent-context.sh).
+    # Keep canonical override precedence and fall back when it is unusable.
     $override = if ($env:SPECKIT_PYTHON_EXECUTABLE) { $env:SPECKIT_PYTHON_EXECUTABLE } else { $env:SPECKIT_PYTHON }
-    if ($override -and (Get-Command $override -ErrorAction SilentlyContinue)) {
-        $ver = & $override --version 2>&1
-        if ($ver -match 'Python 3') {
-            & $override -c 'import yaml' *> $null
-            if ($LASTEXITCODE -eq 0) { return @($override) }
-        }
-    }
-    if (Get-Command python3 -ErrorAction SilentlyContinue) { return @('python3') }
-    if (Get-Command python -ErrorAction SilentlyContinue) {
-        $ver = & python --version 2>&1
-        if ($ver -match 'Python 3') { return @('python') }
-    }
-    if (Get-Command py -ErrorAction SilentlyContinue) {
-        $ver = & py -3 --version 2>&1
-        if ($ver -match 'Python 3') { return @('py', '-3') }
-    }
+    if ($override -and (Test-Python3Command -Executable $override)) { return @($override) }
+    if (Test-Python3Command -Executable 'python3') { return @('python3') }
+    if (Test-Python3Command -Executable 'python') { return @('python') }
+    if (Test-Python3Command -Executable 'py' -Arguments @('-3')) { return @('py', '-3') }
     return $null
 }
 
@@ -623,7 +627,12 @@ function Resolve-TemplateContent {
                         # Use Python to parse YAML manifest for strategy and file path
                         $pyArgs = if ($pyCmd.Count -gt 1) { $pyCmd[1..($pyCmd.Count-1)] } else { @() }
                         $pyStderrFile = [System.IO.Path]::GetTempFileName()
-                        $stratResult = & $pyCmd[0] @pyArgs -c @"
+                        # Windows PowerShell 5.1 turns native stderr into errors;
+                        # collect it and inspect the exit code before throwing.
+                        $nativeErrorPreference = $ErrorActionPreference
+                        try {
+                            $ErrorActionPreference = 'Continue'
+                            $stratResult = & $pyCmd[0] @pyArgs -c @"
 import sys
 try:
     import yaml
@@ -678,12 +687,22 @@ except Exception as exc:
     print(f'manifest_invalid: {exc}', file=sys.stderr)
     sys.exit(3)
 "@ $manifest $TemplateName 2>$pyStderrFile
-                        if ($LASTEXITCODE -ne 0) {
-                            if ($LASTEXITCODE -eq 2) {
-                                throw "PyYAML is required to resolve preset template composition"
+                            $pythonExitCode = $LASTEXITCODE
+                        } finally {
+                            $ErrorActionPreference = $nativeErrorPreference
+                        }
+                        if ($pythonExitCode -ne 0) {
+                            $diagnostic = Get-Content -LiteralPath $pyStderrFile -Raw -ErrorAction SilentlyContinue
+                            if ($diagnostic) { $diagnostic = $diagnostic.Trim() }
+                            else { $diagnostic = 'No diagnostic output from Python.' }
+                            if ($pythonExitCode -eq 2) {
+                                throw "PyYAML is required to resolve preset template composition (exit code 2): $diagnostic"
                             }
-                            throw "Invalid preset manifest $manifest"
-        }
+                            if ($pythonExitCode -eq 3) {
+                                throw "Invalid preset manifest $manifest (exit code 3): $diagnostic"
+                            }
+                            throw "Python failed while resolving preset manifest $manifest (exit code ${pythonExitCode}): $diagnostic"
+                        }
                         if ($stratResult) {
                             $parts = $stratResult.Trim() -split "`t", 3
                             $manifestDeclared = $parts[0] -eq 'found'

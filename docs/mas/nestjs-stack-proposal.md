@@ -1715,7 +1715,18 @@ const rowVirtualizer = useVirtualizer({
 El stack incluye skills externos de:
 
 - **vercel-labs/agent-skills**: `vercel-react-best-practices` (React)
-- **HoangNguyen0403/agent-skills-standard**: `nestjs-architecture`, `nestjs-security` (NestJS)
+
+El manifiesto `presets/mas-stack-nestjs-react/stack-skills.yml` declara únicamente esa
+skill de React. Las skills internas MAS de NestJS siguen en desarrollo; no se instalan
+`nestjs-architecture` ni `nestjs-security`. El preset base `mas-core` añade por separado
+`find-skills` y `playwright-cli`.
+
+Los manifiestos actuales identifican repositorios y nombres, sin fijar commits, y el
+instalador invoca `npx skills` sin una versión fija. Por tanto, esta instalación externa
+no es reproducible de forma hermética. Para evaluar solo los recursos incluidos en la
+rama, usar `--skip-external-skills`; esto no valida la instalación de skills externas.
+Fijar revisiones requiere revisar los contenidos y comprobar la sintaxis de instalación
+contra una versión concreta del instalador; no sustituir fuentes por hashes no verificados.
 
 ## Reglas de Seguridad Implementadas
 

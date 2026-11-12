@@ -10,7 +10,6 @@ from typer.testing import CliRunner
 
 from specify_cli import app
 from specify_cli.mas import (
-    DEFAULT_PRODUCT_LOCALE,
     _bullets,
     get_mas_stack,
     language_policy_init_options,
@@ -849,3 +848,14 @@ def test_nestjs_react_generated_memory_has_no_forbidden_terms(tmp_path):
     for path in memory_files:
         violations += _forbidden_term_violations(path.name, path.read_text(encoding="utf-8"))
     assert not violations, "\n".join(violations)
+
+
+def test_mas_constitution_keeps_security_standard_inside_principle_one():
+    template = Path(__file__).resolve().parents[1] / "presets/mas-core/templates/constitution-template.md"
+    content = template.read_text(encoding="utf-8")
+    headings = [line for line in content.splitlines() if line.startswith("#")]
+    assert [line for line in headings if line.startswith("# ")] == ["# [PROJECT_NAME] Constitution"]
+    security = content.split("### I. Security and Access Control", 1)[1].split("### II.", 1)[0]
+    assert "#### Security Standard (Stack-Agnostic)" in security
+    assert "##### 1. Authentication and Identity Lifecycle" in security
+    assert "Deny by default" in security
