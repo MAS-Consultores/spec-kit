@@ -3,7 +3,8 @@
 No credentials are sent unless the user has created ``auth.json``.
 For each outbound URL the helper matches the hostname against
 configured entries, resolves the token via the appropriate provider
-class, and attaches auth headers.  Redirect safety is enforced:
+class, and attaches auth headers. Initial URLs must use HTTPS, except
+for HTTP to unambiguous loopback hosts. Redirect safety is enforced:
 the ``Authorization`` header is stripped when a redirect leaves the
 entry's declared hosts.  On 401/403 the next matching entry is tried,
 then unauthenticated.
@@ -13,11 +14,18 @@ from __future__ import annotations
 
 import urllib.error
 import urllib.request
-from fnmatch import fnmatch
+from typing import Callable
 from urllib.parse import urlparse
 
+from .._download_security import is_https_or_localhost_http, is_safe_download_redirect
 from . import get_provider
-from .config import AuthConfigEntry, _default_config_path, find_entries_for_url, load_auth_config
+from .config import (
+    AuthConfigEntry,
+    _default_config_path,
+    _host_matches_pattern,
+    find_entries_for_url,
+    load_auth_config,
+)
 
 
 _config_override: list[AuthConfigEntry] | None = None
@@ -52,26 +60,105 @@ def _load_config() -> list[AuthConfigEntry]:
 
 def _hostname_in_hosts(hostname: str, hosts: tuple[str, ...]) -> bool:
     """Return True if *hostname* matches any pattern in *hosts*."""
-    hostname = hostname.lower()
-    return any(p == hostname or fnmatch(hostname, p) for p in hosts)
+    return any(_host_matches_pattern(hostname, pattern) for pattern in hosts)
+
+
+RedirectValidator = Callable[[str, str], None]
+
+
+class URLPolicyError(urllib.error.URLError):
+    """A URL rejected because it violates the client's transport policy."""
+
+
+class RedirectPolicyError(URLPolicyError):
+    """A redirect rejected because it violates the client's security policy."""
+
+
+def _validate_initial_url(url: str) -> None:
+    if not is_https_or_localhost_http(url):
+        raise URLPolicyError(
+            "unsafe request URL: target must use HTTPS with a hostname, "
+            "or HTTP to loopback (for example localhost, 127.0.0.1, ::1)"
+        )
+
+
+def _validate_strict_redirect(old_url: str, new_url: str) -> None:
+    if not is_safe_download_redirect(old_url, new_url):
+        raise RedirectPolicyError(
+            f"unsafe redirect to {new_url}: target must use HTTPS with a hostname, "
+            "must not enter a local target from a remote host, and may use HTTP only "
+            "within loopback (for example localhost, 127.0.0.1, ::1)"
+        )
 
 
 class _StripAuthOnRedirect(urllib.request.HTTPRedirectHandler):
-    """Drop ``Authorization`` when a redirect leaves the entry's declared hosts."""
+    """Redirect handler that guards every redirect it is installed for.
 
-    def __init__(self, hosts: tuple[str, ...]) -> None:
+    1. Reject malformed absolute targets before urllib normalizes their headers.
+    2. Run any caller-provided redirect validator.
+    3. Reject redirects that are not HTTPS with a hostname. HTTP loopback is
+       allowed only when the previous hop is also loopback.
+    4. Drop ``Authorization`` when a redirect leaves trusted hosts or downgrades.
+    """
+
+    def __init__(
+        self,
+        hosts: tuple[str, ...],
+        redirect_validator: RedirectValidator | None = None,
+    ) -> None:
         super().__init__()
         self._hosts = hosts
+        self._redirect_validator = redirect_validator
+
+    def http_error_302(self, req, fp, code, msg, headers):
+        if "location" in headers:
+            target = headers["location"]
+        elif "uri" in headers:
+            target = headers["uri"]
+        else:
+            return super().http_error_302(req, fp, code, msg, headers)
+
+        try:
+            parsed = urlparse(target)
+            hostname = parsed.hostname
+            parsed.port
+        except ValueError as exc:
+            raise RedirectPolicyError(f"malformed redirect URL: {exc}") from exc
+
+        # urllib can otherwise normalize a hostless absolute URL onto the
+        # current host before redirect_request sees the original target.
+        if parsed.scheme and (parsed.scheme not in ("http", "https") or not hostname):
+            raise RedirectPolicyError(
+                "unsafe redirect URL: an absolute target must use HTTP(S) with a hostname"
+            )
+        return super().http_error_302(req, fp, code, msg, headers)
+
+    http_error_301 = http_error_303 = http_error_307 = http_error_308 = http_error_302
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        try:
+            new_parsed = urlparse(newurl)
+            # Force urllib's syntax and range validation before following.
+            new_parsed.port
+        except ValueError as exc:
+            # Malformed redirect target (e.g. unterminated IPv6 bracket).
+            # Surface as URLError so callers' download error handling applies.
+            raise RedirectPolicyError(f"malformed redirect URL: {exc}") from exc
+
+        if self._redirect_validator is not None:
+            self._redirect_validator(req.full_url, newurl)
+        _validate_strict_redirect(req.full_url, newurl)
+
         original_auth = (
             req.get_header("Authorization")
             or req.unredirected_hdrs.get("Authorization")
         )
         new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
         if new_req is not None:
-            hostname = (urlparse(newurl).hostname or "").lower()
-            if _hostname_in_hosts(hostname, self._hosts):
+            old_scheme = urlparse(req.full_url).scheme
+            hostname = (new_parsed.hostname or "").lower()
+            is_https_downgrade = old_scheme == "https" and new_parsed.scheme != "https"
+            if _hostname_in_hosts(hostname, self._hosts) and not is_https_downgrade:
                 if original_auth:
                     new_req.add_unredirected_header("Authorization", original_auth)
             else:
@@ -85,7 +172,11 @@ def build_request(url: str, extra_headers: dict[str, str] | None = None) -> urll
 
     Uses the first matching entry from ``auth.json`` whose token resolves.
     Returns a plain request when no entry matches or the file doesn't exist.
+    A ``github-cli`` acquisition failure raises immediately, without trying
+    later matching entries or returning an unauthenticated request.
+    Rejects URLs that are not HTTPS or loopback HTTP before resolving tokens.
     """
+    _validate_initial_url(url)
     headers: dict[str, str] = {}
     if extra_headers:
         # Strip Authorization from extra_headers to prevent bypass
@@ -103,17 +194,50 @@ def build_request(url: str, extra_headers: dict[str, str] | None = None) -> urll
     return urllib.request.Request(url, headers=headers)
 
 
-def open_url(url: str, timeout: int = 10, extra_headers: dict[str, str] | None = None):
+def github_provider_hosts() -> tuple[str, ...]:
+    """Return host patterns from every ``github`` provider entry in ``auth.json``.
+
+    Used to classify trusted GitHub Enterprise Cloud and GitHub Enterprise
+    Server hosts when resolving release-asset download URLs. Returns an empty
+    tuple when no ``auth.json`` exists or it contains no ``github`` entries.
+    """
+    hosts: list[str] = []
+    for entry in _load_config():
+        if entry.provider == "github":
+            hosts.extend(entry.hosts)
+    return tuple(hosts)
+
+
+def open_url(
+    url: str,
+    timeout: int = 10,
+    extra_headers: dict[str, str] | None = None,
+    redirect_validator: RedirectValidator | None = None,
+):
     """Open *url* with config-driven auth, redirect stripping, and fallthrough.
 
     1. Find ``auth.json`` entries whose hosts match the URL.
-    2. For each entry, resolve the token and try the request.
-    3. On 401/403 move to the next matching entry.
-    4. After all entries exhausted (or none matched), try unauthenticated.
+    2. For each entry, resolve the token and try the request. A ``github-cli``
+       acquisition failure raises immediately, with no credential or
+       unauthenticated fallback.
+    3. On HTTP 401/403 after successful acquisition, try the next matching entry.
+    4. After all entries exhausted without an acquisition failure (or none
+       matched), try unauthenticated.
     5. Non-auth errors (404, 500, network) raise immediately.
 
     *extra_headers* (e.g. ``Accept``) are merged into every attempt.
+    *redirect_validator*, when provided, is called with ``(old_url, new_url)``
+    before following each redirect and may raise to reject the redirect.
+
+    Every attempt uses an isolated opener so a process-wide opener installed
+    with ``urllib.request.install_opener`` cannot replace the redirect guard.
+    Redirect scheme safety: every attempt goes through
+    ``_StripAuthOnRedirect``, which rejects redirects to non-HTTPS URLs except
+    HTTP between loopback URLs, and rejects remote-to-local redirects.
+    Initial URLs must also use HTTPS or loopback HTTP; unsafe URLs are
+    rejected before resolving tokens or making any request.
     """
+    _validate_initial_url(url)
     entries = find_entries_for_url(url, _load_config())
 
     def _make_req(auth_headers: dict[str, str]) -> urllib.request.Request:
@@ -135,7 +259,7 @@ def open_url(url: str, timeout: int = 10, extra_headers: dict[str, str] | None =
             continue
 
         req = _make_req(provider.auth_headers(token, entry.auth))
-        opener = urllib.request.build_opener(_StripAuthOnRedirect(entry.hosts))
+        opener = urllib.request.build_opener(_StripAuthOnRedirect(entry.hosts, redirect_validator))
         try:
             return opener.open(req, timeout=timeout)
         except urllib.error.HTTPError as exc:
@@ -146,4 +270,7 @@ def open_url(url: str, timeout: int = 10, extra_headers: dict[str, str] | None =
 
     # No entry worked (or none matched) — unauthenticated fallback
     req = _make_req({})
-    return urllib.request.urlopen(req, timeout=timeout)  # noqa: S310
+    # No auth is attached on this path, so the handler's host list is empty:
+    # here it runs redirect validation only, not auth stripping.
+    opener = urllib.request.build_opener(_StripAuthOnRedirect((), redirect_validator))
+    return opener.open(req, timeout=timeout)
