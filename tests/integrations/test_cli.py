@@ -66,6 +66,7 @@ class TestInitIntegrationFlag:
             os.chdir(project)
             result = runner.invoke(app, [
                 "init", "--here", "--integration", "copilot", "--script", "sh",
+                "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -112,6 +113,7 @@ class TestInitIntegrationFlag:
         project = tmp_path / "noninteractive"
         result = runner.invoke(app, [
             "init", str(project), "--script", "sh", "--ignore-agent-tools",
+            "--stack", "moodle5-plugin", "--skip-external-skills",
         ], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -148,7 +150,8 @@ class TestInitIntegrationFlag:
         project = tmp_path / "agent-pty"
         result = runner.invoke(
             app,
-            ["init", str(project), "--non-interactive", "--ignore-agent-tools"],
+            ["init", str(project), "--non-interactive", "--ignore-agent-tools",
+             "--stack", "moodle5-plugin", "--skip-external-skills"],
             catch_exceptions=False,
         )
 
@@ -197,6 +200,9 @@ class TestInitIntegrationFlag:
                     "--integration",
                     "copilot",
                     "--ignore-agent-tools",
+                    "--stack",
+                    "moodle5-plugin",
+                    "--skip-external-skills",
                 ],
                 catch_exceptions=False,
             )
@@ -241,7 +247,7 @@ class TestInitIntegrationFlag:
                     "--non-interactive",
                     "--integration",
                     "claude",
-                    "--ignore-agent-tools",
+                    "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
                 ],
                 catch_exceptions=False,
             )
@@ -269,7 +275,7 @@ class TestInitIntegrationFlag:
         runner = CliRunner()
         project = tmp_path / "noninteractive_env"
         result = runner.invoke(app, [
-            "init", str(project), "--script", "sh", "--ignore-agent-tools",
+            "init", str(project), "--script", "sh", "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
         ], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -304,7 +310,7 @@ class TestInitIntegrationFlag:
         runner = CliRunner()
         project = tmp_path / "interactive_env"
         result = runner.invoke(app, [
-            "init", str(project), "--script", "sh", "--ignore-agent-tools",
+            "init", str(project), "--script", "sh", "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
         ], catch_exceptions=False)
 
         assert result.exit_code == 0, result.output
@@ -329,7 +335,7 @@ class TestInitIntegrationFlag:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot", "--script", "sh", "--ignore-agent-tools",
+                "init", "--here", "--integration", "copilot", "--script", "sh", "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -360,7 +366,7 @@ class TestInitIntegrationFlag:
             os.chdir(project)
             # No input → typer.confirm raises Abort (stands in for Ctrl+C).
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot", "--script", "sh", "--ignore-agent-tools",
+                "init", "--here", "--integration", "copilot", "--script", "sh", "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -381,6 +387,7 @@ class TestInitIntegrationFlag:
             runner = CliRunner()
             result = runner.invoke(app, [
                 "init", "--here", "--integration", "copilot", "--script", "sh",
+                "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -389,6 +396,7 @@ class TestInitIntegrationFlag:
             project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
         ).exists()
 
+    @pytest.mark.skip(reason="MAS fork: --preset is mutually exclusive with --stack, and --stack is required")
     def test_init_optional_preset_failure_reports_target_and_continues(
         self, tmp_path, monkeypatch
     ):
@@ -424,6 +432,7 @@ class TestInitIntegrationFlag:
         assert "Continuing without the optional preset" in normalized
         assert "Project ready" in normalized
 
+    @pytest.mark.skip(reason="MAS fork: --preset is mutually exclusive with --stack, and --stack is required")
     def test_init_with_local_preset_seeds_manifest_constitution(
         self, tmp_path, monkeypatch
     ):
@@ -472,7 +481,7 @@ class TestInitIntegrationFlag:
                 "copilot",
                 "--script",
                 "sh",
-                "--ignore-agent-tools",
+                "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
                 "--preset",
                 str(preset_dir),
             ],
@@ -502,7 +511,7 @@ class TestInitIntegrationFlag:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--force", "--integration", "claude", "--script", "sh", "--ignore-agent-tools",
+                "init", "--here", "--force", "--integration", "claude", "--script", "sh", "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1155,6 +1164,7 @@ class TestInitIntegrationFlag:
                 "init", "--here", "--force",
                 "--integration", "copilot",
                 "--script", "sh",
+                "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1185,6 +1195,7 @@ class TestInitIntegrationFlag:
                 "init", "--here",
                 "--integration", "copilot",
                 "--script", "sh",
+                "--stack", "moodle5-plugin", "--skip-external-skills",
             ], input="y\n", catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1218,7 +1229,7 @@ class TestInitIntegrationFlag:
                 "init", "--here", "--force",
                 "--integration", "claude",
                 "--script", "sh",
-                "--ignore-agent-tools",
+                "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
             assert result.exit_code == 0, result.output
 
@@ -1240,7 +1251,7 @@ class TestInitIntegrationFlag:
                     "init", "--here", "--force",
                     "--integration", "claude",
                     "--script", "sh",
-                    "--ignore-agent-tools",
+                    "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
                 ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1277,7 +1288,7 @@ class TestInitIntegrationFlag:
                     "init", "--here",
                     "--integration", "claude",
                     "--script", "sh",
-                    "--ignore-agent-tools",
+                    "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
                 ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1306,7 +1317,7 @@ class TestForceExistingDirectory:
         runner = CliRunner()
         result = runner.invoke(app, [
             "init", str(target), "--integration", "copilot", "--force",
-            "--script", "sh",
+            "--script", "sh", "--stack", "moodle5-plugin", "--skip-external-skills",
         ], catch_exceptions=False)
 
         assert result.exit_code == 0, f"init --force failed: {result.output}"
@@ -1329,7 +1340,7 @@ class TestForceExistingDirectory:
         runner = CliRunner()
         result = runner.invoke(app, [
             "init", str(target), "--integration", "copilot",
-            "--script", "sh",
+            "--script", "sh", "--stack", "moodle5-plugin", "--skip-external-skills",
         ], catch_exceptions=False)
 
         assert result.exit_code == 1
@@ -1352,7 +1363,7 @@ class TestGitExtensionOptIn:
             runner = CliRunner()
             result = runner.invoke(app, [
                 "init", "--here", "--integration", "claude", "--script", "sh",
-                "--ignore-agent-tools",
+                "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1376,7 +1387,7 @@ class TestGitExtensionOptIn:
             runner = CliRunner()
             result = runner.invoke(app, [
                 "init", "--here", "--integration", "claude", "--script", "sh",
-                "--no-git", "--ignore-agent-tools",
+                "--no-git", "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ])
         finally:
             os.chdir(old_cwd)
@@ -1397,7 +1408,7 @@ class TestGitExtensionOptIn:
             runner = CliRunner()
             result = runner.invoke(app, [
                 "init", "--here", "--integration", "claude", "--script", "sh",
-                "--ignore-agent-tools",
+                "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1586,7 +1597,7 @@ class TestSharedInfraCommandRefs:
                 "init", str(project),
                 "--integration", "claude",
                 "--script", "sh",
-                "--ignore-agent-tools",
+                "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1616,7 +1627,7 @@ class TestSharedInfraCommandRefs:
                 "init", str(project),
                 "--integration", "copilot",
                 "--script", "sh",
-                "--ignore-agent-tools",
+                "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1648,7 +1659,7 @@ class TestSharedInfraCommandRefs:
                 "--integration", "copilot",
                 "--integration-options", "--commands",
                 "--script", "sh",
-                "--ignore-agent-tools",
+                "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1812,7 +1823,7 @@ class TestExtensionFlag:
                     "init", "--here",
                     "--integration", "copilot",
                     "--script", "sh",
-                    "--ignore-agent-tools",
+                    "--ignore-agent-tools", "--stack", "moodle5-plugin", "--skip-external-skills",
                 ] + args, catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -1875,6 +1886,7 @@ class TestExtensionFlag:
         assert result == "Catalog Extension v1.0.0 installed"
         assert captured == {"catalog_name": "init-catalog"}
 
+    @pytest.mark.skip(reason="MAS fork: --preset is mutually exclusive with --stack, and --stack is required")
     def test_catalog_preset_init_forwards_catalog_name(self, tmp_path, monkeypatch):
         """The init preset catalog branch keeps resolved provenance."""
         import specify_cli._assets as assets
@@ -1955,6 +1967,7 @@ class TestExtensionFlag:
         normalized = _normalize_cli_output(result.output)
         assert "failed" in normalized.lower(), "expected 'failed' for unknown extension"
 
+    @pytest.mark.skip(reason="MAS fork: --preset is mutually exclusive with --stack, and --stack is required")
     def test_extension_flag_works_with_preset(self, tmp_path):
         """--extension and --preset can be combined."""
         project, result = self._run_init(
