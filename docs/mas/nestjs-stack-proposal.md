@@ -80,6 +80,7 @@ proyecto/
 | Componente | Decisión | Justificación |
 |------------|----------|---------------|
 | **Runtime** | Node.js LTS | Soporte a largo plazo, estabilidad |
+| **Package Manager** | pnpm | Workspaces, frozen-lockfile, workspace protocol |
 | **Framework Backend** | NestJS (última estable) | DI estructurada, modular, TypeScript-first |
 | **ORM** | Prisma | Type-safe, migraciones explícitas, excelente DX |
 | **Base de Datos** | PostgreSQL | Robustez, features avanzados, estándar empresarial |
@@ -124,23 +125,103 @@ proyecto/
 Las siguientes decisiones fueron tomadas por MAS y están reflejadas en el stack:
 
 1. **ID Canónico**: `nestjs-react`
-2. **ORM**: Prisma (no TypeORM, MikroORM, ni Drizzle)
-3. **Base de Datos**: PostgreSQL
-4. **Frontend**: React + Vite (no Next.js, no SSR)
-5. **HTTP Adapter**: Express (no Fastify)
-6. **Autenticación**: HttpOnly cookies + CSRF (no JWT en localStorage)
-7. **Validación**: Zod v4.2+ unificado (NO class-validator/class-transformer)
-8. **DTOs REST**: nestjs-zod (`createZodDto()` + `ZodValidationPipe`)
-9. **API Documentation**: REST + OpenAPI obligatorio via `@nestjs/swagger` + nestjs-zod
-10. **MCP**: `@nestjs/mcp` oficial (NO `@rekog/mcp-nest`)
-11. **Router Frontend**: TanStack Router (type-safe, file-based)
-12. **Server State**: TanStack Query (NO server data en Zustand)
-13. **Global State**: Zustand solo para UI state
-14. **Forms**: React Hook Form + zodResolver
-15. **Styling**: Tailwind CSS + shadcn/ui
-16. **Testing API**: Jest + supertest + MCP test client
-17. **Testing Web**: Vitest + Testing Library + Playwright
-18. **Estructura**: Monorepo modular con `apps/api`, `apps/web`, `packages/contracts`, `packages/ui`
+2. **Package Manager**: pnpm (NO npm, NO yarn)
+3. **ORM**: Prisma (no TypeORM, MikroORM, ni Drizzle)
+4. **Base de Datos**: PostgreSQL
+5. **Frontend**: React + Vite (no Next.js, no SSR)
+6. **HTTP Adapter**: Express (no Fastify)
+7. **Autenticación**: HttpOnly cookies + CSRF (no JWT en localStorage)
+8. **Validación**: Zod v4.2+ unificado (NO class-validator/class-transformer)
+9. **DTOs REST**: nestjs-zod (`createZodDto()` + `ZodValidationPipe`)
+10. **API Documentation**: REST + OpenAPI obligatorio via `@nestjs/swagger` + nestjs-zod
+11. **MCP**: `@nestjs/mcp` oficial (NO `@rekog/mcp-nest`)
+12. **Router Frontend**: TanStack Router (type-safe, file-based)
+13. **Server State**: TanStack Query (NO server data en Zustand)
+14. **Global State**: Zustand solo para UI state
+15. **Forms**: React Hook Form + zodResolver
+16. **Styling**: Tailwind CSS + shadcn/ui
+17. **Testing API**: Jest + supertest + MCP test client
+18. **Testing Web**: Vitest + Testing Library + Playwright
+19. **Estructura**: Monorepo modular con `apps/api`, `apps/web`, `packages/contracts`, `packages/ui`
+
+## Package Manager: pnpm
+
+### Decisión
+
+**pnpm** es el gestor de paquetes exclusivo para el monorepo. NO usar npm ni yarn.
+
+### Configuración Requerida
+
+```yaml
+# pnpm-workspace.yaml
+packages:
+  - 'apps/*'
+  - 'packages/*'
+```
+
+```json
+// package.json (root)
+{
+  "packageManager": "pnpm@9.x.x",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  }
+}
+```
+
+### Workspace Protocol
+
+Paquetes internos se referencian con protocolo workspace:
+
+```json
+// apps/api/package.json
+{
+  "dependencies": {
+    "@project/contracts": "workspace:*"
+  }
+}
+
+// apps/web/package.json
+{
+  "dependencies": {
+    "@project/contracts": "workspace:*",
+    "@project/ui": "workspace:*"
+  }
+}
+```
+
+### CI con pnpm
+
+```yaml
+# GitHub Actions ejemplo
+- uses: pnpm/action-setup@v4
+  with:
+    version: 9
+- run: pnpm install --frozen-lockfile
+- run: pnpm -r build
+- run: pnpm -r test
+- run: pnpm audit
+```
+
+### Comandos Comunes
+
+| Comando | Propósito |
+|---------|-----------|
+| `pnpm install --frozen-lockfile` | CI install (lockfile estricto) |
+| `pnpm -r <script>` | Ejecutar script en todos los workspaces |
+| `pnpm --filter <app> <script>` | Ejecutar script en workspace específico |
+| `pnpm add -w <pkg>` | Añadir dependencia al root |
+| `pnpm add --filter <app> <pkg>` | Añadir dependencia a workspace |
+| `pnpm audit` | Auditoría de seguridad |
+
+### Anti-patrones pnpm
+
+- ❌ Commitear `package-lock.json` o `yarn.lock`
+- ❌ Usar `npm install` o `yarn install`
+- ❌ Usar `^` o `~` para dependencias internas (usar `workspace:*`)
+- ❌ Usar `npm audit` o `yarn audit`
 
 ## Validación Unificada: Zod Everywhere
 
@@ -207,7 +288,7 @@ Usar el paquete OFICIAL `@nestjs/mcp` de NestJS. NO usar `@rekog/mcp-nest` (comm
 ### Instalación
 
 ```bash
-npm i @nestjs/mcp @modelcontextprotocol/server zod
+pnpm add @nestjs/mcp @modelcontextprotocol/server zod
 ```
 
 ### Arquitectura

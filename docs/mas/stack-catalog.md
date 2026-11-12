@@ -379,6 +379,7 @@ OpenAPI.
 - Monorepo structure: `apps/api` for NestJS backend, `apps/web` for React frontend.
 - `packages/contracts` for shared Zod schemas (the ONLY coupling between API and Web).
 - `packages/ui` for shared shadcn/ui components.
+- **pnpm** is the package manager: `pnpm-workspace.yaml` with `apps/*` and `packages/*`, `pnpm-lock.yaml` committed, `packageManager` field in root `package.json` + Corepack, `pnpm install --frozen-lockfile` in CI, workspace protocol (`workspace:*`) for internal packages. No npm or yarn lockfiles.
 - NestJS with Express adapter is the API boundary; Prisma ORM is the exclusive data access layer.
 - PostgreSQL is the database; schema changes require `prisma migrate` with reviewed migration files.
 - Authentication uses HttpOnly cookies with CSRF protection; no JWT storage in localStorage.
@@ -447,9 +448,10 @@ OpenAPI.
 ### Expected Artifacts
 
 **Monorepo Root:**
-- Package manager workspace configuration (npm/yarn/pnpm workspaces or Turborepo/Nx).
+- `pnpm-workspace.yaml` with `apps/*` and `packages/*`; `pnpm-lock.yaml` committed.
+- Root `package.json` with `packageManager: 'pnpm@X.Y.Z'` for Corepack.
 - Shared TypeScript configuration and ESLint with boundary rules.
-- CI step for `madge --circular` or `dependency-cruiser`.
+- CI: `pnpm install --frozen-lockfile`, `madge --circular`, `openapi-diff`, `pnpm audit`.
 
 **API (`apps/api`):**
 - Each domain as module under `src/modules/<domain>/` with controller, service, DTOs, repository, tests, and `index.ts` barrel.
