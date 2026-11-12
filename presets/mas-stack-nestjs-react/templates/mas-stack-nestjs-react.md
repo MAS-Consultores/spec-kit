@@ -74,6 +74,9 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `vite.config.ts` with TanStack Router plugin
 - [ ] `vitest.config.ts` for component tests
 - [ ] `e2e/` — Playwright E2E tests
+- [ ] `playwright.config.ts` with `screenshot: 'off'`, `video: 'off'` or
+  `'retain-on-failure'`, `trace: 'off'` or `'retain-on-failure'` (no screenshots
+  in tests to reduce tokens and artifact noise)
 - [ ] `tailwind.config.ts`
 
 ### packages/contracts (Required)
