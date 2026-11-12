@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app
 from specify_cli.mas import (
+    _bullets,
     get_mas_stack,
     language_policy_init_options,
     render_language_policy_md,
@@ -699,3 +700,23 @@ def test_nestjs_react_stack_contrasts_with_laravel():
 
     nestjs_when_not = " ".join(nestjs_stack.when_not_to_use)
     assert "Laravel" in nestjs_when_not or "Inertia" in nestjs_when_not
+
+
+def test_bullets_renders_headings_and_items():
+    """Test that _bullets handles ## and ### prefixes as Markdown headings."""
+    items = (
+        "Regular item one",
+        "## Section Heading",
+        "Regular item two",
+        "### Subsection Heading",
+        "Regular item three",
+    )
+    result = _bullets(items)
+
+    assert "- Regular item one" in result
+    assert "\n### Section Heading" in result
+    assert "- Regular item two" in result
+    assert "\n#### Subsection Heading" in result
+    assert "- Regular item three" in result
+    assert "- ## Section Heading" not in result
+    assert "- ### Subsection Heading" not in result
