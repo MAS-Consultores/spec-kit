@@ -1,9 +1,9 @@
 # MAS Stack Scaffold: NestJS + React (API + SPA)
 
-This placeholder marks the bundled MAS stack preset for NestJS + React monorepo
-projects. The stack produces a decoupled architecture with `apps/api` (NestJS +
-Prisma + PostgreSQL) and `apps/web` (React + Vite + TypeScript) communicating
-over HTTP.
+This document defines the mandatory structure and checklist for NestJS + React
+monorepo projects. The stack produces a decoupled architecture with `apps/api`
+(NestJS + Prisma + PostgreSQL) and `apps/web` (React + Vite + TypeScript)
+communicating over HTTP.
 
 ## Architecture Overview
 
@@ -21,3 +21,81 @@ over HTTP.
 This stack is a **decoupled API + SPA** architecture, not a server-rendered
 monolith. The API and frontend are independent applications with explicit HTTP
 contracts, enabling independent deployment and scaling.
+
+## Mandatory Structure Checklist
+
+The following structure MUST be present for a valid `nestjs-react` project:
+
+### Monorepo Root (Required)
+
+- [ ] `pnpm-workspace.yaml` with `apps/*` and `packages/*`
+- [ ] `pnpm-lock.yaml` committed (NOT `package-lock.json` or `yarn.lock`)
+- [ ] Root `package.json` with:
+  - `packageManager: 'pnpm@X.Y.Z'` (exact version for Corepack)
+  - `engines: { node: '>=<LTS>' }`
+  - `scripts.verify` (chains all offline checks)
+- [ ] `.nvmrc` with Node LTS version
+- [ ] `tsconfig.base.json` (shared TypeScript config)
+- [ ] `.eslintrc.cjs` with `eslint-plugin-boundaries` rules
+- [ ] `.swcrc` with `legacyDecorator: true` and `decoratorMetadata: true`
+
+### apps/api (Required)
+
+- [ ] `package.json` with `"type": "module"` (NestJS 12 ESM)
+- [ ] `src/main.ts` — NestJS bootstrap with:
+  - Global prefix `/api` with health exclude
+  - Swagger setup at `/docs`
+  - Helmet, CORS, cookie-parser
+  - `app.enableShutdownHooks()`
+- [ ] `src/app.module.ts` — Root module importing all feature modules
+- [ ] `src/modules/` — Domain modules (one per bounded context)
+- [ ] `src/common/` — Infrastructure modules:
+  - `PrismaModule` (exports `ExtendedPrismaClient`)
+  - `ConfigModule` (Zod env validation)
+  - `AuthModule` (`@nestjs/passport` + `@nestjs/jwt`)
+  - `AuthzModule` (custom `@Can()` + `PermissionsGuard`)
+  - `AuditModule` (append-only logging)
+  - `ClsModule` (`nestjs-cls` for context)
+  - `I18nModule` (`nestjs-i18n`)
+  - `HealthModule` (`@nestjs/terminus`)
+- [ ] `prisma/schema.prisma` (or `prisma/schema/` for multi-file)
+- [ ] `prisma/prisma.config.ts` (Prisma 7 config)
+- [ ] `prisma/migrations/` — Migration files
+- [ ] `vitest.config.ts` (Vitest for NestJS 12 ESM)
+- [ ] `.env.example` documenting all required variables
+
+### apps/web (Required)
+
+- [ ] `package.json` with `"type": "module"`
+- [ ] `src/main.tsx` — React entry point with providers
+- [ ] `src/routes/` — TanStack Router file-based routes
+- [ ] `src/features/` — Feature modules (one per domain)
+- [ ] `src/shared/` — App shell and layout only
+- [ ] `vite.config.ts` with TanStack Router plugin
+- [ ] `vitest.config.ts` for component tests
+- [ ] `e2e/` — Playwright E2E tests
+- [ ] `tailwind.config.ts`
+
+### packages/contracts (Required)
+
+- [ ] `src/` — Shared Zod schemas
+- [ ] `src/pagination.schema.ts` — Standard pagination
+- [ ] `src/rfc9457.schema.ts` — RFC 9457 error schema
+- [ ] `src/index.ts` — Barrel export
+- [ ] `package.json` with TypeScript build
+
+### packages/ui (Required)
+
+- [ ] `src/components/` — shadcn/ui components
+- [ ] `tailwind.config.ts` — Shared Tailwind config
+- [ ] `package.json`
+
+### scripts/ (Required)
+
+- [ ] `scripts/permissions-sync.ts` — `pnpm permissions:sync`
+- [ ] `scripts/openapi-generate.ts` — `pnpm openapi:generate`
+
+### docker/ (Recommended)
+
+- [ ] `Dockerfile` — Multi-stage, non-root user
+- [ ] `docker-compose.yml` — Local PostgreSQL + Mailpit

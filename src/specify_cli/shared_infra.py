@@ -19,11 +19,18 @@ logger = logging.getLogger(__name__)
 
 # Managed ``.specify/.gitignore``. Keeps machine-local Spec Kit state out of
 # version control while leaving shareable project files (specs, constitution,
-# templates, scripts, extension config) tracked. Patterns are relative to the
-# ``.specify/`` directory the file lives in.
+# templates, memory, scripts, extension config) tracked. Patterns are relative
+# to the ``.specify/`` directory the file lives in.
+#
+# IMPORTANT: `.specify/memory/` is versioned source of truth and MUST be
+# tracked. Only machine-local state should be ignored.
 SPECIFY_GITIGNORE_CONTENT = """\
 # Machine-local Spec Kit state — not meant to be shared.
 # Managed by the Specify CLI; safe to edit (your changes are preserved on refresh).
+#
+# IMPORTANT: memory/ is versioned source of truth (constitution.md, stack.md,
+# security-guidelines.md, language-policy.md, etc.) and is NOT ignored.
+# Only machine-local state is ignored below.
 
 # Local pointer to the current feature directory. Rewritten every time you
 # switch features, so it is per-checkout state rather than something to share.
@@ -36,6 +43,9 @@ extensions/*/local-config.yml
 # Execution consent is stored separately in the user's local trust registry.
 integrations/packages/
 integrations/packages.json
+
+# Local package manager caches (if any tooling writes here).
+.cache/
 """
 
 # Matches a SHA-256 digest in its normalized form: exactly 64 hexadecimal
