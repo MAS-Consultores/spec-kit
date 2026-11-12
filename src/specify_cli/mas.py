@@ -201,16 +201,26 @@ def language_policy_init_options(
     }
 
 
+def _locale_label(locale: str) -> str:
+    """Return a human-readable label for a product locale."""
+    labels = {
+        "es-CL": "Spanish — Chile",
+        "es-ES": "Spanish — Spain",
+    }
+    return labels.get(locale, "Spanish — Spain")
+
+
 def render_language_policy_md(
     artifact_language: str = DEFAULT_ARTIFACT_LANGUAGE,
     product_locale: str = DEFAULT_PRODUCT_LOCALE,
 ) -> str:
     """Render the MAS language policy for `.specify/memory/language-policy.md`."""
+    locale_label = _locale_label(product_locale)
     return "\n".join([
         "# MAS Language Policy",
         "",
         f"**Artifact Language**: `{artifact_language}` (English)",
-        f"**Product Locale**: `{product_locale}` (Spanish — Spain)",
+        f"**Product Locale**: `{product_locale}` ({locale_label})",
         "",
         "## Purpose",
         "",
@@ -897,7 +907,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "Use Zod v4.2+ with `nestjs-zod`; global `ZodValidationPipe` validates ALL inputs: body, query, params, headers, file metadata.",
             "IMPORTANT: Do NOT use `z.date()` in `packages/contracts`—it breaks `z.toJSONSchema()` in Zod v4. Use `z.iso.datetime()` for UTC ISO 8601 timestamps.",
             "Register `ZodSerializerInterceptor` globally and post-process Swagger document with `cleanupOpenApiDoc()` from nestjs-zod.",
-            "Exclude binary download/stream endpoints (`StreamableFile`) from `ZodSerializerInterceptor` using `@ZodSerializerDto(undefined)`.",
+            "Do NOT apply `@ZodSerializerDto()` on binary download/stream endpoints (`StreamableFile`); `ZodSerializerInterceptor` passes undecorated handlers through untouched.",
             "Configure all schemas as strict (reject unknown keys) to prevent payload pollution.",
             "Validate MCP tool inputs with Zod schemas before processing; untrusted input even from agents.",
             "Validate and sanitize file uploads: filename, MIME type, size—Zod schema for file metadata.",
@@ -1059,7 +1069,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "Translate emails, exports, and user-facing API responses based on resolved locale.",
             "Document translatable DB content strategy (e.g., JSON columns, separate translation tables) when needed.",
             "### CI",
-            "Run i18n key check in CI: fail if translation keys are missing for `es-CL` or if unused keys exist.",
+            "Run i18n key check in CI: fail if translation keys are missing for `es-CL` (do not fail on dynamic key prefixes).",
             "## API Versioning",
             "Use NestJS URI versioning (`/api/v1/...`); new major version only for breaking changes detected by `openapi-diff` in CI.",
             "Deprecation policy: add `Deprecation` and `Sunset` headers to deprecated endpoints; document notice period (e.g., 6 months) before removal.",
@@ -1351,7 +1361,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "Shared UI components in `packages/ui` (shadcn/ui + Tailwind CSS); language switcher in `apps/web/src/shared/`.",
             "Generated typed API client from OpenAPI via `pnpm --filter web api-client:generate`; Vitest + Testing Library + Playwright (with axe-core).",
             "## Packages",
-            "`packages/contracts` — Shared Zod schemas (single source); pagination and RFC 9457 error schemas; TypeScript types via `.infer<>`. No `z.date()`—use `z.iso.datetime()`.",
+            "`packages/contracts` — Shared Zod schemas (single source); pagination and RFC 9457 error schemas; TypeScript types via `z.infer<typeof Schema>`. No `z.date()`—use `z.iso.datetime()`.",
             "`packages/ui` — shadcn/ui components + shared Tailwind config.",
         ),
         preferred_practices=(
