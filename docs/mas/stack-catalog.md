@@ -390,11 +390,15 @@ OpenAPI.
 
 - **Enforcement**: `@nestjs/authorization` with `@Can()` decorator on REST routes and MCP tools; deny-by-default.
 - **Permission Engine**: CASL (`@casl/ability`) for defining and evaluating abilities per user.
-- **Permission Format**: `resource:action` (e.g., `article:read`, `user:update`); code checks permissions, NEVER role names.
+- **Permission Format**: `category:action` (e.g., `usuarios:listar`, `pedidos:aprobar`); code checks permissions, NEVER role names.
+- **Categories**: One per domain module (e.g., 'Usuarios', 'Pedidos'); standard actions: `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar`, plus custom.
+- **Permission Manifests**: Each domain declares `<domain>.permissions.ts` with category, actions (code + description), optional fields.
+- **Manifest Sync**: `pnpm permissions:sync` idempotently upserts manifests to DB without modifying role assignments; removed permissions are flagged.
+- **CI Test**: Fails if `@Can()` references undeclared permission OR if manifest action is unused.
 - **Record-Level**: Conditions stored in permission rules (e.g., `{ tenantId: user.tenantId }`); filter queries with `@casl/prisma` `accessibleBy()`.
 - **Field-Level**: Read/write restrictions per field; applied to response serialization and update DTO filtering.
-- **Storage**: PostgreSQL via Prisma—`Role`, `Permission` (with `conditions` JSON, `fields` JSON), `RolePermission`, `UserRole`, optional `UserPermission`.
-- **Module Structure**: Each domain module declares its own permissions; central `AuthzModule` aggregates abilities.
+- **Storage**: PostgreSQL via Prisma—`PermissionCategory`, `Permission` (with category ref, action code, description, conditions JSON, fields JSON), `RolePermission`, `UserRole`, optional `UserPermission`.
+- **Admin UI**: Groups permissions by category; actions individually togglable.
 - **Audit**: All permission changes (role assignments, grants, revokes) MUST be audited.
 - **Frontend**: `@casl/react` with rules from `/me` for UI visibility only; API ALWAYS enforces.
 
@@ -576,16 +580,20 @@ for UI visibility only—API always enforces authorization.
 - Verify MCP tools tested with in-memory client.
 
 **Authorization:**
-- For each endpoint and MCP tool: confirm required `resource:action` permission declared via `@Can()`.
+- For each endpoint and MCP tool: confirm required `category:action` permission declared via `@Can()`.
 - For each endpoint and MCP tool: document record-level conditions (tenant, owner, status) if applicable.
 - For each endpoint and MCP tool: document field-level read/write restrictions if applicable.
+- For each new/changed module: confirm permission manifest exists in `<domain>.permissions.ts`.
+- Confirm every `@Can()` permission is declared in a manifest (CI test must verify).
+- Confirm every manifest action is used by at least one endpoint or MCP tool (CI test must verify).
+- Confirm `pnpm permissions:sync` is run on deploy/seed.
 - Confirm list queries use `@casl/prisma` `accessibleBy()` for record filtering.
 - Confirm response serialization applies field-level permissions; restricted fields never returned.
 - Confirm update DTOs filtered by writable field permissions before processing.
-- Confirm permission schema exists: `Role`, `Permission`, `RolePermission`, `UserRole` tables.
+- Confirm permission schema exists: `PermissionCategory`, `Permission`, `RolePermission`, `UserRole` tables.
 - Confirm audit logging for all permission changes.
 - Require tests for BOTH allowed and denied authorization cases.
-- Reject role-name checks in code; require `resource:action` permission checks only.
+- Reject role-name checks in code; require `category:action` permission checks only.
 
 **Modularity Validation:**
 - Each new API feature must be a dedicated module under `src/modules/<domain>/` with documented public exports and dependencies.

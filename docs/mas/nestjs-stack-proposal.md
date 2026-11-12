@@ -112,26 +112,113 @@ proyecto/
 
 ### Autorización: @nestjs/authorization + CASL
 
-**Decisión**: RBAC/ABAC granular con permisos `resource:action`, condiciones a nivel de registro, y restricciones a nivel de campo.
+**Decisión**: RBAC/ABAC granular con permisos organizados por CATEGORÍA y ACCIÓN, condiciones a nivel de registro, y restricciones a nivel de campo.
 
 | Componente | Decisión | Propósito |
 |------------|----------|-----------|
 | **Enforcement** | `@nestjs/authorization` + `@Can()` | Punto de aplicación en REST y MCP; deny-by-default |
 | **Permission Engine** | CASL (`@casl/ability`) | Definición y evaluación de abilities |
 | **Record Filtering** | `@casl/prisma` `accessibleBy()` | Filtrar queries por condiciones del usuario |
+| **Manifest Sync** | `pnpm permissions:sync` | Sincroniza manifiestos a BD sin tocar asignaciones |
 | **Frontend UI** | `@casl/react` | Visibilidad UI; API siempre enforce |
+
+#### Organización por Categoría y Acción
+
+Los permisos se organizan por **CATEGORÍA** (una por módulo de dominio) con **ACCIONES** individuales:
+
+| Categoría | Acciones Estándar | Acciones Custom |
+|-----------|-------------------|-----------------|
+| `usuarios` | `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar` | `desactivar`, `resetear_password` |
+| `pedidos` | `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar` | `aprobar`, `rechazar`, `cancelar` |
+| `articulos` | `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar` | `publicar`, `archivar` |
+
+**Formato**: `categoria:accion` (e.g., `usuarios:listar`, `pedidos:aprobar`)
 
 #### Granularidad de Permisos
 
 | Nivel | Ejemplo | Implementación |
 |-------|---------|----------------|
-| **Acción** | `article:read`, `user:update` | Código verifica permisos, NUNCA nombres de roles |
-| **Registro** | `{ tenantId: user.tenantId }`, `{ status: 'draft' }` | Condiciones JSON en tabla `Permission`; `accessibleBy()` |
-| **Campo** | `can('read', 'User', ['email', 'name'])` | JSON `fields` en permiso; filtrado en serialización/DTO |
+| **Acción** | `usuarios:crear`, `pedidos:aprobar` | `@Can('categoria:accion')` en endpoints y MCP tools |
+| **Registro** | `{ tenantId: user.tenantId }`, `{ status: 'draft' }` | Condiciones JSON en `Permission`; `accessibleBy()` |
+| **Campo** | `['email', 'name']` para lectura/escritura | JSON `fields` en permiso; filtrado en serialización/DTO |
+
+#### Permission Manifests
+
+Cada módulo de dominio declara su manifiesto de permisos en `<domain>.permissions.ts`:
+
+```typescript
+// src/modules/usuarios/usuarios.permissions.ts
+export const UsuariosPermissions = {
+  category: 'usuarios',
+  displayName: 'Usuarios',
+  actions: [
+    { code: 'listar', description: 'Ver lista de usuarios' },
+    { code: 'ver', description: 'Ver detalle de usuario' },
+    { code: 'crear', description: 'Crear nuevo usuario' },
+    { code: 'editar', description: 'Editar usuario existente' },
+    { code: 'eliminar', description: 'Eliminar usuario' },
+    { code: 'exportar', description: 'Exportar usuarios a CSV/Excel' },
+    { code: 'desactivar', description: 'Desactivar cuenta de usuario' },
+    { code: 'resetear_password', description: 'Forzar reset de contraseña' },
+  ],
+  fields: ['email', 'name', 'phone', 'role', 'status', 'createdAt'],
+} as const;
+```
+
+#### Sincronización de Permisos
+
+```bash
+# Sincronizar manifiestos a BD (idempotente)
+pnpm permissions:sync
+```
+
+El script:
+- Upserta categorías y acciones sin modificar asignaciones de roles existentes
+- Marca permisos removidos como `deprecated` para revisión (no elimina)
+- Se ejecuta en deploy/seed
+
+#### CI Test de Permisos
+
+```typescript
+// tests/permissions.spec.ts
+describe('Permission Manifests', () => {
+  it('all @Can() permissions are declared in manifests', () => {
+    // Escanea código por @Can() y verifica contra manifiestos
+  });
+
+  it('all manifest actions are used by endpoints or MCP tools', () => {
+    // Verifica que no hay acciones huérfanas
+  });
+});
+```
 
 #### Esquema de Permisos (PostgreSQL/Prisma)
 
 ```prisma
+model PermissionCategory {
+  id          String       @id @default(uuid())
+  code        String       @unique  // e.g., "usuarios", "pedidos"
+  displayName String                // e.g., "Usuarios", "Pedidos"
+  permissions Permission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Permission {
+  id          String             @id @default(uuid())
+  categoryId  String
+  category    PermissionCategory @relation(fields: [categoryId], references: [id])
+  action      String             // e.g., "listar", "crear", "aprobar"
+  description String             // e.g., "Ver lista de usuarios"
+  conditions  Json?              // e.g., { "tenantId": "${user.tenantId}" }
+  fields      Json?              // e.g., ["email", "name"] for field-level
+  deprecated  Boolean            @default(false)  // Flagged on removal
+  roles       RolePermission[]
+  users       UserPermission[]
+  createdAt   DateTime           @default(now())
+  @@unique([categoryId, action])
+}
+
 model Role {
   id          String           @id @default(uuid())
   name        String           @unique
@@ -139,18 +226,6 @@ model Role {
   users       UserRole[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-}
-
-model Permission {
-  id         String           @id @default(uuid())
-  resource   String           // e.g., "article", "user"
-  action     String           // e.g., "read", "update", "delete"
-  conditions Json?            // e.g., { "tenantId": "${user.tenantId}" }
-  fields     Json?            // e.g., ["email", "name"] for field-level
-  roles      RolePermission[]
-  users      UserPermission[]
-  createdAt  DateTime         @default(now())
-  @@unique([resource, action])
 }
 
 model RolePermission {
@@ -181,56 +256,87 @@ model UserPermission {
 #### Uso en Código
 
 ```typescript
-// Controller con @Can()
-@Controller('articles')
-export class ArticlesController {
+// Controller con @Can() usando category:action
+@Controller('articulos')
+export class ArticulosController {
   @Get()
-  @Can('article:read')
+  @Can('articulos:listar')
   async findAll(@CurrentUser() user: User) {
-    return this.articlesService.findAccessible(user);
+    return this.articulosService.findAccessible(user);
+  }
+
+  @Get(':id')
+  @Can('articulos:ver')
+  async findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.articulosService.findOneAccessible(id, user);
+  }
+
+  @Post()
+  @Can('articulos:crear')
+  async create(@Body() dto: CreateArticuloDto, @CurrentUser() user: User) {
+    return this.articulosService.create(dto, user);
   }
 
   @Patch(':id')
-  @Can('article:update')
-  async update(@Param('id') id: string, @Body() dto: UpdateArticleDto, @CurrentUser() user: User) {
-    return this.articlesService.update(id, dto, user);
+  @Can('articulos:editar')
+  async update(@Param('id') id: string, @Body() dto: UpdateArticuloDto, @CurrentUser() user: User) {
+    return this.articulosService.update(id, dto, user);
+  }
+
+  @Post(':id/publicar')
+  @Can('articulos:publicar')  // Acción custom
+  async publish(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.articulosService.publish(id, user);
   }
 }
 
 // Service con accessibleBy()
 @Injectable()
-export class ArticlesService {
+export class ArticulosService {
   constructor(private prisma: PrismaService, private casl: CaslAbilityFactory) {}
 
   async findAccessible(user: User) {
     const ability = await this.casl.createForUser(user);
-    return this.prisma.article.findMany({
-      where: accessibleBy(ability, 'article', 'read').Article,
+    return this.prisma.articulo.findMany({
+      where: accessibleBy(ability, 'articulos', 'listar').Articulo,
     });
   }
 }
 
-// MCP Tool con @Can()
+// MCP Tool con @Can() usando category:action
 @Tool({
-  name: 'get_articles',
-  description: 'List articles accessible to user',
+  name: 'listar_articulos',
+  description: 'Listar artículos accesibles al usuario',
   parameters: z.object({}),
 })
-@Can('article:read')
-async getArticles(@CurrentUser() user: User) {
-  return this.articlesService.findAccessible(user);
+@Can('articulos:listar')
+async listarArticulos(@CurrentUser() user: User) {
+  return this.articulosService.findAccessible(user);
+}
+
+@Tool({
+  name: 'publicar_articulo',
+  description: 'Publicar un artículo (acción custom)',
+  parameters: z.object({ id: z.string().uuid() }),
+})
+@Can('articulos:publicar')
+async publicarArticulo({ id }: { id: string }, @CurrentUser() user: User) {
+  return this.articulosService.publish(id, user);
 }
 ```
 
 #### Anti-patrones de Autorización
 
-- ❌ `if (user.role === 'admin')` — verificar roles en código
-- ❌ Autorizar solo en UI con `@casl/react`
+- ❌ `if (user.role === 'admin')` — verificar roles en código en vez de permisos
+- ❌ Autorizar solo en UI con `@casl/react` — API debe siempre enforce
 - ❌ Queries de lista sin `accessibleBy()` filtering
 - ❌ Retornar campos restringidos sin filtrar
 - ❌ Aceptar updates de campos que el usuario no puede modificar
-- ❌ Hardcodear permisos en código
+- ❌ Hardcodear permisos en código en vez de almacenar en BD
 - ❌ Omitir audit logging de cambios de permisos
+- ❌ Agregar endpoints/MCP tools sin actualizar el manifiesto de permisos
+- ❌ Olvidar ejecutar `pnpm permissions:sync` tras cambiar manifiestos
+- ❌ Declarar acciones no usadas o usar permisos no declarados (CI debe fallar)
 
 ### Contraste con Laravel + Inertia + React
 
