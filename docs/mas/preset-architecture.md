@@ -69,6 +69,7 @@ Each stack preset contains only the behavior that varies by stack:
 - `mas-stack-moodle5-plugin`
 - `mas-stack-moodle5-portal`
 - `mas-stack-laravel-inertia-react`
+- `mas-stack-nestjs-react`
 
 A stack preset should include:
 

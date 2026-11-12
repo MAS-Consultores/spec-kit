@@ -516,7 +516,7 @@ OpenAPI.
 
 **Monorepo Root:**
 - `pnpm-workspace.yaml` with `apps/*` and `packages/*`; `pnpm-lock.yaml` committed.
-- Root `package.json` with `packageManager: 'pnpm@X.Y.Z'` for Corepack.
+- Root `package.json` with exact `packageManager: 'pnpm@X.Y.Z'` (latest stable) and `engines`/`.nvmrc` on current Node LTS.
 - Shared TypeScript configuration and ESLint with boundary rules.
 - CI: `pnpm install --frozen-lockfile`, `madge --circular`, `openapi-diff`, `pnpm audit`.
 
@@ -524,13 +524,13 @@ OpenAPI.
 - Each domain as module under `src/modules/<domain>/` with controller, service, DTOs, repository, tests, and `index.ts` barrel.
 - Thin infrastructure modules: `PrismaModule`, `ConfigModule`, `AuthModule`.
 - Prisma schema (optionally multi-file per domain) and migrations; OpenAPI spec from `@nestjs/swagger`.
-- Jest unit tests per module; e2e tests for cross-module flows.
+- Vitest unit tests per module (NestJS 12 is ESM-only); e2e tests for cross-module flows; MCP via `connectMcpClient()` from `@nestjs/mcp/testing`.
 
 **Frontend (`apps/web`):**
 - Each domain as feature under `src/features/<domain>/` with components, hooks, api, routes, tests, and `index.ts` barrel.
-- Shared UI in `src/shared/`; lazy-loaded routes per feature.
+- shadcn/ui primitives in `packages/ui`; `src/shared/` holds only the app shell/layout; routes code-split via TanStack Router `autoCodeSplitting`.
 - Generated typed API client from OpenAPI spec.
-- Vitest or Jest tests.
+- Vitest + React Testing Library + MSW; Playwright E2E in `apps/web/e2e/`.
 
 **Contracts (`packages/contracts`):**
 - Shared TypeScript types and API contracts—the only coupling between API and Web.
@@ -594,7 +594,7 @@ See `.specify/memory/security-guidelines.md` after init. Highlights include:
 CSRF token validation, `ValidationPipe` with whitelist, Prisma `select`/`omit`
 for safe responses, Helmet, CORS allowlist, throttling.
 
-**Authorization:** Custom `AuthzModule` + `@Can()` on all endpoints and MCP tools (NOT `@nestjs/authorization`),
+**Authorization:** Custom `AuthzModule` + `@Can()` on all endpoints and MCP tools,
 CASL abilities per user, `@casl/prisma` `accessibleBy()` for record filtering,
 field-level permissions on responses and updates, permission audit logging.
 
@@ -614,7 +614,7 @@ for UI visibility only—API always enforces authorization.
 - Require test coverage for guards, services, and critical flows.
 
 **Validation:**
-- Confirm Zod v4.2+ as ONLY validation library; reject class-validator/class-transformer.
+- Confirm Zod v4.2+ as the ONLY validation library.
 - For each input (body, query, params, headers, MCP): confirm shared schema in `packages/contracts`.
 - Confirm backend validates with `nestjs-zod` + `ZodValidationPipe`; never skip validation.
 - Confirm frontend validates forms with `zodResolver` using SAME shared schema.
@@ -702,7 +702,7 @@ for UI visibility only—API always enforces authorization.
 - Confirm page/sort/filter state in TanStack Router typed search params.
 - For infinite lists: confirm `useInfiniteQuery` with cursor-based pagination.
 - Reject client-side pagination of full datasets.
-- Confirm feature routes are lazy-loaded with React.lazy() and Suspense.
+- Confirm feature routes are code-split with TanStack Router `autoCodeSplitting`/`createLazyFileRoute`; `React.lazy()` only for heavy non-route components.
 - For long lists (>50 items): confirm TanStack Virtual virtualization.
 - Confirm images use lazy loading.
 

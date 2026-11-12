@@ -79,12 +79,12 @@ proyecto/
 
 | Componente | Decisión | Justificación |
 |------------|----------|---------------|
-| **Runtime** | Node.js LTS | Soporte a largo plazo, estabilidad |
-| **Package Manager** | pnpm | Workspaces, frozen-lockfile, workspace protocol |
-| **Framework Backend** | NestJS (última estable) | DI estructurada, modular, TypeScript-first |
-| **ORM** | Prisma | Type-safe, migraciones explícitas, excelente DX |
+| **Runtime** | Node.js LTS vigente | `engines` + `.nvmrc`; Docker `node:<LTS>-alpine@sha256:…` (nunca `lts` flotante) |
+| **Package Manager** | pnpm (versión exacta en `packageManager`) | Workspaces, frozen-lockfile, workspace protocol |
+| **Framework Backend** | NestJS 12.x (última estable) | Requerido por `@nestjs/mcp` (peer `^12`); ESM-only |
+| **ORM** | Prisma 7.x estable | `prisma` y `@prisma/client` misma versión exacta |
 | **Base de Datos** | PostgreSQL | Robustez, features avanzados, estándar empresarial |
-| **Validación** | Zod v4.2+ (única) | Unificado en API, MCP y React; no class-validator |
+| **Validación** | Zod v4.2+ (única) | Unificado en API, MCP y React |
 | **DTOs REST** | nestjs-zod | `createZodDto()` + `ZodValidationPipe` + OpenAPI |
 | **API Style** | REST + OpenAPI obligatorio | `@nestjs/swagger` + nestjs-zod integration |
 | **MCP** | @nestjs/mcp (oficial) | Tools per domain module, OAuth 2.1, Zod schemas |
@@ -96,7 +96,7 @@ proyecto/
 | **Global State** | Zustand (solo UI) | Theme, modals, sidebar; NO server data |
 | **Forms** | React Hook Form + zodResolver | Schemas de packages/contracts |
 | **Styling** | Tailwind CSS + shadcn/ui | Paridad con laravel-inertia-react |
-| **Testing API** | Jest + supertest + MCP test client | Unit, e2e, MCP tools |
+| **Testing API** | Vitest + supertest + `connectMcpClient()` | Unit, e2e, MCP tools (Nest 12 ESM) |
 | **Testing Web** | Vitest + Testing Library + Playwright | Unit/component + E2E |
 
 ### Autenticación y Seguridad
@@ -325,33 +325,47 @@ export class ArticulosService {
 
   async findAccessible(user: User) {
     const ability = await this.casl.createForUser(user);
+    // PrismaService se construye con .$extends(createCaslExtension()): sin permisos => [] (no 500)
     return this.prisma.articulo.findMany({
-      where: accessibleBy(ability, 'articulos', 'listar').Articulo,
+      where: accessibleBy(ability, 'listar').ofType('Articulo'),
     });
   }
 }
 
-// MCP Tool con @Can() usando category:action
-@Tool({
-  name: 'listar_articulos',
-  description: 'Listar artículos accesibles al usuario',
-  parameters: z.object({}),
-})
-@Can('articulos:listar')
-async listarArticulos(@CurrentUser() user: User) {
-  return this.articulosService.findAccessible(user);
-}
+// MCP Tools (@nestjs/mcp): firma (input, ctx: McpContext); identidad desde ctx.authInfo, NO @CurrentUser()
+import { Tool, McpContext } from '@nestjs/mcp';
 
-@Tool({
-  name: 'publicar_articulo',
-  description: 'Publicar un artículo (acción custom)',
-  parameters: z.object({ id: z.string().uuid() }),
-})
-@Can('articulos:publicar')
-async publicarArticulo({ id }: { id: string }, @CurrentUser() user: User) {
-  return this.articulosService.publish(id, user);
+@Injectable()
+export class ArticulosMcpTools {
+  constructor(private articulosService: ArticulosService, private actors: ActorResolver) {}
+
+  @Tool({
+    name: 'listar_articulos',
+    description: 'Listar artículos accesibles al usuario',
+    inputSchema: z.object({}),
+    annotations: { readOnlyHint: true },
+  })
+  @Can('articulos:listar')
+  async listarArticulos(_input: Record<string, never>, ctx: McpContext) {
+    const user = await this.actors.fromAuthInfo(ctx.authInfo);
+    return this.articulosService.findAccessible(user);
+  }
+
+  @Tool({
+    name: 'publicar_articulo',
+    description: 'Publicar un artículo (acción custom)',
+    inputSchema: z.object({ id: z.uuid() }),
+  })
+  @Can('articulos:publicar')
+  async publicarArticulo({ id }: { id: string }, ctx: McpContext) {
+    const user = await this.actors.fromAuthInfo(ctx.authInfo);
+    return this.articulosService.publish(id, user);
+  }
 }
 ```
+
+`@CurrentUser()` solo aplica a controllers HTTP. En guards, `PermissionsGuard` distingue el transporte con
+`context.getType<McpContextType>() === 'mcp'` y lee la identidad con `McpExecutionContext.create(context).getAuthInfo()`.
 
 #### Anti-patrones de Autorización
 
@@ -387,7 +401,7 @@ Las siguientes decisiones fueron tomadas por MAS y están reflejadas en el stack
 5. **Frontend**: React + Vite (no Next.js, no SSR)
 6. **HTTP Adapter**: Express (no Fastify)
 7. **Autenticación**: HttpOnly cookies + CSRF (no JWT en localStorage)
-8. **Validación**: Zod v4.2+ unificado (NO class-validator/class-transformer)
+8. **Validación**: Zod v4.2+ unificado (única librería de validación)
 9. **DTOs REST**: nestjs-zod (`createZodDto()` + `ZodValidationPipe`)
 10. **API Documentation**: REST + OpenAPI obligatorio via `@nestjs/swagger` + nestjs-zod
 11. **MCP**: `@nestjs/mcp` oficial (NO `@rekog/mcp-nest`)
@@ -396,7 +410,7 @@ Las siguientes decisiones fueron tomadas por MAS y están reflejadas en el stack
 14. **Global State**: Zustand solo para UI state
 15. **Forms**: React Hook Form + zodResolver
 16. **Styling**: Tailwind CSS + shadcn/ui
-17. **Testing API**: Jest + supertest + MCP test client
+17. **Testing API**: Vitest + supertest + `connectMcpClient()` de `@nestjs/mcp/testing` (Nest 12 es ESM-only)
 18. **Testing Web**: Vitest + Testing Library + Playwright
 19. **Estructura**: Monorepo modular con `apps/api`, `apps/web`, `packages/contracts`, `packages/ui`
 
@@ -418,7 +432,8 @@ packages:
 ```json
 // package.json (root)
 {
-  "packageManager": "pnpm@9.x.x",
+  "packageManager": "pnpm@<versión estable exacta, p.ej. 12.18.0>",
+  "engines": { "node": ">=<Node LTS vigente, p.ej. 26>" },
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
@@ -452,9 +467,7 @@ Paquetes internos se referencian con protocolo workspace:
 
 ```yaml
 # GitHub Actions ejemplo
-- uses: pnpm/action-setup@v4
-  with:
-    version: 9
+- uses: pnpm/action-setup@v4   # lee la versión exacta desde `packageManager`
 - run: pnpm install --frozen-lockfile
 - run: pnpm -r build
 - run: pnpm -r test
@@ -478,6 +491,36 @@ Paquetes internos se referencian con protocolo workspace:
 - ❌ Usar `npm install` o `yarn install`
 - ❌ Usar `^` o `~` para dependencias internas (usar `workspace:*`)
 - ❌ Usar `npm audit` o `yarn audit`
+
+## Política de Versiones
+
+- Al crear el proyecto se instala la **última versión ESTABLE** de cada paquete; nunca beta/rc/canary/next/dev.
+- El dist-tag `latest` de npm **puede apuntar a una prerelease** (p.ej. `prisma` → `8.0.0-rc.33`): verificar
+  siempre que la versión no tenga sufijo `-rc`/`-beta`/`-alpha`/`-dev`/`-canary` antes de instalarla.
+- Versiones exactas fijadas por `pnpm-lock.yaml`, `packageManager` (pnpm exacto) y `engines`/`.nvmrc` (Node LTS vigente).
+- Renovate mantiene todo en la última estable, sin prereleases; los saltos de major llegan como PR con revisión.
+- Conflictos de peers: elegir el conjunto estable más nuevo mutuamente compatible y documentar la excepción en
+  `pnpm.peerDependencyRules.allowedVersions`, cubierta por un smoke test en CI (`ZodValidationPipe`,
+  `ZodSerializerInterceptor`, `cleanupOpenApiDoc`, `openapi:generate`).
+
+### Hechos de compatibilidad verificados (npm, 2026-11-12)
+
+| Paquete | Estable | Nota |
+|---------|---------|------|
+| `@nestjs/mcp` | 0.0.4 | peers `@nestjs/core`/`@nestjs/common` `^12`, `@modelcontextprotocol/server` y `/client` `^2.4.0` |
+| `@nestjs/core` | 12.5.0 | `"type": "module"` (ESM-only) → Vitest también en `apps/api` |
+| `nestjs-zod` | 5.6.0 | peers `@nestjs/common ^10 \|\| ^11`, `@nestjs/swagger ^7.4.2 \|\| ^8 \|\| ^11` → excepción documentada para Nest/Swagger 12 |
+| `prisma` / `@prisma/client` | 7.10.1 | `prisma@latest` = `8.0.0-rc.33` (prerelease, NO usar); Prisma 8 se adopta cuando sea estable vía PR de Renovate con revisión de migración |
+| `@casl/prisma` | 2.2.0 | peer `@prisma/client` hasta `^7`; `accessibleBy(ability, action).ofType('Model')` + `createCaslExtension()` |
+| `@tanstack/react-table` | 9.3.1 | API v9: `useTable` con feature slots; `useLegacyTable` solo compatibilidad v8 |
+| `zod` | 4.6.7 | `z.uuid()`, `z.email()`, `z.url()`, `z.iso.datetime()`, `z.codec()` |
+
+### Requisitos de Prisma 7 (guía oficial de upgrade a v7)
+
+- `prisma.config.ts` con `defineConfig({ datasource: { url: env('DATABASE_URL') } })` de `prisma/config`;
+  `url`/`directUrl` en el bloque `datasource` del schema están deprecados.
+- Driver adapter obligatorio: `@prisma/adapter-pg` (`new PrismaClient({ adapter: new PrismaPg({ connectionString }) })`).
+- Generator `prisma-client` con `output` obligatorio (el cliente ya no se genera en `node_modules`); Prisma ORM es ESM.
 
 ## Validación Unificada: Ambos Lados, Única Fuente
 
@@ -508,13 +551,35 @@ son la ÚNICA FUENTE DE VERDAD. TODO se valida en AMBOS frontend (UX) y backend 
 
 ```typescript
 // packages/contracts/src/usuarios/create-usuario.schema.ts
-export const createUsuarioSchema = z.object({
-  email: z.string().email({ message: 'Email inválido' }),
+// Requests: z.strictObject (rechaza keys desconocidas)
+export const createUsuarioSchema = z.strictObject({
+  email: z.email({ message: 'Email inválido' }),
   name: z.string().min(2, { message: 'Nombre muy corto' }),
   password: z.string().min(8, { message: 'Mínimo 8 caracteres' }),
-}).strict();
+});
 
 export type CreateUsuarioInput = z.infer<typeof createUsuarioSchema>;
+
+// packages/contracts/src/common/datetime.codec.ts
+// Prisma devuelve Date; el wire format es ISO 8601 UTC. El codec hace encode Date -> string al serializar.
+export const isoDateTime = z.codec(z.iso.datetime(), z.date(), {
+  decode: (iso) => new Date(iso),
+  encode: (date) => date.toISOString(),
+});
+
+// Responses: z.object (strip de keys desconocidas, compatible hacia adelante)
+export const usuarioResponseSchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+  name: z.string(),
+  createdAt: isoDateTime,
+});
+
+// packages/contracts/src/common/pagination.schema.ts
+export const paginationQuerySchema = z.strictObject({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
 
 // packages/contracts/src/common/rfc9457.schema.ts
 export const fieldErrorSchema = z.object({
@@ -524,7 +589,7 @@ export const fieldErrorSchema = z.object({
 });
 
 export const problemDetailSchema = z.object({
-  type: z.string().url(),
+  type: z.url(),
   title: z.string(),
   status: z.number(),
   detail: z.string().optional(),
@@ -534,19 +599,30 @@ export const problemDetailSchema = z.object({
 
 ```typescript
 // apps/api - Backend validation (autoritativo)
-import { createZodDto } from 'nestjs-zod';
-import { createUsuarioSchema } from '@project/contracts';
+import { createZodDto, createZodValidationPipe, ZodResponse, ZodSerializerInterceptor } from 'nestjs-zod';
+import { createUsuarioSchema, usuarioResponseSchema } from '@project/contracts';
 
 export class CreateUsuarioDto extends createZodDto(createUsuarioSchema) {}
+// codec: true => nestjs-zod usa encode() al serializar la respuesta (Date -> ISO string)
+export class UsuarioResponseDto extends createZodDto(usuarioResponseSchema, { codec: true }) {}
+
+// app.module.ts: pipe global que falla si un parámetro no está tipado con un DTO de nestjs-zod
+providers: [
+  { provide: APP_PIPE, useClass: createZodValidationPipe({ strictSchemaDeclaration: true }) },
+  { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
+]
 
 @Controller('usuarios')
 export class UsuariosController {
   @Post()
   @Can('usuarios:crear')
-  async create(@Body() dto: CreateUsuarioDto) { // ZodValidationPipe valida
+  @ZodResponse({ status: 201, type: UsuarioResponseDto }) // serializa + documenta OpenAPI + chequeo de tipos
+  async create(@Body() dto: CreateUsuarioDto) { // @Body/@Param/@Query validados por ZodValidationPipe
     return this.usuariosService.create(dto);
   }
 }
+// Headers: decorador custom + ZodValidationPipe. Uploads: ParseFilePipeBuilder + chequeo de magic bytes.
+// Descargas binarias (StreamableFile): sin @ZodResponse/@ZodSerializerDto; el interceptor las deja pasar.
 
 // Business rule validation in service
 @Injectable()
@@ -622,7 +698,8 @@ export const usuariosSearchSchema = z.object({
 - ❌ Validar solo en frontend — backend SIEMPRE re-valida
 - ❌ Duplicar reglas fuera de `packages/contracts`
 - ❌ Ignorar errores RFC 9457 en frontend — mapear a form fields
-- ❌ Schemas no-strict — siempre `.strict()` para rechazar keys desconocidas
+- ❌ Request schemas no-strict — usar `z.strictObject()`; los response schemas usan `z.object()` (strip)
+- ❌ Responses con `z.iso.datetime()` directo sobre un `Date` de Prisma — usar el codec `isoDateTime` + `createZodDto(..., { codec: true })`
 ```
 
 ## REST API con OpenAPI Obligatorio
@@ -670,6 +747,16 @@ pnpm add @nestjs/mcp @modelcontextprotocol/server zod
       name: 'my-api',
       version: '1.0.0',
       instructions: 'API tools for domain operations',
+      path: 'mcp',
+      endpointVersion: VERSION_NEUTRAL,
+      decorators: [Public()], // el JwtAuthGuard de cookies no aplica; /mcp usa el gate OAuth del módulo
+      http: { allowedOrigins: ['app.example.cl'] },
+      auth: {
+        verifier: JwtMcpTokenVerifier,               // valida Bearer con el mismo secreto/estrategia JWT
+        resource: 'https://api.example.cl/mcp',      // audiencia exigida (RFC 8707)
+        authorizationServers: ['https://api.example.cl'],
+        scopesSupported: ['articulos:listar', 'usuarios:ver'],
+      },
     }),
     // ... domain modules
   ],
@@ -684,40 +771,53 @@ export class UsersMcpTools {
   @Tool({
     name: 'get_user',
     description: 'Get user by ID',
-    parameters: z.object({ id: z.string().uuid() }),
+    inputSchema: z.object({ id: z.uuid() }),
+    scopes: ['usuarios:ver'],
+    annotations: { readOnlyHint: true },
   })
-  async getUser({ id }: { id: string }) {
-    return this.usersService.findById(id); // Call service, NOT Prisma directly
+  @Can('usuarios:ver')
+  async getUser({ id }: { id: string }, ctx: McpContext) {
+    return this.usersService.findById(id, ctx.authInfo); // Call service, NOT Prisma directly
   }
 }
 ```
 
 ### Seguridad MCP
 
-- Endpoint `/mcp` autenticado como OAuth 2.1 resource server
-- Mismos guards y policies que REST
-- Tools destructivos requieren autorización explícita y descripciones claras
-- Rate limiting en invocaciones
-- Audit logging de todas las llamadas
-- No secrets ni data excesiva en outputs
-- Inputs tratados como untrusted (prompt-injection awareness)
+- Endpoint `/mcp` como OAuth 2.1 resource server (`auth.verifier`, `resource`, `authorizationServers`); solo `Authorization: Bearer`, sin cookies, exento de CSRF solo esa ruta
+- `allowedOrigins` restringido; audiencia del token = `resource` (RFC 8707)
+- Scopes OAuth mapeados 1:1 a `category:action` (`@Tool({ scopes })` + `@Can()`)
+- Guards: `context.getType<McpContextType>() === 'mcp'` → `McpExecutionContext.create(context).getAuthInfo()`
+- Tools destructivos con `annotations.destructiveHint`, autorización explícita y descripciones claras
+- Rate limiting en invocaciones; audit logging de todas las llamadas
+- No secrets ni data excesiva en outputs; inputs tratados como untrusted (prompt-injection awareness)
 
 ### Testing MCP
 
 ```typescript
-import { McpTestClient } from '@nestjs/mcp/testing';
+import { Test } from '@nestjs/testing';
+import { connectMcpClient } from '@nestjs/mcp/testing';
 
 describe('UsersMcpTools', () => {
-  let client: McpTestClient;
-  
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({ ... }).compile();
-    client = module.get(McpTestClient);
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = await moduleRef.createNestApplication().init();
+  });
+  afterAll(() => app.close());
+
+  it('returns the user for an authorized token', async () => {
+    const client = await connectMcpClient(app, { token: await issueTestToken(['usuarios:ver']) });
+    const result = await client.callTool({ name: 'get_user', arguments: { id: userId } });
+    expect(result.isError).toBeFalsy();
+    await client.close();
   });
 
-  it('should get user', async () => {
-    const result = await client.callTool('get_user', { id: 'uuid' });
-    expect(result).toMatchObject({ id: 'uuid', name: 'Test' });
+  it('rejects a token without the scope', async () => {
+    const client = await connectMcpClient(app, { token: await issueTestToken([]) });
+    await expect(client.callTool({ name: 'get_user', arguments: { id: userId } })).rejects.toThrow();
+    await client.close();
   });
 });
 ```
@@ -765,8 +865,11 @@ describe('UsersMcpTools', () => {
 | Componente | Implementación |
 |------------|----------------|
 | **Prisma Schema** | `deletedAt DateTime?`, `deletedBy String?` en cada modelo |
-| **Prisma Extension** | Intercept `delete()` → `update({ deletedAt })`, filter `deletedAt: null` en reads |
-| **Unique Constraints** | Partial indexes: `@@unique([email], where: { deletedAt: null })` via migrations |
+| **Prisma Extension** | `delete` → `update`, `deleteMany` → `updateMany`; reads filtran `deletedAt: null` |
+| **Composición** | `AND: [where, { deletedAt: null }]` en `findMany`/`findFirst*`/`count`/`aggregate`/`groupBy`/`updateMany`; ops únicas `{ ...where, deletedAt: null }` |
+| **Incluir eliminados** | Solo opt-in explícito vía CLS (`withDeleted()`), nunca un argumento de Prisma |
+| **Orden** | `$extends(createCaslExtension()).$extends(softDelete)` (con test) |
+| **Unique Constraints** | Partial unique index `WHERE "deletedAt" IS NULL` via migración SQL |
 | **Restore** | Permiso separado: `<category>:restaurar` |
 | **Hard Delete** | Permiso restringido: `<category>:eliminar_permanente` (solo legal/retention) |
 | **Cascades** | Soft-delete parent → soft-delete o detach children (consistente) |
@@ -774,17 +877,24 @@ describe('UsersMcpTools', () => {
 ### Prisma Schema
 
 ```prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql" // url en prisma.config.ts (Prisma 7)
+}
+
 model Usuario {
-  id        String    @id @default(cuid())
+  id        String    @id @default(uuid())
   email     String
   name      String
-  
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
   deletedBy String?
-  
-  // Partial unique index (migration SQL required)
-  // @@unique([email]) WHERE deletedAt IS NULL
-  
+
+  // Partial unique index en migración SQL: UNIQUE (email) WHERE "deletedAt" IS NULL
   @@index([deletedAt])
 }
 ```
@@ -793,56 +903,52 @@ model Usuario {
 
 ```typescript
 // apps/api/src/prisma/soft-delete.extension.ts
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client';
+import type { ClsService } from 'nestjs-cls';
 
-export const softDeleteExtension = Prisma.defineExtension({
-  name: 'soft-delete',
-  query: {
-    $allModels: {
-      async delete({ model, args, query }) {
-        // Convert delete to soft delete
-        return (prisma as any)[model].update({
-          ...args,
-          data: { deletedAt: new Date() },
-        });
-      },
-      async deleteMany({ model, args, query }) {
-        return (prisma as any)[model].updateMany({
-          ...args,
-          data: { deletedAt: new Date() },
-        });
-      },
-      async findMany({ model, args, query }) {
-        // Filter out soft-deleted by default
-        if (!args?.includeDeleted) {
-          args = { ...args, where: { ...args?.where, deletedAt: null } };
-        }
-        return query(args);
-      },
-      async findFirst({ model, args, query }) {
-        if (!args?.includeDeleted) {
-          args = { ...args, where: { ...args?.where, deletedAt: null } };
-        }
-        return query(args);
-      },
-      async findUnique({ model, args, query }) {
-        const result = await query(args);
-        if (result?.deletedAt && !args?.includeDeleted) return null;
-        return result;
-      },
-      async count({ model, args, query }) {
-        if (!args?.includeDeleted) {
-          args = { ...args, where: { ...args?.where, deletedAt: null } };
-        }
-        return query(args);
-      },
-    },
-  },
-});
+const AND_OPS = ['findMany', 'findFirst', 'findFirstOrThrow', 'count', 'aggregate', 'groupBy', 'updateMany'] as const;
+const UNIQUE_OPS = ['findUnique', 'findUniqueOrThrow', 'update'] as const;
 
-// Usage
-const prisma = new PrismaClient().$extends(softDeleteExtension);
+export const createSoftDeleteExtension = (cls: ClsService) =>
+  Prisma.defineExtension((client) =>
+    client.$extends({
+      name: 'soft-delete',
+      query: {
+        $allModels: {
+          async $allOperations({ model, operation, args, query }) {
+            const withDeleted = cls.get('softDelete.includeDeleted') === true; // opt-in explícito, nunca un arg
+            const hardDelete = cls.get('softDelete.hardDelete') === true;       // solo eliminar_permanente
+            const delegate = (client as any)[model.charAt(0).toLowerCase() + model.slice(1)];
+            const stamp = { deletedAt: new Date(), deletedBy: cls.get('userId') ?? null };
+
+            if (operation === 'delete' && !hardDelete) {
+              return delegate.update({ where: { ...args.where, deletedAt: null }, data: stamp });
+            }
+            if (operation === 'deleteMany' && !hardDelete) {
+              return delegate.updateMany({ where: { AND: [args.where ?? {}, { deletedAt: null }] }, data: stamp });
+            }
+            if (!withDeleted && (AND_OPS as readonly string[]).includes(operation)) {
+              // AND preserva los árboles OR de accessibleBy() (CASL va primero)
+              args.where = { AND: [args.where ?? {}, { deletedAt: null }] };
+            } else if (!withDeleted && (UNIQUE_OPS as readonly string[]).includes(operation)) {
+              args.where = { ...args.where, deletedAt: null };
+            }
+            return query(args);
+          },
+        },
+      },
+    }),
+  );
+
+// prisma.service.ts — orden fijo (cubierto por test): CASL primero, luego soft delete
+const base = new PrismaClient({ adapter: new PrismaPg({ connectionString: env.DATABASE_URL }) });
+export const createExtendedClient = (cls: ClsService) =>
+  base.$extends(createCaslExtension()).$extends(createSoftDeleteExtension(cls));
+export type ExtendedPrismaClient = ReturnType<typeof createExtendedClient>;
 ```
+
+Reglas adicionales: `include` de relaciones filtra `deletedAt: null` (helper `activeOnly()` + regla de lint);
+los `delete` anidados dentro de `update` están prohibidos (usar el service del dominio).
 
 ### Migration para Partial Unique Index
 
@@ -891,7 +997,7 @@ export class UsuariosController {
 
   @Delete(':id/permanent')
   @Can('usuarios:eliminar_permanente')  // Restricted, audited
-  async hardDelete(@Param('id') id: string, @CurrentUser() user: User) {
+  async hardDelete(@Param('id') id: string, @CurrentUser() user: User) { // HTTP controller: @CurrentUser válido
     return this.usuariosService.hardDelete(id, user.id, 'Legal erasure request #123');
   }
 }
@@ -902,33 +1008,43 @@ export class UsuariosController {
 ```typescript
 @Injectable()
 export class UsuariosService {
-  async softDelete(id: string, deletedById?: string) {
-    return this.prisma.usuario.update({
-      where: { id },
-      data: { deletedAt: new Date(), deletedBy: deletedById },
+  constructor(private prisma: PrismaService, private cls: ClsService, private audit: AuditService) {}
+
+  async softDelete(id: string) {
+    // Dentro de $transaction usar update explícito: el delegate que usa la extensión para delete->update
+    // no participa de la transacción interactiva (la extensión es red de seguridad fuera de tx).
+    return this.prisma.$transaction(async (tx) => {
+      const deleted = await tx.usuario.update({
+        where: { id },
+        data: { deletedAt: new Date(), deletedBy: this.cls.get('userId') ?? null },
+      });
+      await this.audit.record(tx, { action: 'usuarios:eliminar', entity: 'Usuario', recordId: id });
+      return deleted;
     });
   }
 
   async restore(id: string) {
-    return this.prisma.usuario.update({
-      where: { id },
-      data: { deletedAt: null, deletedBy: null },
-      includeDeleted: true,  // Opt-in to see soft-deleted
+    // Opt-in explícito vía CLS; nunca un argumento de Prisma
+    return this.cls.run(async () => {
+      this.cls.set('softDelete.includeDeleted', true);
+      return this.prisma.$transaction(async (tx) => {
+        const restored = await tx.usuario.update({ where: { id }, data: { deletedAt: null, deletedBy: null } });
+        await this.audit.record(tx, { action: 'usuarios:restaurar', entity: 'Usuario', recordId: id });
+        return restored;
+      });
     });
   }
 
   async hardDelete(id: string, actorId: string, reason: string) {
-    // Audit log BEFORE delete
-    await this.auditService.log({
-      action: 'HARD_DELETE',
-      entity: 'Usuario',
-      entityId: id,
-      actorId,
-      reason,
+    return this.cls.run(async () => {
+      this.cls.set('softDelete.hardDelete', true);
+      this.cls.set('softDelete.includeDeleted', true);
+      // Audit en la misma transacción que el delete real (hardDelete=true: la extensión no lo redirige)
+      return this.prisma.$transaction(async (tx) => {
+        await this.audit.record(tx, { action: 'usuarios:eliminar_permanente', entity: 'Usuario', recordId: id, actorId, reason });
+        return tx.usuario.delete({ where: { id } });
+      });
     });
-    
-    // Actual hard delete (bypasses extension)
-    return this.prisma.$executeRaw`DELETE FROM "Usuario" WHERE id = ${id}`;
   }
 }
 ```
@@ -937,7 +1053,9 @@ export class UsuariosService {
 
 - ❌ Usar hard delete sin justificación (legal/retention)
 - ❌ Queries sin filtro de soft-delete (extension lo maneja)
-- ❌ Bypass de Prisma extension para raw deletes
+- ❌ Bypass de Prisma extension para raw deletes (`$executeRaw` DELETE)
+- ❌ `includeDeleted` como argumento de Prisma — solo opt-in vía CLS
+- ❌ `delete` anidado dentro de `update`; `include` de relaciones sin filtrar `deletedAt`
 - ❌ Unique constraints sin partial index
 - ❌ Restore sin permiso `<category>:restaurar`
 - ❌ Hard delete sin permiso `<category>:eliminar_permanente` y audit log
@@ -1372,8 +1490,8 @@ export class PrismaService extends PrismaClient {
 
 | Técnica | Implementación |
 |---------|----------------|
-| **Lazy routes** | `React.lazy()` + `Suspense` por feature |
-| **Code splitting** | `import()` dinámico para componentes pesados |
+| **Lazy routes** | TanStack Router `autoCodeSplitting` (`@tanstack/router-plugin`) + `createLazyFileRoute` |
+| **Code splitting** | `React.lazy()` solo para componentes pesados que no son rutas (charts, editores) |
 | **Virtualización** | TanStack Virtual para listas > 50 items |
 | **Lazy images** | `loading="lazy"` + srcsets |
 | **Memoization** | `useMemo`, `useCallback` para evitar re-renders |
@@ -1419,7 +1537,7 @@ TanStack Query proporciona caching en cliente como ya está definido.
 async findPaginated(user: User, cursor?: string, take = 20) {
   const ability = await this.casl.createForUser(user);
   return this.prisma.articulo.findMany({
-    where: accessibleBy(ability, 'articulos', 'listar').Articulo,
+    where: accessibleBy(ability, 'listar').ofType('Articulo'),
     take: Math.min(take, 100), // Max enforced
     ...(cursor && { cursor: { id: cursor }, skip: 1 }),
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], // Stable sort
@@ -1431,17 +1549,18 @@ async findPaginated(user: User, cursor?: string, take = 20) {
 
 ```typescript
 // packages/contracts/src/pagination.ts
-export const PaginationParamsSchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+export const PaginationParamsSchema = z.strictObject({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   sortBy: z.enum(['createdAt', 'name', 'updatedAt']).optional(),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
-export const CursorPaginationSchema = z.object({
-  cursor: z.string().uuid().optional(),
-  take: z.coerce.number().int().min(1).max(100).default(20),
+export const CursorPaginationSchema = z.strictObject({
+  cursor: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
+export type CursorPagination = z.infer<typeof CursorPaginationSchema>;
 
 export const PaginatedResponseSchema = <T extends z.ZodType>(itemSchema: T) =>
   z.object({
@@ -1449,7 +1568,7 @@ export const PaginatedResponseSchema = <T extends z.ZodType>(itemSchema: T) =>
     meta: z.object({
       total: z.number().optional(),
       page: z.number().optional(),
-      pageSize: z.number(),
+      limit: z.number(),
       hasMore: z.boolean(),
       nextCursor: z.string().optional(),
     }),
@@ -1462,14 +1581,16 @@ export const PaginatedResponseSchema = <T extends z.ZodType>(itemSchema: T) =>
 @Tool({
   name: 'listar_articulos',
   description: 'Listar artículos con paginación cursor-based',
-  parameters: CursorPaginationSchema,
+  inputSchema: CursorPaginationSchema,
+  annotations: { readOnlyHint: true },
 })
 @Can('articulos:listar')
-async listarArticulos(params: CursorPagination, @CurrentUser() user: User) {
-  const result = await this.articulosService.findPaginated(user, params.cursor, params.take);
+async listarArticulos(params: CursorPagination, ctx: McpContext) {
+  const user = await this.actors.fromAuthInfo(ctx.authInfo);
+  const result = await this.articulosService.findPaginated(user, params.cursor, params.limit);
   return {
     items: result,
-    meta: { hasMore: result.length === params.take, nextCursor: result.at(-1)?.id },
+    meta: { limit: params.limit, hasMore: result.length === params.limit, nextCursor: result.at(-1)?.id },
   };
 }
 ```
@@ -1483,7 +1604,7 @@ async listarArticulos(params: CursorPagination, @CurrentUser() user: User) {
 const searchParams = Route.useSearch();
 const [pagination, setPagination] = useState({
   pageIndex: searchParams.page ? searchParams.page - 1 : 0,
-  pageSize: searchParams.pageSize ?? 20,
+  pageSize: searchParams.limit ?? 20,
 });
 
 // Query con paginación
@@ -1491,16 +1612,18 @@ const { data, isLoading } = useQuery({
   queryKey: ['articulos', pagination, filters, sorting],
   queryFn: () => api.articulos.list({
     page: pagination.pageIndex + 1,
-    pageSize: pagination.pageSize,
+    limit: pagination.pageSize,
     ...filters,
     ...sorting,
   }),
-  keepPreviousData: true,
+  placeholderData: keepPreviousData, // TanStack Query v5
 });
+
+// TanStack Table v9: `useTable` (v8 `useReactTable` solo vía `useLegacyTable` de compatibilidad)
 
 // Sync con URL
 useEffect(() => {
-  navigate({ search: { page: pagination.pageIndex + 1, pageSize: pagination.pageSize } });
+  navigate({ search: { page: pagination.pageIndex + 1, limit: pagination.pageSize } });
 }, [pagination]);
 ```
 
@@ -1519,15 +1642,21 @@ const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuer
 ### Routes Lazy-Loaded
 
 ```typescript
-// src/routes/index.tsx
-const ArticulosFeature = lazy(() => import('../features/articulos'));
-const UsuariosFeature = lazy(() => import('../features/usuarios'));
+// vite.config.ts — code splitting automático por ruta
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
+export default defineConfig({
+  plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react()],
+});
 
-<Route path="/articulos" element={
-  <Suspense fallback={<LoadingSpinner />}>
-    <ArticulosFeature />
-  </Suspense>
-} />
+// src/routes/articulos/index.tsx — config crítica (loader, validateSearch)
+export const Route = createFileRoute('/articulos/')({
+  validateSearch: PaginationParamsSchema,
+  loaderDeps: ({ search }) => search,
+  loader: ({ context: { queryClient }, deps }) => queryClient.ensureQueryData(articulosQuery(deps)),
+});
+
+// src/routes/articulos/index.lazy.tsx — componente cargado bajo demanda
+export const Route = createLazyFileRoute('/articulos/')({ component: ArticulosPage });
 ```
 
 ### Virtualization (TanStack Virtual)
@@ -1595,7 +1724,7 @@ El stack incluye skills externos de:
 1. **Guard Global**: `AuthGuard` deny-by-default, rutas públicas con `@Public()`
 2. **Autenticación**: Cookies HttpOnly, Secure, SameSite=Lax
 3. **CSRF**: Token obligatorio en requests mutantes
-4. **Validación**: `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`
+4. **Validación**: `createZodValidationPipe({ strictSchemaDeclaration: true })` global + `ZodSerializerInterceptor`; request schemas `z.strictObject`
 5. **Prisma**: Solo `$queryRaw` tagged templates, nunca `$queryRawUnsafe` con interpolación
 6. **Respuestas**: DTOs con `select`/`omit` para evitar filtrar campos sensibles
 7. **Migraciones**: `prisma migrate deploy` obligatorio, `db push` solo en local
@@ -1660,12 +1789,12 @@ Las siguientes decisiones pueden reconsiderarse en futuras iteraciones:
 | **Monorepo Tool** | pnpm workspaces nativo |
 | **State Management** | TanStack Query (server state) + Zustand (UI-only state) |
 | **Queues/Background Jobs** | Outbox table + `@nestjs/schedule` por defecto; BullMQ + Redis opcional si se habilita |
-| **Observability** | nestjs-pino con correlationId; NO OpenTelemetry mandatorio |
+| **Observability** | nestjs-pino con correlationId en logs JSON estructurados |
 | **Email** | AWS SES via SMTP con outbox pattern |
 | **Versiones** | Última STABLE (nunca beta/rc/canary); pnpm-lock + Renovate |
 | **Skills** | Solo `vercel-react-best-practices`; skills internos MAS en desarrollo |
-| **Autorización** | Custom `AuthzModule` + CASL (NO `@nestjs/authorization`) |
-| **Cache** | Sin cache-manager mandatorio; MAS gestiona estrategias |
+| **Autorización** | Custom `AuthzModule` + CASL |
+| **Cache** | Sin cache de backend mandatorio; MAS gestiona estrategias (TanStack Query cachea en cliente) |
 
 ### Decisiones Pendientes
 
@@ -1715,8 +1844,8 @@ se documenta cómo cada regla de modularidad se mapea al contenido del stack:
 | Estructura de feature completa | `likely_project_shape`: components, hooks, api, routes, tests, index.ts por feature |
 | Barrel público por feature | `core_constraints`: "Each feature exposes a public surface via `index.ts` barrel" |
 | Prohibición de imports cross-feature | `anti_patterns`: "Do not create cross-feature imports; features expose public APIs only" |
-| UI compartida en shared/packages | `core_constraints`: "Shared UI primitives live in `src/shared/` or `packages/ui`" |
-| Rutas lazy-loaded | `core_constraints`: "Routes are lazy-loaded per feature using `React.lazy()`" |
+| UI compartida en `packages/ui` | `core_constraints`: "Tailwind CSS + shadcn/ui from `packages/ui`"; `apps/web/src/shared/` solo app shell/layout |
+| Rutas lazy-loaded | `core_constraints`: "TanStack Router file-based routing with `autoCodeSplitting` and `createLazyFileRoute`" |
 | Anti-pattern: eager loading | `anti_patterns`: "Do not skip lazy-loading for feature routes" |
 
 ### Reglas de Modularidad Monorepo
@@ -1808,7 +1937,6 @@ Las siguientes prácticas fueron adaptadas e incorporadas al stack:
 | **Errores** | Manejo apropiado de errores async | `preferred_practices` |
 | **Errores** | Nunca swallow errors silently | `anti_patterns` |
 | **Performance** | Lifecycle hooks async implementados correctamente | `preferred_practices` |
-| **Performance** | Caching estratégico con cache-manager | `preferred_practices` |
 | **Performance** | Lazy loading de módulos grandes | `preferred_practices` |
 | **Performance** | Evitar N+1 queries con Prisma include/select | `preferred_practices`, `typical_risks` |
 | **Database** | Transacciones para operaciones multi-step | `preferred_practices` |
@@ -1823,8 +1951,8 @@ Las siguientes prácticas fueron adaptadas e incorporadas al stack:
 Algunas prácticas del repositorio consultado no aplican a nuestro stack debido a
 nuestras decisiones arquitectónicas:
 
-- **JWT Authentication**: Nosotros usamos HttpOnly cookies + CSRF, no JWT en localStorage
-- **class-validator/class-transformer**: Usamos Zod v4.2+ exclusivamente via nestjs-zod
+- **JWT en localStorage**: NO; access/refresh JWT solo en cookies HttpOnly + CSRF
+- **Validación basada en decoradores de clase**: NO; usamos Zod v4.2+ exclusivamente via nestjs-zod
 - **TypeORM patterns**: Usamos Prisma exclusivamente
 - **Microservices patterns**: El stack es monolito modular, no microservicios
 - **GraphQL patterns**: El stack usa REST + OpenAPI exclusivamente

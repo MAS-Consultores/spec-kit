@@ -71,6 +71,7 @@ Only the following stack IDs are valid:
 - `moodle5-plugin`
 - `moodle5-portal`
 - `laravel-inertia-react`
+- `nestjs-react`
 
 Validation must be exact, case-sensitive, and based on the canonical catalog in
 [Stack Catalog](stack-catalog.md). If a user supplies an invalid value, init must
@@ -93,6 +94,7 @@ The implementation must map each stack ID to this preset composition:
 | `moodle5-plugin` | `mas-core` + `mas-stack-moodle5-plugin` |
 | `moodle5-portal` | `mas-core` + `mas-stack-moodle5-portal` |
 | `laravel-inertia-react` | `mas-core` + `mas-stack-laravel-inertia-react` |
+| `nestjs-react` | `mas-core` + `mas-stack-nestjs-react` |
 
 The exact preset IDs above are the Phase 2 implementation contract. They are
 explicit, namespaced, and do not conflict with the shorter stack IDs used by

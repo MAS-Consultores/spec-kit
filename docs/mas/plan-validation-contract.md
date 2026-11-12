@@ -195,3 +195,4 @@ Future MAS plan templates should include a section like:
 | `moodle5-plugin` | plugin type, Moodle APIs, capabilities, roles, privacy provider, install/upgrade path |
 | `moodle5-portal` | integration boundary, SSO/session identity, Moodle visibility mapping, sync/failure model, Moodle-origin data controls |
 | `laravel-inertia-react` | Laravel route/controller/request/policy coverage, Inertia prop safety, React page contract, report/export bounds |
+| `nestjs-react` | module boundaries (`apps/api`, `apps/web`, `packages/contracts`, `packages/ui`), `@Can('category:action')` + `accessibleBy()` on every REST endpoint and MCP tool, strict Zod request schemas from `packages/contracts`, soft delete + audit, server-side pagination, OpenAPI diff, latest stable versions |

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -784,29 +786,66 @@ def test_bullets_no_triple_blank_lines():
     assert "\n\n\n" not in result
 
 
-def test_nestjs_react_no_forbidden_terms_outside_donot():
-    """Test that nestjs-react stack doesn't recommend forbidden terms outside 'Do not'/'NOT' contexts."""
-    stack = get_mas_stack("nestjs-react")
-    assert stack is not None
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
-    forbidden = ["@nestjs/authorization", "OpenTelemetry", "cache-manager", "class-validator"]
+# Banned in every context, including "do not use" lines.
+_NEVER_MENTION = re.compile(
+    r"opentelemetry|\botel\b|z\.string\(\)\.uuid\(\)|McpTestClient", re.IGNORECASE
+)
+# Allowed only on lines that explicitly prohibit them.
+_PROHIBITION_ONLY = ("@nestjs/authorization", "class-validator", "cache-manager")
+_PROHIBITION_LINE = re.compile(
+    r"\b(?:do not|don't|never|forbidden|prohibited|reject|instead of)\b|\bNOT\b|\bNO\b|❌",
+    re.IGNORECASE,
+)
 
-    all_content = (
-        stack.security_profile
-        + " ".join(stack.security_controls)
-        + " ".join(stack.core_constraints)
-        + " ".join(stack.expected_artifacts)
-        + " ".join(stack.preferred_practices)
-        + " ".join(stack.likely_project_shape)
+
+def _forbidden_term_violations(name: str, text: str) -> list[str]:
+    violations = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if _NEVER_MENTION.search(line):
+            violations.append(f"{name}:{lineno}: {line.strip()[:120]}")
+            continue
+        if any(term in line for term in _PROHIBITION_ONLY) and not _PROHIBITION_LINE.search(line):
+            violations.append(f"{name}:{lineno}: {line.strip()[:120]}")
+    return violations
+
+
+def test_forbidden_term_checker_flags_and_allows_expected_lines():
+    assert _forbidden_term_violations("x", "Use OpenTelemetry for traces.")
+    assert _forbidden_term_violations("x", "Do NOT use OTel exporters.")
+    assert _forbidden_term_violations("x", "Install @opentelemetry/api")
+    assert _forbidden_term_violations("x", "id: z.string().uuid()")
+    assert _forbidden_term_violations("x", "Use `@nestjs/authorization` guards.")
+    assert _forbidden_term_violations("x", "Validate DTOs with class-validator.")
+    assert not _forbidden_term_violations("x", "Do NOT use `@nestjs/authorization`.")
+    assert not _forbidden_term_violations("x", "Zod only (NO class-validator)")
+    assert not _forbidden_term_violations("x", "Hotel booking; id: z.uuid()")
+
+
+def test_mas_docs_have_no_forbidden_terms():
+    docs = sorted((_REPO_ROOT / "docs" / "mas").glob("*.md"))
+    preset_docs = sorted((_REPO_ROOT / "presets" / "mas-stack-nestjs-react").rglob("*.md"))
+    assert docs and preset_docs
+    violations = []
+    for path in docs + preset_docs:
+        rel = path.relative_to(_REPO_ROOT).as_posix()
+        violations += _forbidden_term_violations(rel, path.read_text(encoding="utf-8"))
+    assert not violations, "\n".join(violations)
+
+
+def test_nestjs_react_generated_memory_has_no_forbidden_terms(tmp_path):
+    project = tmp_path / "nestjs-react-forbidden"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
     )
+    assert result.exit_code == 0, result.output
 
-    for term in forbidden:
-        if term in all_content:
-            import re
-            matches = re.findall(rf'[^.]*{re.escape(term)}[^.]*\.', all_content)
-            for match in matches:
-                match_lower = match.lower()
-                is_forbidden_context = any(neg in match_lower for neg in [
-                    "do not", "don't", "not use", "never use", "instead of", "not "
-                ])
-                assert is_forbidden_context, f"Found '{term}' outside forbidden context: {match[:100]}..."
+    memory_files = sorted((project / ".specify" / "memory").glob("*.md"))
+    assert {p.name for p in memory_files} >= {"stack.md", "security-guidelines.md", "stack-context.md"}
+    violations = []
+    for path in memory_files:
+        violations += _forbidden_term_violations(path.name, path.read_text(encoding="utf-8"))
+    assert not violations, "\n".join(violations)

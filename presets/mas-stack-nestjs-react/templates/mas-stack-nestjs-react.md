@@ -11,7 +11,10 @@ over HTTP.
   with OpenAPI documentation
 - **`apps/web`**: React SPA built with Vite, consuming typed API clients
   generated from OpenAPI
-- **`packages/`**: Shared types, validation schemas, and utilities
+- **`packages/contracts`**: Shared Zod schemas and types; the single source of
+  truth for validation and the only coupling between `apps/api` and `apps/web`
+- **`packages/ui`**: Shared Tailwind CSS + shadcn/ui primitives consumed by
+  `apps/web`
 
 ## Key Differences from Laravel + Inertia + React
 
