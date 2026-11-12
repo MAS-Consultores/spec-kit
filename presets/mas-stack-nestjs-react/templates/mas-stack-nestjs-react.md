@@ -58,9 +58,12 @@ The following structure MUST be present for a valid `nestjs-react` project:
   - `ClsModule` (`nestjs-cls` for context)
   - `I18nModule` (`nestjs-i18n`)
   - `HealthModule` (`@nestjs/terminus`)
-- [ ] `prisma/schema.prisma` (or `prisma/schema/` for multi-file)
-- [ ] `prisma/prisma.config.ts` (Prisma 7 config)
-- [ ] `prisma/migrations/` — Migration files
+- [ ] `prisma/schema.prisma` with Prisma 7.x config:
+  - `generator client { provider = "prisma-client" output = "../src/generated/prisma" moduleFormat = "esm" importFileExtension = "js" }`
+  - `datasource db { provider = "postgresql" }` (no url; use prisma.config.ts)
+- [ ] `prisma/prisma.config.ts` — Prisma 7.x config with `defineConfig({ schema, datasource: { url }, migrate: { adapter } })`
+- [ ] `prisma/migrations/` — Migration files (run `prisma migrate deploy` pre-deploy)
+- [ ] `src/generated/prisma/` — Generated Prisma client (gitignored, SWC compiles to dist)
 - [ ] `vitest.config.ts` (Vitest for NestJS 12 ESM)
 - [ ] `.env.example` documenting all required variables
 
