@@ -275,7 +275,8 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
     assert "specify init --stack <stack-id>" in constitution
 
 
-def test_init_creates_gitignore_with_specify_entry(tmp_path):
+def test_init_does_not_add_specify_to_root_gitignore(tmp_path):
+    """Root .gitignore should NOT contain .specify/ — nested .specify/.gitignore handles it."""
     project = tmp_path / "gitignore-project"
     result = CliRunner().invoke(
         app,
@@ -292,10 +293,15 @@ def test_init_creates_gitignore_with_specify_entry(tmp_path):
     )
 
     assert result.exit_code == 0, result.output
-    assert (project / ".gitignore").read_text(encoding="utf-8") == ".specify/\n"
+    # Root .gitignore should NOT exist or NOT contain .specify/
+    root_gitignore = project / ".gitignore"
+    if root_gitignore.exists():
+        content = root_gitignore.read_text(encoding="utf-8")
+        assert ".specify/" not in content, "Root .gitignore should not ignore .specify/"
 
 
-def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
+def test_init_preserves_existing_gitignore_without_adding_specify(tmp_path):
+    """Existing .gitignore should be preserved, .specify/ NOT added."""
     project = tmp_path / "existing-gitignore-project"
     project.mkdir()
     (project / ".gitignore").write_text("node_modules/\ndist/", encoding="utf-8")
@@ -317,8 +323,95 @@ def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
 
     assert result.exit_code == 0, result.output
     gitignore = (project / ".gitignore").read_text(encoding="utf-8")
-    assert gitignore == "node_modules/\ndist/\n.specify/\n"
-    assert gitignore.splitlines().count(".specify/") == 1
+    # Should preserve original content, NOT add .specify/
+    assert "node_modules/" in gitignore
+    assert "dist/" in gitignore
+    assert ".specify/" not in gitignore, "Should not add .specify/ to root .gitignore"
+
+
+def test_nested_specify_gitignore_ignores_local_state_only(tmp_path):
+    """The nested .specify/.gitignore should ignore machine-local state, not memory/."""
+    project = tmp_path / "nested-gitignore-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "laravel-inertia-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    nested_gitignore = project / ".specify" / ".gitignore"
+    assert nested_gitignore.exists(), ".specify/.gitignore should exist"
+
+    content = nested_gitignore.read_text(encoding="utf-8")
+    # Should ignore machine-local state
+    assert "feature.json" in content, "Should ignore feature.json (local state)"
+    assert "integrations/packages/" in content, "Should ignore integrations/packages/"
+    # Should NOT ignore memory/ (it's versioned)
+    assert "memory/" not in content or "NOT ignored" in content
+
+
+def test_specify_memory_and_templates_can_be_versioned(tmp_path):
+    """memory/, templates/, and init-options.json should NOT be gitignored — verify with git check-ignore."""
+    import subprocess
+
+    project = tmp_path / "versioned-files-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "laravel-inertia-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    # Initialize git repo for check-ignore to work
+    subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
+
+    # These files should NOT be ignored (exit code 1 = not ignored)
+    files_to_check = [
+        ".specify/memory/constitution.md",
+        ".specify/memory/stack.md",
+        ".specify/init-options.json",
+    ]
+
+    for rel_path in files_to_check:
+        full_path = project / rel_path
+        if full_path.exists():
+            result = subprocess.run(
+                ["git", "check-ignore", "-q", rel_path],
+                cwd=project,
+                capture_output=True,
+            )
+            # Exit code 1 means NOT ignored (what we want)
+            # Exit code 0 means ignored (bad)
+            assert result.returncode == 1, f"{rel_path} should NOT be gitignored but it is"
+
+    # feature.json SHOULD be ignored (by nested .specify/.gitignore)
+    feature_json = project / ".specify" / "feature.json"
+    feature_json.write_text("{}", encoding="utf-8")  # Create it for test
+    result = subprocess.run(
+        ["git", "check-ignore", "-q", ".specify/feature.json"],
+        cwd=project,
+        capture_output=True,
+    )
+    # Exit code 0 means ignored (what we want for feature.json)
+    assert result.returncode == 0, "feature.json should be gitignored by nested .gitignore"
 
 
 def test_init_with_valid_stack_writes_selected_stack_memory(tmp_path):
