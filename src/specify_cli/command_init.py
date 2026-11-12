@@ -21,7 +21,6 @@ from ._agent_config import (
     resolve_default_init_integration,
 )
 from ._assets import (
-    _locate_bundled_preset,
     _locate_bundled_workflow,
     get_speckit_version,
 )
@@ -372,7 +371,6 @@ def register(app: typer.Typer) -> None:
         # Lazy imports to avoid circular dependency — __init__.py imports this module
         from . import (
             _install_shared_infra_or_exit,
-            _print_cli_warning,
             ensure_executable_scripts,
             ensure_specify_gitignored,
             ensure_constitution_from_template,

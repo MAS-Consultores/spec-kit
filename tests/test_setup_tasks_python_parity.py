@@ -40,6 +40,7 @@ def test_installed_python_json_preserves_stock_tasks_template(
         [
             "init", str(project), "--integration", "codex", "--script", "py",
             "--ignore-agent-tools", "--non-interactive",
+            "--stack", "nestjs-react", "--skip-external-skills",
         ],
     )
     assert initialized.exit_code == 0, initialized.output
@@ -50,7 +51,12 @@ def test_installed_python_json_preserves_stock_tasks_template(
     assert created.returncode == 0, created.stderr
     plan = run(py_cmd(project, "setup-plan", "--json"), project)
     assert plan.returncode == 0, plan.stderr
-    template = project / ".specify/templates/tasks-template.md"
+    # MAS presets intentionally override the stock template. Exercise the
+    # installed script with the stock Unicode content through a project override.
+    stock = project / ".specify/templates/tasks-template.md"
+    template = stock.parent / "overrides" / stock.name
+    template.parent.mkdir(parents=True)
+    template.write_bytes(stock.read_bytes())
     expected = template.read_bytes().decode("utf-8")
     assert "🎯" in expected
     env = clean_env()

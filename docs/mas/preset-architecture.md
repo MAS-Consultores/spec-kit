@@ -124,6 +124,7 @@ or you are offline.
 Bundled preset directories must include `stack-skills.yml` when skills are
 required so wheel installs and source checkouts resolve the same paths via
 `_locate_bundled_preset()`.
+
 ### Stack memory materialization (current)
 
 During `specify init --stack <stack-id>`, MAS writes the three stack memory
