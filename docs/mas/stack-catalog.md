@@ -463,6 +463,19 @@ OpenAPI.
 - Each domain module declares audited actions; new features must include audit coverage.
 - Note: `audit` module may later become internal shared package/template.
 
+### Performance Principles (Constitution-Level)
+
+- **Performance is a first-class requirement**—foundational, not optional optimization.
+- **No N+1 queries**: load relations with Prisma `include`/`select`; batch with `findMany({ where: { id: { in: ids } } })`.
+- **Fetch only needed**: explicit `select` in every query; never load full entities unnecessarily.
+- **Indexes**: every column in `WHERE`, `ORDER BY`, or relations indexed; review with `EXPLAIN ANALYZE`.
+- **Async heavy work**: exports, emails, notifications run async; `@nestjs/event-emitter` / `@nestjs/schedule` default.
+- **BullMQ + Redis OPTIONAL**: recommended only when project needs retries, durability, or volume—not mandated.
+- **Short transactions**: no external calls inside tx; `createMany`/`updateMany` for bulk operations.
+- **Measurable budget**: p95 < 300 ms target; Prisma slow query logging; OpenTelemetry tracing.
+- **Lightweight frontend**: lazy routes, code splitting, virtualization, avoid re-renders; TanStack Query caching.
+- **Note**: MAS manages caching strategies; stack does NOT mandate Redis/backend caching.
+
 ### Modular Architecture
 
 **API (`apps/api`):**
@@ -665,6 +678,20 @@ for UI visibility only—API always enforces authorization.
 - Confirm retention policy is configurable and documented.
 - For each new feature: confirm audited actions are declared and implemented.
 - Reject features without audit trail—auditing is a constitution-level requirement.
+
+**Performance (Constitution-Level):**
+- For each query: confirm no N+1 patterns; relations loaded with `include`/`select` or batched.
+- For each query: confirm explicit `select`; reject loading full entities unnecessarily.
+- For each column in `WHERE`, `ORDER BY`, or relations: confirm index exists in migrations.
+- For heavy operations: confirm async execution (`@nestjs/event-emitter` or `@nestjs/schedule`).
+- Confirm BullMQ/Redis only used when justified (retries, durability, volume)—not mandated by default.
+- Confirm no external calls inside transactions; transactions are short.
+- Confirm bulk operations use `createMany`/`updateMany`; no loops with individual operations.
+- Confirm Prisma slow query logging configured; heavy queries reviewed with `EXPLAIN ANALYZE`.
+- Confirm OpenTelemetry tracing implemented for request visibility.
+- Confirm p95 < 300 ms target documented and tracked for common endpoints.
+- Frontend: confirm lazy routes, code-split components, virtualized large lists.
+- Note: stack does NOT mandate Redis/backend caching; MAS manages caching strategies.
 
 **General Authorization:**
 - Require tests for BOTH allowed and denied authorization cases.

@@ -1175,6 +1175,214 @@ export class AuditArchiveService {
 El módulo `audit` podría convertirse posteriormente en un paquete interno compartido o template
 para consistencia entre proyectos del stack.
 
+## Principios de Performance (Nivel Constitucional)
+
+### Decisión
+
+**Performance es un requisito de primera clase**—estos principios son fundacionales, no optimizaciones opcionales.
+
+### 1. Sin N+1 ni Queries Repetidas
+
+```typescript
+// ❌ N+1: query por cada usuario
+const orders = await prisma.order.findMany();
+for (const order of orders) {
+  order.user = await prisma.user.findUnique({ where: { id: order.userId } }); // N queries!
+}
+
+// ✅ Una sola query con include
+const orders = await prisma.order.findMany({
+  include: { user: { select: { id: true, name: true, email: true } } },
+});
+
+// ✅ Batch lookup cuando no se puede usar include
+const userIds = orders.map(o => o.userId);
+const users = await prisma.user.findMany({
+  where: { id: { in: userIds } },
+  select: { id: true, name: true, email: true },
+});
+const userMap = new Map(users.map(u => [u.id, u]));
+orders.forEach(o => o.user = userMap.get(o.userId));
+```
+
+### 2. Cargar Solo lo Necesario
+
+```typescript
+// ❌ Cargar entidad completa
+const user = await prisma.user.findUnique({ where: { id } });
+
+// ✅ Select explícito
+const user = await prisma.user.findUnique({
+  where: { id },
+  select: { id: true, name: true, email: true }, // Solo campos necesarios
+});
+```
+
+### 3. Índices
+
+```prisma
+model Order {
+  id        String   @id @default(cuid())
+  userId    String
+  status    String
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@index([userId])              // Relación
+  @@index([status])              // WHERE frecuente
+  @@index([createdAt])           // ORDER BY frecuente
+  @@index([userId, status])      // Query compuesta frecuente
+}
+```
+
+```sql
+-- Revisar queries pesadas
+EXPLAIN ANALYZE SELECT * FROM "Order" WHERE status = 'pending' ORDER BY "createdAt" DESC;
+```
+
+### 4. Trabajo Pesado Async
+
+```typescript
+// Opción 1: @nestjs/event-emitter (simple, fire-and-forget)
+@Injectable()
+export class OrderService {
+  constructor(private eventEmitter: EventEmitter2) {}
+
+  async createOrder(dto: CreateOrderDto) {
+    const order = await this.prisma.order.create({ data: dto });
+    
+    // Async: no bloquea la respuesta HTTP
+    this.eventEmitter.emit('order.created', order);
+    
+    return order;
+  }
+}
+
+@Injectable()
+export class OrderListeners {
+  @OnEvent('order.created')
+  async handleOrderCreated(order: Order) {
+    await this.emailService.sendConfirmation(order); // Async
+    await this.inventoryService.reserve(order);       // Async
+  }
+}
+
+// Opción 2: @nestjs/schedule (cron jobs)
+@Injectable()
+export class ReportScheduler {
+  @Cron('0 6 * * *') // 6 AM diario
+  async generateDailyReport() {
+    await this.reportService.generateAndSend();
+  }
+}
+
+// Opción 3: BullMQ + Redis (SOLO si se necesitan retries, durabilidad, o volumen alto)
+// NO mandatorio por defecto - evaluar caso por caso
+```
+
+### 5. Transacciones Cortas
+
+```typescript
+// ❌ Llamadas externas dentro de transacción
+await prisma.$transaction(async (tx) => {
+  const order = await tx.order.create({ data });
+  await this.emailService.send(order); // ¡BLOQUEA la transacción!
+  await this.paymentService.charge(order); // ¡HTTP dentro de tx!
+});
+
+// ✅ Transacción corta + async después
+const order = await prisma.$transaction(async (tx) => {
+  const order = await tx.order.create({ data });
+  await tx.inventory.update({ where: { id: item.id }, data: { qty: { decrement: 1 } } });
+  return order;
+});
+// Después de la transacción
+this.eventEmitter.emit('order.created', order);
+```
+
+```typescript
+// ❌ Loop con operaciones individuales
+for (const item of items) {
+  await prisma.item.create({ data: item }); // N operaciones
+}
+
+// ✅ Bulk operation
+await prisma.item.createMany({ data: items }); // 1 operación
+```
+
+### 6. Performance Budget Medible
+
+```typescript
+// prisma/prisma.service.ts
+@Injectable()
+export class PrismaService extends PrismaClient {
+  constructor() {
+    super({
+      log: [
+        { emit: 'event', level: 'query' },
+        { emit: 'stdout', level: 'warn' },
+        { emit: 'stdout', level: 'error' },
+      ],
+    });
+
+    // Log slow queries (> 100ms)
+    this.$on('query', (e) => {
+      if (e.duration > 100) {
+        console.warn(`Slow query (${e.duration}ms): ${e.query}`);
+      }
+    });
+  }
+}
+```
+
+```typescript
+// OpenTelemetry setup (main.ts)
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+
+const sdk = new NodeSDK({
+  instrumentations: [getNodeAutoInstrumentations()],
+  // Exporter configurado para tu backend (Jaeger, Zipkin, OTLP)
+});
+sdk.start();
+```
+
+| Métrica | Target |
+|---------|--------|
+| p95 response time | < 300 ms |
+| Slow query threshold | > 100 ms (logged) |
+| Transaction duration | < 50 ms típico |
+
+### 7. Frontend Ligero
+
+| Técnica | Implementación |
+|---------|----------------|
+| **Lazy routes** | `React.lazy()` + `Suspense` por feature |
+| **Code splitting** | `import()` dinámico para componentes pesados |
+| **Virtualización** | TanStack Virtual para listas > 50 items |
+| **Lazy images** | `loading="lazy"` + srcsets |
+| **Memoization** | `useMemo`, `useCallback` para evitar re-renders |
+| **Query caching** | TanStack Query con `staleTime` apropiado |
+
+### Anti-patrones
+
+- ❌ Query dentro de loops (N+1)
+- ❌ Cargar entidades completas sin `select` explícito
+- ❌ Columnas en WHERE/ORDER BY sin índice
+- ❌ HTTP requests bloqueados por trabajo pesado
+- ❌ Llamadas externas dentro de transacciones
+- ❌ Loops con operaciones individuales (usar bulk)
+- ❌ Mandar BullMQ/Redis para todo (solo si se necesita)
+- ❌ Ignorar slow query logging
+- ❌ Frontend sin lazy loading ni code splitting
+- ❌ Listas grandes sin virtualización
+
+### Nota sobre Caching
+
+MAS gestionará sus propias estrategias de caching. Este stack **NO** manda Redis/backend caching.
+TanStack Query proporciona caching en cliente como ya está definido.
+
 ## Paginación Obligatoria (Server-Side)
 
 ### Requisitos API

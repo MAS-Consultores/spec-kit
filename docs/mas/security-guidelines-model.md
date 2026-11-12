@@ -285,6 +285,19 @@ Comprehensive Auditing (Constitution-Level Principle):
 - Each domain module declares audited actions; new features must include audit coverage.
 - Note: `audit` module may later become internal shared package/template.
 
+Performance Principles (Constitution-Level):
+
+- Performance is a first-class requirement—foundational, not optional optimization.
+- No N+1 queries: load relations with Prisma `include`/`select`; batch with `findMany({ where: { id: { in: ids } } })`.
+- Fetch only needed: explicit `select` in every query; never load full entities unnecessarily.
+- Indexes: every column in `WHERE`, `ORDER BY`, or relations indexed in migrations; review with `EXPLAIN ANALYZE`.
+- Async heavy work: exports, emails, notifications run async; `@nestjs/event-emitter` / `@nestjs/schedule` default.
+- BullMQ + Redis OPTIONAL: recommended only when project needs retries, durability, or volume—not mandated.
+- Short transactions: no external calls inside tx; `createMany`/`updateMany` for bulk operations.
+- Measurable budget: p95 < 300 ms target; Prisma slow query logging; OpenTelemetry tracing.
+- Lightweight frontend: lazy routes, code splitting, virtualization, avoid re-renders; TanStack Query caching.
+- Note: MAS manages caching strategies; stack does NOT mandate Redis/backend caching.
+
 Required guidelines (Frontend — `apps/web`):
 
 - Never store secrets or auth tokens accessible to JavaScript; rely on HttpOnly cookies.
@@ -337,4 +350,15 @@ Plan should validate:
 - permission category `auditoria` with `ver` and `exportar` actions;
 - frontend has paginated audit view with filters;
 - retention policy is configurable and documented;
-- each new feature declares audited actions; features without audit trail are rejected.
+- each new feature declares audited actions; features without audit trail are rejected;
+- for each query: no N+1 patterns; relations loaded with `include`/`select` or batched;
+- for each query: explicit `select`; reject loading full entities unnecessarily;
+- for columns in `WHERE`, `ORDER BY`, or relations: indexes exist in migrations;
+- heavy operations (exports, emails) run async; not blocking HTTP requests;
+- BullMQ/Redis only when justified (retries, durability, volume)—not mandated;
+- no external calls inside database transactions; transactions are short;
+- bulk operations use `createMany`/`updateMany`; no loops with individual operations;
+- Prisma slow query logging configured; heavy queries reviewed with `EXPLAIN ANALYZE`;
+- OpenTelemetry tracing implemented for request visibility;
+- p95 < 300 ms target documented for common endpoints;
+- frontend: lazy routes, code-split components, virtualized large lists.
