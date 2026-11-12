@@ -37,6 +37,7 @@ def test_mas_stack_catalog_resolves_preset_composition():
     )
     assert "moodle5-plugin" in valid_stack_ids()
     assert "moodle3" in valid_stack_ids()
+    assert "nestjs-react" in valid_stack_ids()
 
 
 def test_mas_stack_moodle3_is_exception_track():
@@ -615,3 +616,86 @@ def test_init_rejects_stack_and_preset_conflict(tmp_path):
     assert "mas-core" in result.output
     assert "mas-stack-<stack-id>" in result.output
     assert not project.exists()
+
+
+def test_mas_stack_nestjs_react_metadata():
+    stack = get_mas_stack("nestjs-react")
+
+    assert stack is not None
+    assert stack.id == "nestjs-react"
+    assert stack.display_name == "NestJS + React (API + SPA)"
+    assert stack.stack_preset_id == "mas-stack-nestjs-react"
+    assert stack.preset_composition == ("mas-core", "mas-stack-nestjs-react")
+    assert "Prisma" in stack.summary
+    assert "monorepo" in stack.purpose.lower()
+
+
+def test_init_with_nestjs_react_stack_writes_memory_files(tmp_path):
+    project = tmp_path / "nestjs-react-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "nestjs-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    payload = json.loads((project / ".specify" / "init-options.json").read_text())
+    assert payload["stack"] == "nestjs-react"
+    assert payload["stack_display_name"] == "NestJS + React (API + SPA)"
+    assert payload["mas_presets"] == ["mas-core", "mas-stack-nestjs-react"]
+
+    assert (project / ".specify" / "presets" / "mas-core" / "preset.yml").exists()
+    assert (
+        project / ".specify" / "presets" / "mas-stack-nestjs-react" / "preset.yml"
+    ).exists()
+
+    memory_dir = project / ".specify" / "memory"
+    assert (memory_dir / "stack.md").exists()
+    assert (memory_dir / "security-guidelines.md").exists()
+    assert (memory_dir / "stack-context.md").exists()
+    assert (memory_dir / "language-policy.md").exists()
+
+    stack_md = (memory_dir / "stack.md").read_text()
+    security_md = (memory_dir / "security-guidelines.md").read_text()
+    context_md = (memory_dir / "stack-context.md").read_text()
+
+    assert "**Canonical ID**: `nestjs-react`" in stack_md
+    assert "**Display Name**: NestJS + React (API + SPA)" in stack_md
+    assert "apps/api" in stack_md
+    assert "apps/web" in stack_md
+    assert "Prisma" in stack_md
+
+    assert "**Stack ID**: `nestjs-react`" in security_md
+    assert "HttpOnly" in security_md
+    assert "CSRF" in security_md
+    assert "AuthGuard" in security_md
+    assert "$queryRawUnsafe" in security_md
+
+    assert "# Stack Context: NestJS + React (API + SPA)" in context_md
+    assert "Monorepo" in context_md
+    assert "Prisma" in context_md
+    assert "OpenAPI" in context_md
+
+
+def test_nestjs_react_stack_contrasts_with_laravel():
+    nestjs_stack = get_mas_stack("nestjs-react")
+    laravel_stack = get_mas_stack("laravel-inertia-react")
+
+    assert nestjs_stack is not None
+    assert laravel_stack is not None
+
+    nestjs_constraints = " ".join(nestjs_stack.core_constraints)
+    assert "Laravel + Inertia" in nestjs_constraints or "Inertia" in nestjs_constraints
+    assert "decoupled" in nestjs_constraints.lower() or "monorepo" in nestjs_constraints.lower()
+
+    nestjs_when_not = " ".join(nestjs_stack.when_not_to_use)
+    assert "Laravel" in nestjs_when_not or "Inertia" in nestjs_when_not

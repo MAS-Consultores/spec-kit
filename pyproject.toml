@@ -62,6 +62,7 @@ packages = ["src/specify_cli"]
 "presets/mas-stack-moodle5-plugin" = "specify_cli/core_pack/presets/mas-stack-moodle5-plugin"
 "presets/mas-stack-moodle5-portal" = "specify_cli/core_pack/presets/mas-stack-moodle5-portal"
 "presets/mas-stack-laravel-inertia-react" = "specify_cli/core_pack/presets/mas-stack-laravel-inertia-react"
+"presets/mas-stack-nestjs-react" = "specify_cli/core_pack/presets/mas-stack-nestjs-react"
 # Bundle catalog snapshots (used for offline discovery)
 "bundles/catalog.json" = "specify_cli/core_pack/bundles/catalog.json"
 "bundles/catalog.community.json" = "specify_cli/core_pack/bundles/catalog.community.json"

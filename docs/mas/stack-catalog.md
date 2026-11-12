@@ -21,7 +21,8 @@ Source of truth in code: `src/specify_cli/mas.py` (`MAS_STACKS`).
 | `moodle3` | Moodle 3.x (Legacy Exception) | Moodle 3.x maintenance under documented exception track |
 | `moodle5-plugin` | Moodle 5 Plugin | Bounded Moodle 5 plugin extension work |
 | `moodle5-portal` | Moodle 5 Portal | Institution-facing Moodle 5 portal workflows |
-| `laravel-inertia-react` | Laravel + Inertia + React | Modern portal or admin product delivery |
+| `laravel-inertia-react` | Laravel + Inertia + React | Modern portal or admin product delivery (server-rendered) |
+| `nestjs-react` | NestJS + React (API + SPA) | Decoupled API backend with SPA frontend monorepo |
 
 ## `cakephp2-mysql`
 
@@ -332,3 +333,235 @@ minimization, and upload validation.
 - Check server-side authorization and validation coverage.
 - Require Inertia prop review for sensitive data.
 - Require bounded report/export behavior and tests.
+
+## `nestjs-react`
+
+### Summary
+
+Monorepo with NestJS API backend (Prisma, PostgreSQL) and React SPA frontend
+communicating over HTTP.
+
+### Purpose
+
+Full-stack TypeScript applications structured as a monorepo with separated
+backend and frontend: `apps/api` (NestJS + Prisma + PostgreSQL REST API with
+OpenAPI) and `apps/web` (React + Vite SPA). Unlike Laravel + Inertia + React
+which is a single server-rendered application, this stack produces a decoupled
+API consumed by an independent SPA over HTTP with typed clients generated from
+OpenAPI.
+
+### When To Use
+
+- The project requires a decoupled API that can serve multiple clients (web, mobile, third-party integrations) independently.
+- The backend needs PostgreSQL persistence with Prisma ORM, explicit migrations, and clean separation from presentation concerns.
+- The frontend is a React TypeScript SPA built with Vite that consumes the API with typed clients generated from OpenAPI.
+- The architecture benefits from independent deployment, scaling, and team ownership of API vs. frontend.
+
+### When Not To Use
+
+- Moodle plugin or portal requests that need to live inside Moodle's ecosystem and Bootstrap 5 reality.
+- Legacy CakePHP 2.x enhancements where compatibility matters more than adopting the modern stack.
+- Laravel + Inertia + React projects where server-driven rendering with Inertia is the established pattern and a separate API is not needed.
+- Simple admin panels or internal tools where a monolithic server-rendered approach (Laravel + Inertia) is more appropriate than a decoupled SPA.
+
+### Architecture: Contrast with Laravel + Inertia + React
+
+| Aspect | Laravel + Inertia + React | NestJS + React |
+| --- | --- | --- |
+| Structure | Single application | Monorepo with `apps/api` + `apps/web` |
+| Rendering | Server-driven via Inertia | Decoupled SPA consuming API |
+| Data flow | Controller → Inertia props → React | API endpoint → HTTP → React client |
+| Deployment | Single deployment unit | Independent API and frontend deployments |
+| Use case | Admin panels, internal tools, SSR apps | Multi-client APIs, independent scaling |
+
+### Core Constraints
+
+- Monorepo structure: `apps/api` for NestJS backend, `apps/web` for React frontend.
+- `packages/contracts` for shared Zod schemas (the ONLY coupling between API and Web).
+- `packages/ui` for shared shadcn/ui components.
+- NestJS with Express adapter is the API boundary; Prisma ORM is the exclusive data access layer.
+- PostgreSQL is the database; schema changes require `prisma migrate` with reviewed migration files.
+- Authentication uses HttpOnly cookies with CSRF protection; no JWT storage in localStorage.
+- CORS is configured with explicit origin allowlist matching the frontend deployment URL.
+- TypeScript strict mode is mandatory across both applications.
+
+### Unified Validation: Zod Everywhere
+
+- **Zod v4.2+** is the ONLY validation library; do NOT use class-validator/class-transformer.
+- **API DTOs**: Use `nestjs-zod` with `createZodDto()` and global `ZodValidationPipe`.
+- **MCP tools**: Zod schemas for input validation.
+- **React forms**: React Hook Form + `zodResolver` with schemas from `packages/contracts`.
+- All schemas must be strict (reject unknown keys).
+
+### REST API with Mandatory OpenAPI
+
+- REST is the API style; `@nestjs/swagger` + `nestjs-zod` integration for documentation.
+- Every endpoint: `@ApiTags`, `@ApiOperation`, documented responses (400/401/403/404/422).
+- URI versioning (`/api/v1`); RFC 9457 Problem Details for errors; standard pagination schema.
+- `openapi.json` versioned in repo; `openapi-diff` in CI to detect breaking changes.
+- Swagger UI at `/docs` (disabled or auth-protected in production).
+- Frontend typed client generated from OpenAPI (orval, @hey-api/openapi-ts).
+
+### MCP Support (`@nestjs/mcp`)
+
+- Use OFFICIAL `@nestjs/mcp` package; do NOT use `@rekog/mcp-nest`.
+- `McpModule.forRoot()` in AppModule; `/mcp` endpoint (Streamable HTTP, stateless).
+- MCP tools in domain modules (`<domain>.mcp.ts`) calling domain services, not Prisma directly.
+- `/mcp` authenticated as OAuth 2.1 resource server; same guards as REST.
+- Test with in-memory MCP client from `@nestjs/mcp/testing`.
+
+### Modular Architecture
+
+**API (`apps/api`):**
+- One NestJS module per bounded context under `src/modules/<domain>/`
+- Each module: controller, service, Zod DTOs, MCP tools (optional), repository, tests, `index.ts` barrel
+- Modules export only their public API via `@Module({ exports })` and `index.ts` barrels
+- No importing another module's internals; cross-module via exported services or events
+- `forwardRef()` forbidden; refactor to events or shared abstractions
+- Infrastructure modules (`PrismaModule`, `AuthModule`, `McpModule`) remain thin
+- No module queries another domain's Prisma tables directly
+
+**Frontend (`apps/web`):**
+- Feature-based structure under `src/features/<domain>/`
+- **Router**: TanStack Router (type-safe routes, file-based, lazy-loaded)
+- **Server State**: TanStack Query (cache, mutations; query hooks per feature)
+- **Global State**: Zustand for UI only; React Context for DI
+- **Forms**: React Hook Form + zodResolver + schemas from `packages/contracts`
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Testing**: Vitest + Testing Library (unit); Playwright (E2E)
+- Each feature exposes public `index.ts`; no cross-feature deep imports
+
+**Enforcement:**
+- `eslint-plugin-boundaries` or `@nx/enforce-module-boundaries` for import rules
+- `madge --circular` in CI for cycles; `openapi-diff` for API changes
+
+### Typical Risks
+
+- Type safety gaps between Prisma models, DTOs, API responses, and frontend generated types.
+- Guard or pipe misconfiguration leaving endpoints unprotected or rejecting valid requests.
+- CSRF misconfiguration causing legitimate requests to fail or attacks to succeed.
+- Cookie configuration errors weakening authentication security.
+- Migration failures or schema drift between environments.
+- Frontend-backend contract drift when OpenAPI spec is not regenerated after API changes.
+
+### Expected Artifacts
+
+**Monorepo Root:**
+- Package manager workspace configuration (npm/yarn/pnpm workspaces or Turborepo/Nx).
+- Shared TypeScript configuration and ESLint with boundary rules.
+- CI step for `madge --circular` or `dependency-cruiser`.
+
+**API (`apps/api`):**
+- Each domain as module under `src/modules/<domain>/` with controller, service, DTOs, repository, tests, and `index.ts` barrel.
+- Thin infrastructure modules: `PrismaModule`, `ConfigModule`, `AuthModule`.
+- Prisma schema (optionally multi-file per domain) and migrations; OpenAPI spec from `@nestjs/swagger`.
+- Jest unit tests per module; e2e tests for cross-module flows.
+
+**Frontend (`apps/web`):**
+- Each domain as feature under `src/features/<domain>/` with components, hooks, api, routes, tests, and `index.ts` barrel.
+- Shared UI in `src/shared/`; lazy-loaded routes per feature.
+- Generated typed API client from OpenAPI spec.
+- Vitest or Jest tests.
+
+**Contracts (`packages/contracts`):**
+- Shared TypeScript types and API contracts—the only coupling between API and Web.
+
+### Preferred Practices
+
+**Architecture & DI:**
+- Organize by feature modules, not technical layers; each module: controller, service, DTOs, repository, tests together.
+- Avoid circular dependencies; use events (`@nestjs/event-emitter`) or shared modules instead of `forwardRef()`.
+- Single responsibility for services; avoid god services handling multiple concerns.
+- Prefer constructor injection over property injection; avoid service locator pattern (`ModuleRef.get()`).
+- Understand provider scopes: use SINGLETON (default) for stateless services.
+- Never provide the same service in multiple modules; create a dedicated module that exports it.
+
+**Error Handling:**
+- Global exception filter for consistent RFC 9457 responses.
+- Throw NestJS HTTP exceptions from services; filter converts them.
+- Handle async errors properly: always `await` async operations.
+- Never swallow errors silently; log with context before converting to user-safe messages.
+
+**Performance & Database:**
+- Use caching strategically with `@nestjs/cache-manager`; invalidate on writes.
+- Lazy-load large feature modules using `LazyModuleLoader`.
+- Avoid N+1 queries: use Prisma's `include`/`select` with nested relations.
+- Wrap multi-step operations in `prisma.$transaction`.
+- Always use `prisma migrate`; never `db push` in shared environments.
+- Index frequently queried columns.
+
+**REST API:**
+- Use `nestjs-zod` for all DTOs: `createZodDto(schema)` + global `ZodValidationPipe`.
+- OpenAPI from Zod schemas automatically; add `@ApiTags`, `@ApiOperation`, `@ApiResponse`.
+- URI versioning (`/api/v1`); `openapi-diff` in CI for breaking changes.
+- Use interceptors for cross-cutting concerns (logging, timing, transformation).
+
+**MCP:**
+- MCP tools in domain modules calling domain services, not Prisma directly.
+- `/mcp` authenticated as OAuth 2.1 resource server; same guards as REST.
+- Test with in-memory MCP client.
+
+**Testing:**
+- `Test.createTestingModule()` for unit tests; mock dependencies.
+- E2E tests with `supertest`; use separate test database.
+- Mock external services; never call real APIs in tests.
+
+**Frontend:**
+- TanStack Query for API state; query hooks per feature.
+- Zustand only for UI state; never server data.
+- React Hook Form + `zodResolver` with schemas from `packages/contracts`.
+- Feature routes lazy-loaded; no cross-feature deep imports.
+
+**Monorepo:**
+- `packages/contracts` for shared Zod schemas (only coupling API ↔ Web).
+- `madge --circular` in CI; `openapi-diff` for API contract changes.
+- `eslint-plugin-boundaries` or equivalent for import enforcement.
+
+### Security Controls
+
+See `.specify/memory/security-guidelines.md` after init. Highlights include:
+
+**API:** Global `AuthGuard` deny-by-default, HttpOnly cookie authentication,
+CSRF token validation, `ValidationPipe` with whitelist, Prisma `select`/`omit`
+for safe responses, Helmet, CORS allowlist, throttling.
+
+**Frontend:** No localStorage tokens, CSRF token inclusion in requests, no
+`dangerouslySetInnerHTML` without sanitization, typed API clients.
+
+### `speckit-plan` Validation
+
+**General:**
+- Confirm monorepo structure with `apps/api` and `apps/web`.
+- Verify authentication uses HttpOnly cookies with CSRF protection.
+- Verify global `AuthGuard` and `@Public()` route marking.
+- Confirm CORS configuration with explicit origin allowlist.
+- Map endpoints to guards, DTOs, and response types with `select`/`omit`.
+- Require Prisma migrations for schema changes; reject `db push` for shared environments.
+- Require test coverage for guards, services, and critical flows.
+
+**Validation:**
+- Confirm Zod v4.2+ as ONLY validation library; reject class-validator/class-transformer.
+- Verify `nestjs-zod` for DTOs with `createZodDto()` and global `ZodValidationPipe`.
+- Confirm shared schemas in `packages/contracts`.
+
+**OpenAPI:**
+- Confirm `@nestjs/swagger` enabled with Zod integration.
+- Verify new endpoints have `@ApiTags`, `@ApiOperation`, documented responses (400/401/403/404/422).
+- Confirm `openapi.json` versioned in repo; require `openapi-diff` in CI.
+- Confirm typed frontend client generated from OpenAPI.
+
+**MCP:**
+- If MCP tools added, confirm using `@nestjs/mcp` (official), NOT `@rekog/mcp-nest`.
+- Verify MCP tools call domain services, not Prisma directly.
+- Confirm `/mcp` has same auth as REST endpoints.
+- Verify MCP tools tested with in-memory client.
+
+**Modularity Validation:**
+- Each new API feature must be a dedicated module under `src/modules/<domain>/` with documented public exports and dependencies.
+- Reject direct imports of another module's internals; require barrel imports only.
+- Reject `forwardRef()` usage; require events or refactoring.
+- Reject service locator pattern (dynamic `ModuleRef.get()`); require constructor injection.
+- Each new frontend feature must be under `src/features/<domain>/` with public `index.ts` and no cross-feature deep imports.
+- Confirm feature routes are lazy-loaded.
+- Confirm `packages/contracts` is the only coupling between API and Web.
+- Require ESLint boundary rules or dependency-cruiser in CI.

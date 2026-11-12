@@ -207,3 +207,48 @@ Plan should validate:
 - validation covers all input surfaces;
 - Inertia props are reviewed for sensitive data leakage;
 - report/export controls are explicit.
+
+### `nestjs-react`
+
+Security profile:
+
+NestJS/Prisma/React applications with decoupled API and SPA architecture
+concentrate backend security at NestJS guards, pipes, interceptors, cookie-based
+authentication, and CSRF validation. The React SPA must treat all authorization
+as advisory; the API enforces access control. Prisma prevents SQL injection when
+used correctly, but raw queries and exposed model fields remain risks.
+
+Required guidelines (API — `apps/api`):
+
+- Apply a global `AuthGuard` that denies by default; mark public routes with `@Public()`.
+- Implement session-based authentication with HttpOnly, Secure, SameSite=Lax cookies.
+- Generate and validate CSRF tokens for all state-changing requests.
+- Enforce per-endpoint authorization with guards, RBAC, or CASL; never rely on frontend-only checks.
+- Use `class-validator` DTOs with global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`.
+- Use Prisma Client exclusively; never use `$queryRawUnsafe()` with interpolation.
+- Use `select` or `omit` in Prisma queries to avoid exposing sensitive fields.
+- Apply `prisma migrate deploy` for shared environments; never use `db push` outside local development.
+- Hash passwords with Argon2id; never store plaintext credentials.
+- Apply `@nestjs/throttler` on login, password reset, and sensitive endpoints.
+- Enable Helmet; configure CORS with explicit origin allowlist—never `origin: '*'` with credentials.
+- Validate uploads server-side with MIME allowlist and size limits.
+- Use a global exception filter hiding stack traces in production.
+
+Required guidelines (Frontend — `apps/web`):
+
+- Never store secrets or auth tokens accessible to JavaScript; rely on HttpOnly cookies.
+- Include CSRF token in all mutating requests (POST, PUT, PATCH, DELETE).
+- Never use `dangerouslySetInnerHTML` without DOMPurify sanitization.
+- Generate typed API clients from OpenAPI; do not hardcode endpoints.
+- Use Content Security Policy headers to mitigate XSS.
+
+Plan should validate:
+
+- monorepo structure with `apps/api` and `apps/web` is confirmed;
+- authentication uses HttpOnly cookies with CSRF protection, not localStorage;
+- global `AuthGuard` is registered with `@Public()` route exceptions;
+- CORS allowlist matches frontend deployment URLs;
+- endpoints are mapped to guards, DTOs, and response types with `select`/`omit`;
+- Prisma migrations are required for schema changes;
+- OpenAPI client generation and synchronization process is documented;
+- frontend includes CSRF tokens in mutating requests.

@@ -366,6 +366,7 @@ def register(app: typer.Typer) -> None:
             specify init my-project --integration codex --stack moodle5-plugin
             specify init --here --integration claude --stack cakephp2-mysql
             specify init my-project --integration copilot --stack laravel-inertia-react
+            specify init my-project --integration cursor-agent --stack nestjs-react
             specify init --here --force --stack moodle3 --integration cursor-agent
         """
         # Lazy imports to avoid circular dependency — __init__.py imports this module

@@ -1,0 +1,31 @@
+schema_version: "1.0"
+
+preset:
+  id: "mas-stack-nestjs-react"
+  name: "MAS Stack - NestJS + React (API + SPA)"
+  version: "0.1.0"
+  description: "MAS stack preset scaffold for NestJS API backend with Prisma/PostgreSQL and React SPA frontend monorepo"
+  author: "MAS Consultores"
+  repository: "internal"
+  license: "UNLICENSED"
+
+requires:
+  speckit_version: ">=0.8.0"
+
+provides:
+  templates:
+    - type: "template"
+      name: "mas-stack-nestjs-react"
+      file: "templates/mas-stack-nestjs-react.md"
+      description: "Stack scaffold marker for NestJS + React monorepo"
+
+tags:
+  - "mas"
+  - "stack"
+  - "nestjs"
+  - "prisma"
+  - "postgresql"
+  - "react"
+  - "typescript"
+  - "api"
+  - "spa"
