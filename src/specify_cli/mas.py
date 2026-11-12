@@ -177,7 +177,9 @@ def _bullets(items: tuple[str, ...]) -> str:
 
     Strings starting with '## ' become level-3 headings (### ...).
     Strings starting with '### ' become level-4 headings (#### ...).
+    Strings starting with '  - ' are nested bullet items (preserved as-is).
     All other strings become bullet items (- ...).
+    Avoids double blank lines between sections.
     """
     lines = []
     for item in items:
@@ -185,9 +187,14 @@ def _bullets(items: tuple[str, ...]) -> str:
             lines.append(f"\n#### {item[4:]}")
         elif item.startswith("## "):
             lines.append(f"\n### {item[3:]}")
+        elif item.startswith("  - "):
+            lines.append(item)
         else:
             lines.append(f"- {item}")
-    return "\n".join(lines)
+    result = "\n".join(lines)
+    while "\n\n\n" in result:
+        result = result.replace("\n\n\n", "\n\n")
+    return result
 
 
 def language_policy_init_options(
@@ -207,7 +214,7 @@ def _locale_label(locale: str) -> str:
         "es-CL": "Spanish — Chile",
         "es-ES": "Spanish — Spain",
     }
-    return labels.get(locale, "Spanish — Spain")
+    return labels.get(locale, locale)
 
 
 def render_language_policy_md(
@@ -875,7 +882,11 @@ MAS_STACKS: dict[str, MasStack] = {
             "## API Security (`apps/api`)",
             "Apply a global `JwtAuthGuard` that denies by default; mark public routes explicitly with `@Public()` decorator.",
             "Guard order: global `JwtAuthGuard` (with `@Public()` opt-out) → `PermissionsGuard` (CASL `@Can()`). Authentication never grants permissions; roles/permissions always come from Role/Permission tables.",
-            "Generate and validate CSRF tokens for all state-changing requests; include CSRF token in a non-HttpOnly cookie or response header for the SPA to read and echo back.",
+            "CSRF: signed double-submit pattern (`csrf-csrf`); validate `Origin` and `Sec-Fetch-Site` headers; use `__Host-` cookie prefix for session cookies.",
+            "MFA: TOTP required for admin roles (`auditoria`, `usuarios:*`, permission management); `speakeasy` or similar.",
+            "Throttler: `@nestjs/throttler` with shared storage (Postgres or optional Redis) across replicas; per-account lockout, not only IP-based.",
+            "`trust proxy` enabled behind ALB/CloudFront; CSP served by whoever serves `index.html` (CloudFront/nginx).",
+            "Session timeouts: inactivity timeout via refresh token window; absolute timeout via refresh token family expiration.",
             "## Authentication (`AuthModule`)",
             "Use official `@nestjs/passport` + `@nestjs/jwt` in a dedicated `AuthModule` (`apps/api/src/modules/auth/`), separate from `AuthzModule`.",
             "### Local Login",
@@ -924,7 +935,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "CI test MUST fail if: (1) any REST endpoint or MCP tool references a permission not declared in a manifest, or (2) any manifest action (except `reserved: true`) is not used by any endpoint or MCP tool.",
             "Admin UI groups permissions by category for role assignment; actions are individually togglable.",
             "## Record and Field Level Permissions",
-            "Record-level conditions (e.g., same tenant, status=draft, owner) are defined in permission rules and enforced via `@casl/prisma` `accessibleBy()` in queries.",
+            "Record-level conditions (e.g., same tenant, status=draft, owner) are defined in permission rules and enforced via `@casl/prisma` `accessibleBy(ability, action).ofType('Model')` + `createCaslExtension()` on Prisma Client.",
             "Field-level permissions control which fields can be read or updated; apply to response serialization and update DTO filtering.",
             "## Permission Storage",
             "Store permissions in PostgreSQL via Prisma: `Role`, `PermissionCategory`, `Permission` (category ref, action code, description, optional `conditions` JSON, `fields` JSON), `RolePermission`, `UserRole`, `UserPermission`.",
@@ -935,8 +946,11 @@ MAS_STACKS: dict[str, MasStack] = {
             "Shared Zod schemas in `packages/contracts` are the SINGLE SOURCE OF TRUTH for all validation; do NOT duplicate hand-written rules.",
             "EVERYTHING must be validated on BOTH frontend (UX) and backend (authoritative); frontend validation alone is never sufficient.",
             "## Backend Validation (Authoritative)",
-            "Use Zod v4.2+ with `nestjs-zod`; global `ZodValidationPipe` validates ALL inputs: body, query, params, headers, file metadata.",
-            "IMPORTANT: Do NOT use `z.date()` in `packages/contracts`—it breaks `z.toJSONSchema()` in Zod v4. Use `z.iso.datetime()` for UTC ISO 8601 timestamps.",
+            "Use Zod v4.2+ with `nestjs-zod`; `ZodValidationPipe` applies to `@Body`, `@Param`, `@Query` with `createZodDto()`.",
+            "Headers validated via custom decorator + `ZodValidationPipe`; uploads via `ParseFilePipeBuilder` + magic-bytes MIME check.",
+            "IMPORTANT: Do NOT use `z.date()` in `packages/contracts`—it breaks `z.toJSONSchema()` in Zod v4. Use `z.iso.datetime()` or `z.uuid()` (not `z.string().uuid()`).",
+            "Pagination schema: `z.coerce.number().int().min(1).max(100).default(20)` for `limit`; `page` min 1.",
+            "Request schemas are strict (reject unknown keys); response schemas use `z.object()` without `.strict()` (strip unknown for forward compat).",
             "Register `ZodSerializerInterceptor` globally and post-process Swagger document with `cleanupOpenApiDoc()` from nestjs-zod.",
             "Do NOT apply `@ZodSerializerDto()` on binary download/stream endpoints (`StreamableFile`); `ZodSerializerInterceptor` passes undecorated handlers through untouched.",
             "Configure all schemas as strict (reject unknown keys) to prevent payload pollution.",
@@ -956,13 +970,16 @@ MAS_STACKS: dict[str, MasStack] = {
             "Use Prisma Client for all database access; never use `$queryRawUnsafe()` with string interpolation. Use `$queryRaw` tagged templates only when raw SQL is unavoidable.",
             "Use `select` or `omit` in Prisma queries to avoid returning sensitive fields (passwords, tokens, internal flags); align Prisma select with response Zod schemas.",
             "Apply `prisma migrate deploy` for shared environments; never use `prisma db push` outside local development. Migrations must be reversible or document rollback.",
-            "Configure `PrismaService` with proper lifecycle hooks (`onModuleInit`, `enableShutdownHooks`) for graceful connection management.",
+            "Configure `PrismaService` with `OnModuleInit` (`$connect`) and `OnModuleDestroy` (`$disconnect`); call `app.enableShutdownHooks()` in `main.ts` for graceful shutdown.",
             "Hash passwords with Argon2id via `argon2` package; never store plaintext credentials.",
             "## Soft Delete Security",
             "Soft delete is mandatory: models include `deletedAt DateTime?` and `deletedBy String?` (populated from `ClsService` when actor is known).",
-            "Prisma Client extension intercepts `delete()` operations and converts to `update({ deletedAt: now(), deletedBy: cls.get('userId') })`.",
-            "Reads filter `deletedAt: null` by default; explicit opt-in (`includeDeleted: true`) required to see deleted records.",
-            "Safe composition with `@casl/prisma` `accessibleBy()`: the soft-delete extension MUST wrap existing `where` as `AND: [args.where ?? {}, { deletedAt: null }]` to avoid altering OR trees from CASL.",
+            "Prisma Client extension intercepts `delete()` → `update({ deletedAt, deletedBy })` and `deleteMany()` → `updateMany({ deletedAt, deletedBy })`.",
+            "Reads filter `deletedAt: null` by default; include-deleted only via explicit opt-in (separate method or CLS flag, never a Prisma arg).",
+            "AND composition only for `findMany`, `findFirst*`, `count`, `aggregate`, `groupBy`, `updateMany`: wrap as `AND: [args.where ?? {}, { deletedAt: null }]` to preserve CASL OR trees.",
+            "Unique ops (`findUnique`, `findUniqueOrThrow`, `update`, `delete`) use `{ ...where, deletedAt: null }` directly.",
+            "Filter `deletedAt` in relation `include` (helper or lint); forbid nested `delete` in `update` (use explicit service call).",
+            "Extension order: `$extends(createCaslExtension()).$extends(softDeleteExtension)` so soft-delete wraps CASL-filtered queries.",
             "`PrismaService` must export the `ExtendedPrismaClient` type so services and tests get correct typing.",
             "Unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations to allow re-use of soft-deleted values.",
             "Restore (`<category>:restaurar`) and hard delete (`<category>:eliminar_permanente`) are separate permissions—not granted by default.",
@@ -977,9 +994,10 @@ MAS_STACKS: dict[str, MasStack] = {
             "Audit record fields: who (userId, clientId), what (action, permission), when (timestamp), which (entity, recordId), before/after values (sensitive fields masked), origin (REST/MCP/job), context (IP, userAgent, requestId).",
             "Audited actions: create, update, soft delete, restore, hard delete, permission/role changes, login/logout/failed auth, exports, MCP tool calls.",
             "Implementation: `AuditModule` reads actor context from `ClsService`; automatic capture via NestJS interceptor and/or Prisma Client extension.",
-            "Storage: append-only `AuditLog` table—no update or delete operations allowed on audit records.",
+            "Storage: append-only `AuditLog` table enforced at DB level (role with only INSERT/SELECT on AuditLog or trigger denying UPDATE/DELETE).",
+            "Audit write MUST be in same `$transaction` as the business operation or use an outbox pattern for eventual consistency.",
             "Frontend: user-visible paginated audit view with filters (entity, action, user, date range); permission category `auditoria` with `ver` and `exportar` actions.",
-            "Retention: configurable retention policy (audit 1 year, logs 90 days); archival strategy for old records.",
+            "Retention: monthly partitions dropped by a separate DB role with truncate permission; configurable policy (audit 1 year, logs 90 days).",
             "Sensitive data: NEVER log passwords, tokens, secrets, or PII unmasked; use field-level masking rules.",
             "Each domain module must declare which actions are audited; plan checks verify new features include audit trail.",
             "## Performance Principles (Constitution-Level)",
@@ -1011,6 +1029,8 @@ MAS_STACKS: dict[str, MasStack] = {
             "Separate config by concern: `database.config.ts`, `auth.config.ts`, `app.config.ts`—each with its own Zod schema.",
             "## Health Checks",
             "Implement health endpoints via `@nestjs/terminus`: `/health/live` (liveness: process alive) and `/health/ready` (readiness: DB and critical deps connected).",
+            "Use `setGlobalPrefix('api', { exclude: [{ path: 'health/(live|ready)', method: RequestMethod.GET }] })` so health endpoints remain at root path.",
+            "Health controllers use `VERSION_NEUTRAL` to stay outside API versioning; MCP module declares explicit path `/mcp`.",
             "Kubernetes/Docker use these endpoints; readiness failures prevent traffic routing during startup or dependency issues.",
             "## Structured Logging with Correlation",
             "Use `nestjs-pino` for structured JSON logging; include `correlationId`/`requestId` in every log entry.",
@@ -1053,9 +1073,11 @@ MAS_STACKS: dict[str, MasStack] = {
             "MCP list tools MUST also be paginated with the same schema; return pagination metadata in tool output.",
             "## MCP Security (`@nestjs/mcp`)",
             "Use the OFFICIAL `@nestjs/mcp` package with `@modelcontextprotocol/server` and Zod v4.2+; do NOT use `@rekog/mcp-nest` or deprecated SDK imports.",
-            "Authenticate the `/mcp` endpoint as an OAuth 2.1 resource server; verify tokens and enforce per-tool scopes.",
+            "MCP auth: `/mcp` accepts `Authorization: Bearer` only (no cookies); CSRF check exempt only for that route; validate `Origin` header and token `aud` (RFC 8707).",
+            "Guards branch on `context.getType() === 'mcp'` and read identity from MCP execution context (`authInfo`), not `@CurrentUser()` which is HTTP-only.",
+            "Map OAuth scopes to `category:action` permissions; declare the authorization server in module config.",
             "Apply `@Can()` policies to MCP tools exactly as to REST endpoints; each tool declares its required `category:action` permission.",
-            "MCP tools accessing records MUST apply record-level conditions via `@casl/prisma` `accessibleBy()`; filtered data only.",
+            "MCP tools accessing records MUST apply record-level conditions via `@casl/prisma` `accessibleBy(ability, action).ofType('Model')`; filtered data only.",
             "Destructive or sensitive MCP tools MUST require explicit authorization, clear descriptions, and `annotations.destructiveHint` or equivalent metadata.",
             "Apply rate limiting to MCP tool invocations; log all tool calls for audit with caller identity, permission checked, and input summary.",
             "Never return secrets, credentials, tokens, or restricted fields in MCP tool outputs; apply field-level permissions to output filtering.",
@@ -1076,17 +1098,18 @@ MAS_STACKS: dict[str, MasStack] = {
             "Configure Renovate or Dependabot for automated dependency updates; review and merge security patches promptly.",
             "Generate SBOM (Software Bill of Materials) in CI for supply chain visibility (`@cyclonedx/cyclonedx-npm` or equivalent).",
             "## Container and Deployment",
-            "Dockerfile: multi-stage build, non-root user (`node:lts-alpine`), only production dependencies in final image.",
+            "Dockerfile: multi-stage build, non-root user, Node LTS major pinned with digest (e.g. `node:22-alpine@sha256:...`), only production dependencies in final image.",
             "Inject secrets via environment variables or mounted files at runtime; never bake secrets into images.",
-            "Set `TZ=America/Santiago` in container for correct local time display in logs; store all timestamps in UTC.",
+            "Set `TZ=UTC` in container; `@Cron` expressions use `{timeZone:'America/Santiago'}` where business hours matter.",
             "## Database Migrations in CI/CD",
             "Run `prisma migrate deploy` as a pre-deploy job; never run migrations during application startup.",
             "Backup database before applying migrations in staging/production; document rollback or forward-fix procedure.",
             "Test migrations in CI against a real PostgreSQL instance (not SQLite) before deploying.",
             "## Time Zones",
-            "Store all timestamps in UTC (`DateTime @default(now())` in Prisma); never store local times.",
+            "Store all timestamps in UTC (`DateTime @default(now()) @db.Timestamptz(3)` in Prisma); never store local times.",
             "Convert to user's timezone (`America/Santiago` default for Chile) in frontend using `date-fns-tz` or Intl API.",
             "API responses always return UTC ISO 8601 timestamps; frontend handles display conversion.",
+            "`@Cron` jobs requiring Chilean business hours use `{timeZone:'America/Santiago'}`; container TZ remains UTC.",
             "## Internationalization (Multi-Language from Day One)",
             "NO hardcoded user-facing strings anywhere—all text must be externalized for translation.",
             "Default locale: `es-CL` (overrides the default `product_locale` for this stack); resolve from user preference → `Accept-Language` header → fallback `es-CL`.",
@@ -1108,6 +1131,8 @@ MAS_STACKS: dict[str, MasStack] = {
             "## Email (AWS SES via SMTP)",
             "Configure SMTP credentials via env vars (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_TLS`); validate with Zod env schema.",
             "Use a dedicated mail module (`@nestjs-modules/mailer` or `nodemailer`); send emails asynchronously—never block HTTP requests.",
+            "Durable outbox: write email job to `EmailOutbox` table in same transaction as business operation; `@nestjs/schedule` worker polls and sends with retries.",
+            "BullMQ queue only if explicitly enabled (requires Redis); outbox pattern is the default for durability without Redis.",
             "Email templates are translatable (es-CL default); resolve locale from user preference.",
             "Audit email sends (recipient, template, timestamp) without logging PII or email content.",
             "Local development: use mail catcher (Mailpit or MailHog) instead of real SMTP; configure via env.",
@@ -1217,10 +1242,18 @@ MAS_STACKS: dict[str, MasStack] = {
             "## Package Manager: pnpm",
             "pnpm is the package manager and build tool; do NOT use npm or yarn.",
             "`pnpm-workspace.yaml` defines workspaces: `apps/*` and `packages/*`.",
-            "Root `package.json` must have `packageManager: 'pnpm@X.Y.Z'` for Corepack.",
+            "Root `package.json` must have `packageManager: 'pnpm@X.Y.Z'` (exact version) for Corepack.",
             "`pnpm-lock.yaml` must be committed; CI uses `pnpm install --frozen-lockfile`.",
             "Internal packages use workspace protocol: `\"@project/contracts\": \"workspace:*\"`.",
             "Run scripts with `pnpm -r` (recursive all) or `pnpm --filter <app>` (single workspace).",
+            "## Version Policy",
+            "Install latest STABLE versions of all packages at project creation (never beta/rc/canary/next).",
+            "Lock exact versions via `pnpm-lock.yaml`, exact pnpm version in `packageManager`, and Node LTS in `engines`/`.nvmrc`.",
+            "Docker base image: Node LTS major pinned with digest (e.g. `node:22-alpine@sha256:...`), never floating `lts`.",
+            "Renovate or Dependabot keeps packages on latest stable (no prereleases); review and merge promptly.",
+            "When peer dep conflicts arise, pick newest mutually compatible stable set; document exception in `pnpm.peerDependencyRules.allowedVersions`.",
+            "Prisma CLI and `@prisma/client` MUST be the same exact version.",
+            "CI smoke test MUST cover `ZodValidationPipe`, `ZodSerializerInterceptor`, `cleanupOpenApiDoc`, and `openapi:generate` for peer dep exceptions.",
             "## Authorization (see security-guidelines.md for details)",
             "Custom `AuthzModule` with `@Can('category:action')` decorator + `PermissionsGuard` wired to `@casl/ability` and `@casl/prisma`; permission manifests per domain.",
             "Record-level (`accessibleBy()`) and field-level filtering; audit all permission changes. Frontend `@casl/react` is UI-only.",
@@ -1238,7 +1271,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "Prisma exclusive ORM; soft delete default; comprehensive auditing mandatory; TypeScript strict mode.",
             "## Modular Frontend Architecture (`apps/web`)",
             "React + Vite + TypeScript strict (`no any`); feature-based structure: `src/features/<domain>/` with components, hooks, api, routes, locales, tests.",
-            "TanStack Router: file-based routing, typed search params validated with Zod, `ensureQueryData` in loaders for prefetch.",
+            "TanStack Router: file-based routing with `autoCodeSplitting` and `createLazyFileRoute`; typed search params via `validateSearch` with Zod; `ensureQueryData` in loaders.",
             "TanStack Query: all API caching, mutations, invalidations; NEVER duplicate server data into Zustand or global stores.",
             "Zustand for ephemeral UI state only (modals, sidebars, filters); React Context strictly for static DI (Auth user, Theme, Locale).",
             "TanStack Table for complex data grids with server-side pagination; TanStack Virtual for lists > 50 items.",
@@ -1369,7 +1402,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "Do not create custom form validation logic; use React Hook Form with `zodResolver` and shared Zod schemas from `packages/contracts`.",
             "Do not scatter shadcn/ui components across features; shared UI lives in `packages/ui` (shadcn/ui base components + Tailwind config).",
             "## Frontend Performance Anti-Patterns",
-            "Do not skip code splitting; lazy-load routes with `React.lazy()` and feature components with dynamic imports.",
+            "Routes auto-split via TanStack Router `autoCodeSplitting`/`createLazyFileRoute`; use `React.lazy()` only for heavy non-route components (charts, editors).",
             "Do not render large lists without virtualization; use TanStack Virtual for lists > 50 items.",
             "Do not load images eagerly; use `loading='lazy'` and size-appropriate srcsets.",
             "Do not cause unnecessary re-renders; memoize expensive computations and use stable callbacks.",

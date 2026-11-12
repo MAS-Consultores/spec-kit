@@ -18,6 +18,11 @@ provides:
       name: "mas-stack-nestjs-react"
       file: "templates/mas-stack-nestjs-react.md"
       description: "Stack scaffold marker for NestJS + React monorepo"
+    - type: "template"
+      name: "constitution-template"
+      file: "templates/constitution-template-append.md"
+      description: "NestJS + React stack constitution additions"
+      strategy: "append"
 
 tags:
   - "mas"

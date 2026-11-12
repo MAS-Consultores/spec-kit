@@ -386,9 +386,9 @@ OpenAPI.
 - CORS is configured with explicit origin allowlist matching the frontend deployment URL.
 - TypeScript strict mode is mandatory across both applications.
 
-### Authorization: @nestjs/authorization + CASL
+### Authorization: Custom AuthzModule + CASL
 
-- **Enforcement**: `@nestjs/authorization` with `@Can()` decorator on REST routes and MCP tools; deny-by-default.
+- **Enforcement**: Custom `AuthzModule` with `@Can()` decorator on REST routes and MCP tools; deny-by-default. Do NOT use `@nestjs/authorization`.
 - **Permission Engine**: CASL (`@casl/ability`) for defining and evaluating abilities per user.
 - **Permission Format**: `category:action` (e.g., `usuarios:listar`, `pedidos:aprobar`); code checks permissions, NEVER role names.
 - **Categories**: One per domain module (e.g., 'Usuarios', 'Pedidos'); standard actions: `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar`, plus custom.
@@ -472,7 +472,7 @@ OpenAPI.
 - **Async heavy work**: exports, emails, notifications run async; `@nestjs/event-emitter` / `@nestjs/schedule` default.
 - **BullMQ + Redis OPTIONAL**: recommended only when project needs retries, durability, or volume—not mandated.
 - **Short transactions**: no external calls inside tx; `createMany`/`updateMany` for bulk operations.
-- **Measurable budget**: p95 < 300 ms target; Prisma slow query logging; OpenTelemetry tracing.
+- **Measurable budget**: p95 < 300 ms target; Prisma slow query logging (> 100 ms threshold).
 - **Lightweight frontend**: lazy routes, code splitting, virtualization, avoid re-renders; TanStack Query caching.
 - **Note**: MAS manages caching strategies; stack does NOT mandate Redis/backend caching.
 
@@ -552,7 +552,7 @@ OpenAPI.
 - Never swallow errors silently; log with context before converting to user-safe messages.
 
 **Performance & Database:**
-- Use caching strategically with `@nestjs/cache-manager`; invalidate on writes.
+- Use caching strategically when needed; invalidate on writes. MAS manages caching strategies separately.
 - Lazy-load large feature modules using `LazyModuleLoader`.
 - Avoid N+1 queries: use Prisma's `include`/`select` with nested relations.
 - Wrap multi-step operations in `prisma.$transaction`.
@@ -594,7 +594,7 @@ See `.specify/memory/security-guidelines.md` after init. Highlights include:
 CSRF token validation, `ValidationPipe` with whitelist, Prisma `select`/`omit`
 for safe responses, Helmet, CORS allowlist, throttling.
 
-**Authorization:** `@nestjs/authorization` + `@Can()` on all endpoints and MCP tools,
+**Authorization:** Custom `AuthzModule` + `@Can()` on all endpoints and MCP tools (NOT `@nestjs/authorization`),
 CASL abilities per user, `@casl/prisma` `accessibleBy()` for record filtering,
 field-level permissions on responses and updates, permission audit logging.
 
@@ -688,7 +688,7 @@ for UI visibility only—API always enforces authorization.
 - Confirm no external calls inside transactions; transactions are short.
 - Confirm bulk operations use `createMany`/`updateMany`; no loops with individual operations.
 - Confirm Prisma slow query logging configured; heavy queries reviewed with `EXPLAIN ANALYZE`.
-- Confirm OpenTelemetry tracing implemented for request visibility.
+- Confirm nestjs-pino structured logging with correlationId for request visibility.
 - Confirm p95 < 300 ms target documented and tracked for common endpoints.
 - Frontend: confirm lazy routes, code-split components, virtualized large lists.
 - Note: stack does NOT mandate Redis/backend caching; MAS manages caching strategies.

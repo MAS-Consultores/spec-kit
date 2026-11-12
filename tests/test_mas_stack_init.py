@@ -754,3 +754,59 @@ def test_other_stacks_unchanged_locale():
         policy_md = render_language_policy_md(product_locale="es-ES")
         assert "Spanish — Spain" in policy_md
         assert "Spanish — Chile" not in policy_md
+
+
+def test_bullets_renders_nested_items():
+    """Test that _bullets handles nested items ('  - ') correctly."""
+    items = (
+        "Top level item",
+        "  - Nested item one",
+        "  - Nested item two",
+        "Another top level",
+    )
+    result = _bullets(items)
+    assert "- Top level item" in result
+    assert "  - Nested item one" in result
+    assert "  - Nested item two" in result
+    assert "- Another top level" in result
+    assert "-   - Nested" not in result
+
+
+def test_bullets_no_triple_blank_lines():
+    """Test that _bullets avoids triple blank lines between sections."""
+    items = (
+        "## Section One",
+        "Item in section one",
+        "## Section Two",
+        "Item in section two",
+    )
+    result = _bullets(items)
+    assert "\n\n\n" not in result
+
+
+def test_nestjs_react_no_forbidden_terms_outside_donot():
+    """Test that nestjs-react stack doesn't recommend forbidden terms outside 'Do not'/'NOT' contexts."""
+    stack = get_mas_stack("nestjs-react")
+    assert stack is not None
+
+    forbidden = ["@nestjs/authorization", "OpenTelemetry", "cache-manager", "class-validator"]
+
+    all_content = (
+        stack.security_profile
+        + " ".join(stack.security_controls)
+        + " ".join(stack.core_constraints)
+        + " ".join(stack.expected_artifacts)
+        + " ".join(stack.preferred_practices)
+        + " ".join(stack.likely_project_shape)
+    )
+
+    for term in forbidden:
+        if term in all_content:
+            import re
+            matches = re.findall(rf'[^.]*{re.escape(term)}[^.]*\.', all_content)
+            for match in matches:
+                match_lower = match.lower()
+                is_forbidden_context = any(neg in match_lower for neg in [
+                    "do not", "don't", "not use", "never use", "instead of", "not "
+                ])
+                assert is_forbidden_context, f"Found '{term}' outside forbidden context: {match[:100]}..."

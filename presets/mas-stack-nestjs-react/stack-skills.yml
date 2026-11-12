@@ -3,7 +3,3 @@ schema_version: "1.0"
 skills:
   - source: vercel-labs/agent-skills
     skill: vercel-react-best-practices
-  - source: HoangNguyen0403/agent-skills-standard
-    skill: nestjs-architecture
-  - source: HoangNguyen0403/agent-skills-standard
-    skill: nestjs-security

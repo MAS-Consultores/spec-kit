@@ -136,15 +136,15 @@ proyecto/
 
 **Reglas**: Link por `provider + providerSubject`, NUNCA por email solo. Solo vincular si `email_verified: true` y confirmación explícita. JIT provisioning OFF por defecto; nuevo IdP user sin permisos hasta asignar rol.
 
-### Autorización: @nestjs/authorization + CASL
+### Autorización: Custom AuthzModule + CASL
 
 **Decisión**: RBAC/ABAC granular con permisos organizados por CATEGORÍA y ACCIÓN, condiciones a nivel de registro, y restricciones a nivel de campo.
 
 | Componente | Decisión | Propósito |
 |------------|----------|-----------|
-| **Enforcement** | `@nestjs/authorization` + `@Can()` | Punto de aplicación en REST y MCP; deny-by-default |
+| **Enforcement** | Custom `AuthzModule` + `@Can()` | Punto de aplicación en REST y MCP; deny-by-default. NO usar `@nestjs/authorization` |
 | **Permission Engine** | CASL (`@casl/ability`) | Definición y evaluación de abilities |
-| **Record Filtering** | `@casl/prisma` `accessibleBy()` | Filtrar queries por condiciones del usuario |
+| **Record Filtering** | `@casl/prisma` `accessibleBy(ability, action).ofType('Model')` + `createCaslExtension()` | Filtrar queries por condiciones del usuario |
 | **Manifest Sync** | `pnpm permissions:sync` | Sincroniza manifiestos a BD sin tocar asignaciones |
 | **Frontend UI** | `@casl/react` | Visibilidad UI; API siempre enforce |
 
@@ -1362,18 +1362,6 @@ export class PrismaService extends PrismaClient {
 }
 ```
 
-```typescript
-// OpenTelemetry setup (main.ts)
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-
-const sdk = new NodeSDK({
-  instrumentations: [getNodeAutoInstrumentations()],
-  // Exporter configurado para tu backend (Jaeger, Zipkin, OTLP)
-});
-sdk.start();
-```
-
 | Métrica | Target |
 |---------|--------|
 | p95 response time | < 300 ms |
@@ -1665,14 +1653,23 @@ Contiene:
 
 Las siguientes decisiones pueden reconsiderarse en futuras iteraciones:
 
-1. **Monorepo Tool**: ¿Turborepo, Nx, o workspaces nativos?
-2. **State Management**: ¿TanStack Query, Zustand, o alternativas?
-3. **Queues/Background Jobs**: ¿BullMQ, Agenda, o alternativas?
-4. **File Storage**: ¿S3, local, o abstracción?
-5. **Observability**: ¿Pino, Winston, OpenTelemetry?
-6. **Email**: ¿Nodemailer, SendGrid, Resend?
-7. **Versión de NestJS**: Actualmente "última estable", ¿fijar versión específica?
-8. **Fuente de Skills**: ¿HoangNguyen0403/agent-skills-standard o crear mas-nestjs en MAS-Consultores/mas-skills?
+### Decisiones Cerradas
+
+| Tema | Decisión |
+|------|----------|
+| **Monorepo Tool** | pnpm workspaces nativo |
+| **State Management** | TanStack Query (server state) + Zustand (UI-only state) |
+| **Queues/Background Jobs** | Outbox table + `@nestjs/schedule` por defecto; BullMQ + Redis opcional si se habilita |
+| **Observability** | nestjs-pino con correlationId; NO OpenTelemetry mandatorio |
+| **Email** | AWS SES via SMTP con outbox pattern |
+| **Versiones** | Última STABLE (nunca beta/rc/canary); pnpm-lock + Renovate |
+| **Skills** | Solo `vercel-react-best-practices`; skills internos MAS en desarrollo |
+| **Autorización** | Custom `AuthzModule` + CASL (NO `@nestjs/authorization`) |
+| **Cache** | Sin cache-manager mandatorio; MAS gestiona estrategias |
+
+### Decisiones Pendientes
+
+1. **File Storage**: ¿S3, local, o abstracción? (por proyecto)
 
 ## Validación de la Propuesta
 

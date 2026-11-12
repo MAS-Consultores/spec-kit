@@ -224,9 +224,9 @@ Required guidelines (API — `apps/api`):
 - Implement session-based authentication with HttpOnly, Secure, SameSite=Lax cookies.
 - Generate and validate CSRF tokens for all state-changing requests.
 
-Authorization (`@nestjs/authorization` + CASL):
+Authorization (Custom `AuthzModule` + CASL):
 
-- Use `@nestjs/authorization` with `@Can()` decorator on every endpoint and MCP tool; deny-by-default.
+- Custom `AuthzModule` with `@Can()` decorator on every endpoint and MCP tool; deny-by-default. Do NOT use `@nestjs/authorization`.
 - Use CASL (`@casl/ability`) as the permission engine; build abilities per user from database-stored permissions.
 - Organize permissions by CATEGORY (one per domain: 'Usuarios', 'Pedidos') with individually restrictable ACTIONS.
 - Use `category:action` format (e.g., `usuarios:listar`, `pedidos:aprobar`); code checks permissions, NEVER role names.
@@ -294,7 +294,7 @@ Performance Principles (Constitution-Level):
 - Async heavy work: exports, emails, notifications run async; `@nestjs/event-emitter` / `@nestjs/schedule` default.
 - BullMQ + Redis OPTIONAL: recommended only when project needs retries, durability, or volume—not mandated.
 - Short transactions: no external calls inside tx; `createMany`/`updateMany` for bulk operations.
-- Measurable budget: p95 < 300 ms target; Prisma slow query logging; OpenTelemetry tracing.
+- Measurable budget: p95 < 300 ms target; Prisma slow query logging (> 100 ms threshold).
 - Lightweight frontend: lazy routes, code splitting, virtualization, avoid re-renders; TanStack Query caching.
 - Note: MAS manages caching strategies; stack does NOT mandate Redis/backend caching.
 
@@ -359,6 +359,6 @@ Plan should validate:
 - no external calls inside database transactions; transactions are short;
 - bulk operations use `createMany`/`updateMany`; no loops with individual operations;
 - Prisma slow query logging configured; heavy queries reviewed with `EXPLAIN ANALYZE`;
-- OpenTelemetry tracing implemented for request visibility;
+- nestjs-pino structured logging with correlationId for request visibility;
 - p95 < 300 ms target documented for common endpoints;
 - frontend: lazy routes, code-split components, virtualized large lists.

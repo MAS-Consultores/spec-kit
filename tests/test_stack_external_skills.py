@@ -165,14 +165,15 @@ def test_resolve_stack_external_skills_merges_core_and_stack():
 
 
 def test_resolve_stack_external_skills_nestjs_react():
+    """Verify nestjs-react stack external skills manifest content."""
     stack = get_mas_stack("nestjs-react")
     assert stack is not None
     specs = resolve_stack_external_skills(stack)
     skill_names = {s.skill for s in specs}
     assert "find-skills" in skill_names
     assert "vercel-react-best-practices" in skill_names
-    assert "nestjs-architecture" in skill_names
-    assert "nestjs-security" in skill_names
+    assert "nestjs-architecture" not in skill_names, "nestjs-architecture removed (external skills curated internally)"
+    assert "nestjs-security" not in skill_names, "nestjs-security removed (external skills curated internally)"
 
 
 def test_resolve_stack_external_skills_dedupes():
