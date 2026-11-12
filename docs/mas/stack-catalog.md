@@ -427,6 +427,16 @@ OpenAPI.
 - `/mcp` authenticated as OAuth 2.1 resource server; same guards as REST.
 - Test with in-memory MCP client from `@nestjs/mcp/testing`.
 
+### Server-Side Pagination (Mandatory)
+
+- ALL list/collection endpoints must be paginated server-side; no unbounded lists.
+- Standard pagination Zod schema in `packages/contracts`; documented in OpenAPI.
+- Default page size (e.g., 20) and max page size (e.g., 100) enforced.
+- Cursor-based pagination for large/infinite datasets; offset/page for admin tables.
+- Stable sorting (unique field in ORDER BY); whitelisted filter/sort fields.
+- Prisma `take`/`skip` or `cursor` combined with CASL `accessibleBy()`.
+- MCP list tools also paginated with same schema.
+
 ### Modular Architecture
 
 **API (`apps/api`):**
@@ -442,6 +452,8 @@ OpenAPI.
 - Feature-based structure under `src/features/<domain>/`
 - **Router**: TanStack Router (type-safe routes, file-based, lazy-loaded)
 - **Server State**: TanStack Query (cache, mutations; query hooks per feature)
+- **Tables**: TanStack Table with server-side pagination/sorting/filtering; state in Router search params
+- **Infinite Lists**: `useInfiniteQuery` with cursor-based pagination; TanStack Virtual for long lists
 - **Global State**: Zustand for UI only; React Context for DI
 - **Forms**: React Hook Form + zodResolver + schemas from `packages/contracts`
 - **Styling**: Tailwind CSS + shadcn/ui
@@ -573,6 +585,14 @@ for UI visibility only—API always enforces authorization.
 - Confirm `openapi.json` versioned in repo; require `openapi-diff` in CI.
 - Confirm typed frontend client generated from OpenAPI.
 
+**Pagination:**
+- For each list endpoint: confirm server-side pagination; no unbounded lists.
+- Confirm standard pagination Zod schema used and documented in OpenAPI.
+- Confirm default and max page size enforced.
+- For large datasets: confirm cursor-based pagination.
+- Confirm stable sorting and whitelisted filter/sort fields.
+- For MCP list tools: confirm pagination with metadata in output.
+
 **MCP:**
 - If MCP tools added, confirm using `@nestjs/mcp` (official), NOT `@rekog/mcp-nest`.
 - Verify MCP tools call domain services, not Prisma directly.
@@ -594,6 +614,15 @@ for UI visibility only—API always enforces authorization.
 - Confirm audit logging for all permission changes.
 - Require tests for BOTH allowed and denied authorization cases.
 - Reject role-name checks in code; require `category:action` permission checks only.
+
+**Frontend Pagination and Lazy Loading:**
+- For each table: confirm server-side pagination/sorting/filtering with TanStack Table + Query.
+- Confirm page/sort/filter state in TanStack Router typed search params.
+- For infinite lists: confirm `useInfiniteQuery` with cursor-based pagination.
+- Reject client-side pagination of full datasets.
+- Confirm feature routes are lazy-loaded with React.lazy() and Suspense.
+- For long lists (>50 items): confirm TanStack Virtual virtualization.
+- Confirm images use lazy loading.
 
 **Modularity Validation:**
 - Each new API feature must be a dedicated module under `src/modules/<domain>/` with documented public exports and dependencies.

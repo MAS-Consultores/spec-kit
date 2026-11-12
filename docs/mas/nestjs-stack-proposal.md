@@ -612,6 +612,160 @@ describe('UsersMcpTools', () => {
 - Paridad con el stack laravel-inertia-react
 - Componentes en `packages/ui` o `src/shared/ui/`
 
+## Paginación Obligatoria (Server-Side)
+
+### Requisitos API
+
+- **TODOS** los endpoints de lista/colección DEBEN ser paginados server-side
+- NO listas sin límite; rechazar requests que excedan max page size
+- Schema Zod estándar en `packages/contracts`; documentado en OpenAPI
+
+### Tipos de Paginación
+
+| Tipo | Uso | Implementación |
+|------|-----|----------------|
+| **Cursor-based** | Listas grandes/infinitas | `cursor`, `take`; mejor performance, sin drift |
+| **Offset/Page** | Tablas admin acotadas | `page`, `pageSize`, `skip`, `take` |
+
+### Prisma + CASL
+
+```typescript
+// Paginación cursor-based con accessibleBy()
+async findPaginated(user: User, cursor?: string, take = 20) {
+  const ability = await this.casl.createForUser(user);
+  return this.prisma.articulo.findMany({
+    where: accessibleBy(ability, 'articulos', 'listar').Articulo,
+    take: Math.min(take, 100), // Max enforced
+    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], // Stable sort
+  });
+}
+```
+
+### Zod Schema Estándar
+
+```typescript
+// packages/contracts/src/pagination.ts
+export const PaginationParamsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  sortBy: z.enum(['createdAt', 'name', 'updatedAt']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export const CursorPaginationSchema = z.object({
+  cursor: z.string().uuid().optional(),
+  take: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const PaginatedResponseSchema = <T extends z.ZodType>(itemSchema: T) =>
+  z.object({
+    items: z.array(itemSchema),
+    meta: z.object({
+      total: z.number().optional(),
+      page: z.number().optional(),
+      pageSize: z.number(),
+      hasMore: z.boolean(),
+      nextCursor: z.string().optional(),
+    }),
+  });
+```
+
+### MCP Tools Paginados
+
+```typescript
+@Tool({
+  name: 'listar_articulos',
+  description: 'Listar artículos con paginación cursor-based',
+  parameters: CursorPaginationSchema,
+})
+@Can('articulos:listar')
+async listarArticulos(params: CursorPagination, @CurrentUser() user: User) {
+  const result = await this.articulosService.findPaginated(user, params.cursor, params.take);
+  return {
+    items: result,
+    meta: { hasMore: result.length === params.take, nextCursor: result.at(-1)?.id },
+  };
+}
+```
+
+## Frontend: Tablas y Listas
+
+### TanStack Table con Paginación Server-Side
+
+```typescript
+// State en TanStack Router search params
+const searchParams = Route.useSearch();
+const [pagination, setPagination] = useState({
+  pageIndex: searchParams.page ? searchParams.page - 1 : 0,
+  pageSize: searchParams.pageSize ?? 20,
+});
+
+// Query con paginación
+const { data, isLoading } = useQuery({
+  queryKey: ['articulos', pagination, filters, sorting],
+  queryFn: () => api.articulos.list({
+    page: pagination.pageIndex + 1,
+    pageSize: pagination.pageSize,
+    ...filters,
+    ...sorting,
+  }),
+  keepPreviousData: true,
+});
+
+// Sync con URL
+useEffect(() => {
+  navigate({ search: { page: pagination.pageIndex + 1, pageSize: pagination.pageSize } });
+}, [pagination]);
+```
+
+### Infinite Scroll con useInfiniteQuery
+
+```typescript
+const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  queryKey: ['articulos', 'infinite', filters],
+  queryFn: ({ pageParam }) => api.articulos.list({ cursor: pageParam }),
+  getNextPageParam: (lastPage) => lastPage.meta.hasMore ? lastPage.meta.nextCursor : undefined,
+});
+```
+
+## Lazy Loading
+
+### Routes Lazy-Loaded
+
+```typescript
+// src/routes/index.tsx
+const ArticulosFeature = lazy(() => import('../features/articulos'));
+const UsuariosFeature = lazy(() => import('../features/usuarios'));
+
+<Route path="/articulos" element={
+  <Suspense fallback={<LoadingSpinner />}>
+    <ArticulosFeature />
+  </Suspense>
+} />
+```
+
+### Virtualization (TanStack Virtual)
+
+```typescript
+// Listas largas (>50 items) DEBEN usar virtualización
+const rowVirtualizer = useVirtualizer({
+  count: items.length,
+  getScrollElement: () => parentRef.current,
+  estimateSize: () => 50,
+  overscan: 5,
+});
+```
+
+### Anti-patrones
+
+- ❌ Endpoints sin paginación (listas sin límite)
+- ❌ Fetch full dataset + paginación client-side
+- ❌ Offset pagination para datasets infinitos
+- ❌ Sort/filter arbitrarios sin whitelist
+- ❌ Eager-loading de todas las rutas
+- ❌ Listas largas sin virtualización
+
 ## Recursos de Referencia
 
 ### Documentación Oficial
