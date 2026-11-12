@@ -261,6 +261,16 @@ Data Access:
 - Validate uploads server-side with MIME allowlist and size limits.
 - Use a global exception filter hiding stack traces in production.
 
+Soft Delete:
+
+- Soft delete is mandatory: models include `deletedAt DateTime?` (optionally `deletedBy String?` for audit).
+- Prisma Client extension intercepts `delete()` → soft delete; filters `deletedAt: null` by default.
+- Explicit opt-in (`includeDeleted: true`) required to see deleted records.
+- Unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations.
+- `eliminar` = soft delete (default); `restaurar` = restore (separate permission); `eliminar_permanente` = hard delete (restricted).
+- Hard delete requires justification (legal erasure, retention policies) and full audit logging.
+- Cascades handled consistently: soft-deleting parent soft-deletes or detaches children per business rules.
+
 Required guidelines (Frontend — `apps/web`):
 
 - Never store secrets or auth tokens accessible to JavaScript; rely on HttpOnly cookies.
@@ -298,4 +308,11 @@ Plan should validate:
 - Prisma migrations are required for schema changes;
 - OpenAPI client generation and synchronization process is documented;
 - frontend includes CSRF tokens in mutating requests;
-- frontend uses `@casl/react` for UI visibility only, with API enforcement documented.
+- frontend uses `@casl/react` for UI visibility only, with API enforcement documented;
+- models include `deletedAt DateTime?` (optionally `deletedBy String?` for audit);
+- Prisma Client extension intercepts `delete()` → soft delete, filters `deletedAt: null` by default;
+- explicit opt-in (`includeDeleted: true`) required to see deleted records;
+- unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations;
+- restore action protected by `<category>:restaurar` permission;
+- hard delete protected by `<category>:eliminar_permanente` with audit logging and justification;
+- cascades handled consistently (parent soft-delete → children soft-deleted or detached).

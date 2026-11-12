@@ -439,6 +439,16 @@ OpenAPI.
 - Prisma `take`/`skip` or `cursor` combined with CASL `accessibleBy()`.
 - MCP list tools also paginated with same schema.
 
+### Soft Delete (Default)
+
+- Soft delete is mandatory when possible; models include `deletedAt DateTime?` (optionally `deletedBy`).
+- Prisma Client extension intercepts `delete()` → soft delete; filters `deletedAt: null` by default.
+- Explicit opt-in (`includeDeleted: true`) required to see deleted records.
+- Unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations.
+- `eliminar` = soft delete (default action); `restaurar` = restore (separate permission).
+- `eliminar_permanente` = hard delete (restricted permission, audited, justified cases only).
+- Cascades handled consistently: soft-deleting parent soft-deletes or detaches children.
+
 ### Modular Architecture
 
 **API (`apps/api`):**
@@ -612,6 +622,7 @@ for UI visibility only—API always enforces authorization.
 - For each endpoint and MCP tool: document record-level conditions (tenant, owner, status) if applicable.
 - For each endpoint and MCP tool: document field-level read/write restrictions if applicable.
 - For each new/changed module: confirm permission manifest exists in `<domain>.permissions.ts`.
+- Confirm manifest includes soft delete actions: `eliminar` (soft), `restaurar` (restore), `eliminar_permanente` (hard).
 - Confirm every `@Can()` permission is declared in a manifest (CI test must verify).
 - Confirm every manifest action is used by at least one endpoint or MCP tool (CI test must verify).
 - Confirm `pnpm permissions:sync` is run on deploy/seed.
@@ -620,6 +631,15 @@ for UI visibility only—API always enforces authorization.
 - Confirm update DTOs filtered by writable field permissions before processing.
 - Confirm permission schema exists: `PermissionCategory`, `Permission`, `RolePermission`, `UserRole` tables.
 - Confirm audit logging for all permission changes.
+
+**Soft Delete:**
+- Confirm models include `deletedAt DateTime?` (optionally `deletedBy String?` for audit).
+- Confirm Prisma Client extension intercepts `delete()` → soft delete, filters `deletedAt: null` by default.
+- Confirm explicit opt-in (`includeDeleted: true`) required to see deleted records.
+- Confirm unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations.
+- Confirm restore action protected by `<category>:restaurar` permission.
+- Confirm hard delete protected by `<category>:eliminar_permanente` with audit logging and justification.
+- Confirm cascades handled consistently (parent soft-delete → children soft-deleted or detached).
 - Require tests for BOTH allowed and denied authorization cases.
 - Reject role-name checks in code; require `category:action` permission checks only.
 

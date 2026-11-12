@@ -126,13 +126,15 @@ proyecto/
 
 Los permisos se organizan por **CATEGORÍA** (una por módulo de dominio) con **ACCIONES** individuales:
 
-| Categoría | Acciones Estándar | Acciones Custom |
-|-----------|-------------------|-----------------|
-| `usuarios` | `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar` | `desactivar`, `resetear_password` |
-| `pedidos` | `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar` | `aprobar`, `rechazar`, `cancelar` |
-| `articulos` | `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar` | `publicar`, `archivar` |
+| Categoría | Acciones Estándar | Acciones Soft Delete | Acciones Custom |
+|-----------|-------------------|----------------------|-----------------|
+| `usuarios` | `listar`, `ver`, `crear`, `editar`, `exportar` | `eliminar`*, `restaurar`, `eliminar_permanente` | `desactivar`, `resetear_password` |
+| `pedidos` | `listar`, `ver`, `crear`, `editar`, `exportar` | `eliminar`*, `restaurar`, `eliminar_permanente` | `aprobar`, `rechazar`, `cancelar` |
+| `articulos` | `listar`, `ver`, `crear`, `editar`, `exportar` | `eliminar`*, `restaurar`, `eliminar_permanente` | `publicar`, `archivar` |
 
-**Formato**: `categoria:accion` (e.g., `usuarios:listar`, `pedidos:aprobar`)
+*`eliminar` = soft delete (default); `restaurar` = restore; `eliminar_permanente` = hard delete (restringido, auditado)
+
+**Formato**: `categoria:accion` (e.g., `usuarios:listar`, `pedidos:aprobar`, `usuarios:restaurar`)
 
 #### Granularidad de Permisos
 
@@ -724,6 +726,196 @@ describe('UsersMcpTools', () => {
 
 - Paridad con el stack laravel-inertia-react
 - Componentes en `packages/ui` o `src/shared/ui/`
+
+## Soft Delete (Por Defecto)
+
+### Decisión
+
+**Soft delete es obligatorio** cuando sea posible. Los modelos Prisma incluyen `deletedAt DateTime?`
+(opcionalmente `deletedBy String?` para auditoría). No se elimina físicamente por defecto.
+
+### Implementación
+
+| Componente | Implementación |
+|------------|----------------|
+| **Prisma Schema** | `deletedAt DateTime?`, `deletedBy String?` en cada modelo |
+| **Prisma Extension** | Intercept `delete()` → `update({ deletedAt })`, filter `deletedAt: null` en reads |
+| **Unique Constraints** | Partial indexes: `@@unique([email], where: { deletedAt: null })` via migrations |
+| **Restore** | Permiso separado: `<category>:restaurar` |
+| **Hard Delete** | Permiso restringido: `<category>:eliminar_permanente` (solo legal/retention) |
+| **Cascades** | Soft-delete parent → soft-delete o detach children (consistente) |
+
+### Prisma Schema
+
+```prisma
+model Usuario {
+  id        String    @id @default(cuid())
+  email     String
+  name      String
+  
+  deletedAt DateTime?
+  deletedBy String?
+  
+  // Partial unique index (migration SQL required)
+  // @@unique([email]) WHERE deletedAt IS NULL
+  
+  @@index([deletedAt])
+}
+```
+
+### Prisma Client Extension
+
+```typescript
+// apps/api/src/prisma/soft-delete.extension.ts
+import { Prisma } from '@prisma/client';
+
+export const softDeleteExtension = Prisma.defineExtension({
+  name: 'soft-delete',
+  query: {
+    $allModels: {
+      async delete({ model, args, query }) {
+        // Convert delete to soft delete
+        return (prisma as any)[model].update({
+          ...args,
+          data: { deletedAt: new Date() },
+        });
+      },
+      async deleteMany({ model, args, query }) {
+        return (prisma as any)[model].updateMany({
+          ...args,
+          data: { deletedAt: new Date() },
+        });
+      },
+      async findMany({ model, args, query }) {
+        // Filter out soft-deleted by default
+        if (!args?.includeDeleted) {
+          args = { ...args, where: { ...args?.where, deletedAt: null } };
+        }
+        return query(args);
+      },
+      async findFirst({ model, args, query }) {
+        if (!args?.includeDeleted) {
+          args = { ...args, where: { ...args?.where, deletedAt: null } };
+        }
+        return query(args);
+      },
+      async findUnique({ model, args, query }) {
+        const result = await query(args);
+        if (result?.deletedAt && !args?.includeDeleted) return null;
+        return result;
+      },
+      async count({ model, args, query }) {
+        if (!args?.includeDeleted) {
+          args = { ...args, where: { ...args?.where, deletedAt: null } };
+        }
+        return query(args);
+      },
+    },
+  },
+});
+
+// Usage
+const prisma = new PrismaClient().$extends(softDeleteExtension);
+```
+
+### Migration para Partial Unique Index
+
+```sql
+-- migrations/XXXXXX_add_partial_unique_email.sql
+CREATE UNIQUE INDEX "Usuario_email_unique_active" 
+ON "Usuario"("email") 
+WHERE "deletedAt" IS NULL;
+```
+
+### Permisos de Soft Delete
+
+```typescript
+// src/modules/usuarios/usuarios.permissions.ts
+export const usuariosPermissions: PermissionManifest = {
+  category: 'usuarios',
+  actions: [
+    { code: 'listar', description: 'Ver lista de usuarios' },
+    { code: 'ver', description: 'Ver detalle de usuario' },
+    { code: 'crear', description: 'Crear nuevos usuarios' },
+    { code: 'editar', description: 'Editar usuarios existentes' },
+    { code: 'eliminar', description: 'Soft-delete usuarios' },  // DEFAULT
+    { code: 'restaurar', description: 'Restaurar usuarios eliminados' },  // SEPARATE
+    { code: 'eliminar_permanente', description: 'Hard-delete (solo legal/retention)' },  // RESTRICTED
+    { code: 'exportar', description: 'Exportar lista de usuarios' },
+  ],
+};
+```
+
+### Controller con Soft Delete
+
+```typescript
+@Controller('usuarios')
+export class UsuariosController {
+  @Delete(':id')
+  @Can('usuarios:eliminar')  // Soft delete
+  async softDelete(@Param('id') id: string) {
+    return this.usuariosService.softDelete(id);
+  }
+
+  @Post(':id/restore')
+  @Can('usuarios:restaurar')  // Separate permission
+  async restore(@Param('id') id: string) {
+    return this.usuariosService.restore(id);
+  }
+
+  @Delete(':id/permanent')
+  @Can('usuarios:eliminar_permanente')  // Restricted, audited
+  async hardDelete(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.usuariosService.hardDelete(id, user.id, 'Legal erasure request #123');
+  }
+}
+```
+
+### Service con Audit
+
+```typescript
+@Injectable()
+export class UsuariosService {
+  async softDelete(id: string, deletedById?: string) {
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { deletedAt: new Date(), deletedBy: deletedById },
+    });
+  }
+
+  async restore(id: string) {
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { deletedAt: null, deletedBy: null },
+      includeDeleted: true,  // Opt-in to see soft-deleted
+    });
+  }
+
+  async hardDelete(id: string, actorId: string, reason: string) {
+    // Audit log BEFORE delete
+    await this.auditService.log({
+      action: 'HARD_DELETE',
+      entity: 'Usuario',
+      entityId: id,
+      actorId,
+      reason,
+    });
+    
+    // Actual hard delete (bypasses extension)
+    return this.prisma.$executeRaw`DELETE FROM "Usuario" WHERE id = ${id}`;
+  }
+}
+```
+
+### Anti-patrones
+
+- ❌ Usar hard delete sin justificación (legal/retention)
+- ❌ Queries sin filtro de soft-delete (extension lo maneja)
+- ❌ Bypass de Prisma extension para raw deletes
+- ❌ Unique constraints sin partial index
+- ❌ Restore sin permiso `<category>:restaurar`
+- ❌ Hard delete sin permiso `<category>:eliminar_permanente` y audit log
+- ❌ Cascades inconsistentes (parent soft-deleted, children huérfanos)
 
 ## Paginación Obligatoria (Server-Side)
 
