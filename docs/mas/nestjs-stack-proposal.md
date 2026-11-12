@@ -725,7 +725,7 @@ describe('UsersMcpTools', () => {
 ### Tailwind CSS + shadcn/ui
 
 - Paridad con el stack laravel-inertia-react
-- Componentes en `packages/ui` o `src/shared/ui/`
+- Componentes shadcn/ui en `packages/ui`; app shell/layout en `apps/web/src/shared/`
 
 ## Soft Delete (Por Defecto)
 

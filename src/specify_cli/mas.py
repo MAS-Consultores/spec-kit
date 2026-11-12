@@ -37,6 +37,7 @@ class MasStack:
     preferred_practices: tuple[str, ...]
     plan_validation_checks: tuple[str, ...]
     likely_project_shape: tuple[str, ...]
+    default_product_locale: str | None = None
 
     @property
     def stack_preset_id(self) -> str:
@@ -60,7 +61,9 @@ class MasStack:
             "stack": self.id,
             "stack_display_name": self.display_name,
             "mas_presets": list(self.preset_composition),
-            **language_policy_init_options(),
+            **language_policy_init_options(
+                product_locale=self.default_product_locale or DEFAULT_PRODUCT_LOCALE
+            ),
         }
 
     def render_stack_md(self) -> str:
@@ -894,6 +897,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "Use Zod v4.2+ with `nestjs-zod`; global `ZodValidationPipe` validates ALL inputs: body, query, params, headers, file metadata.",
             "IMPORTANT: Do NOT use `z.date()` in `packages/contracts`—it breaks `z.toJSONSchema()` in Zod v4. Use `z.iso.datetime()` for UTC ISO 8601 timestamps.",
             "Register `ZodSerializerInterceptor` globally and post-process Swagger document with `cleanupOpenApiDoc()` from nestjs-zod.",
+            "Exclude binary download/stream endpoints (`StreamableFile`) from `ZodSerializerInterceptor` using `@ZodSerializerDto(undefined)`.",
             "Configure all schemas as strict (reject unknown keys) to prevent payload pollution.",
             "Validate MCP tool inputs with Zod schemas before processing; untrusted input even from agents.",
             "Validate and sanitize file uploads: filename, MIME type, size—Zod schema for file metadata.",
@@ -1009,7 +1013,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "## MCP Security (`@nestjs/mcp`)",
             "Use the OFFICIAL `@nestjs/mcp` package with `@modelcontextprotocol/server` and Zod v4.2+; do NOT use `@rekog/mcp-nest` or deprecated SDK imports.",
             "Authenticate the `/mcp` endpoint as an OAuth 2.1 resource server; verify tokens and enforce per-tool scopes.",
-            "Apply `@Can()` policies to MCP tools exactly as to REST endpoints; each tool declares its required `resource:action` permission.",
+            "Apply `@Can()` policies to MCP tools exactly as to REST endpoints; each tool declares its required `category:action` permission.",
             "MCP tools accessing records MUST apply record-level conditions via `@casl/prisma` `accessibleBy()`; filtered data only.",
             "Destructive or sensitive MCP tools MUST require explicit authorization, clear descriptions, and `annotations.destructiveHint` or equivalent metadata.",
             "Apply rate limiting to MCP tool invocations; log all tool calls for audit with caller identity, permission checked, and input summary.",
@@ -1047,10 +1051,9 @@ MAS_STACKS: dict[str, MasStack] = {
             "Default locale: `es-CL` (overrides the default `product_locale` for this stack); resolve from user preference → `Accept-Language` header → fallback `es-CL`.",
             "### Frontend (`apps/web`)",
             "Use `i18next` + `react-i18next` with namespaces per feature: `src/features/<domain>/locales/{es-CL,en}.json`.",
-            "CI MUST validate that all keys exist in `es-CL` locale; fail build on missing keys.",
+            "CI MUST validate that all keys exist in `es-CL` locale; fail build on missing keys (does not block dynamic keys).",
             "Lazy-load translation namespaces per route; provide language switcher in UI.",
             "Use `Intl` API for locale-aware date, number, and currency formatting—never hardcode formats.",
-            "TanStack Virtual is MANDATORY when rendering lists/tables with > 50 items on screen (complements server-side pagination default 20, max 100).",
             "### Backend (`apps/api`)",
             "Use `nestjs-i18n` (or equivalent) for translated error/validation messages; configure Zod error map for i18n.",
             "Translate emails, exports, and user-facing API responses based on resolved locale.",
@@ -1130,12 +1133,12 @@ MAS_STACKS: dict[str, MasStack] = {
             "Plan lists guards and their registration scope (global, controller, or route level).",
             "Plan documents authentication flow: cookie configuration (HttpOnly, Secure, SameSite), CSRF token generation and validation, session lifecycle.",
             "Plan documents authorization strategy: custom `AuthzModule` with `@Can()` decorator and `PermissionsGuard` backed by CASL abilities, permission declarations per endpoint/tool.",
-            "For each endpoint and MCP tool: plan lists required `resource:action` permission, record-level conditions, and field-level restrictions.",
+            "For each endpoint and MCP tool: plan lists required `category:action` permission, record-level conditions, and field-level restrictions.",
             "Plan documents permission schema: `Role`, `Permission`, `RolePermission`, `UserRole`, `UserPermission` tables and audit logging.",
             "Plan confirms list queries use `@casl/prisma` `accessibleBy()` to filter records by user permissions.",
             "Plan confirms response serialization applies field-level permissions; update DTOs are filtered by writable fields.",
             "Plan lists DTOs for each endpoint with validation decorators and response field selections.",
-            "Plan confirms `ValidationPipe` global configuration with whitelist and transform options.",
+            "Plan confirms global `ZodValidationPipe` and `ZodSerializerInterceptor` with strict schemas from `packages/contracts`.",
             "Plan documents Prisma models touched, `select`/`omit` usage for responses, and migration strategy.",
             "Plan confirms CORS configuration with explicit origin allowlist.",
             "Plan lists upload endpoints with MIME validation rules, size limits, and storage paths.",
@@ -1290,7 +1293,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "Do not make ad-hoc fetch calls outside the generated OpenAPI client; wrap the client in TanStack Query hooks per feature.",
             "Do not use CSS-in-JS runtime libraries (styled-components, Emotion); use Tailwind CSS for styling.",
             "Do not create custom form validation logic; use React Hook Form with `zodResolver` and shared Zod schemas from `packages/contracts`.",
-            "Do not scatter shadcn/ui components across features; shared UI lives in `packages/ui` or `src/shared/ui/`.",
+            "Do not scatter shadcn/ui components across features; shared UI lives in `packages/ui` (shadcn/ui base components + Tailwind config).",
             "## Frontend Performance Anti-Patterns",
             "Do not skip code splitting; lazy-load routes with `React.lazy()` and feature components with dynamic imports.",
             "Do not render large lists without virtualization; use TanStack Virtual for lists > 50 items.",
@@ -1345,7 +1348,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "TanStack Router (type-safe, lazy-loaded); TanStack Query (server state); Zustand (UI-only state).",
             "TanStack Virtual MANDATORY for lists/tables with > 50 items on screen.",
             "React Hook Form + `zodResolver` with schemas from `packages/contracts`.",
-            "Shared UI in `packages/ui` using shadcn/ui + Tailwind CSS; language switcher in layout.",
+            "Shared UI components in `packages/ui` (shadcn/ui + Tailwind CSS); language switcher in `apps/web/src/shared/`.",
             "Generated typed API client from OpenAPI via `pnpm --filter web api-client:generate`; Vitest + Testing Library + Playwright (with axe-core).",
             "## Packages",
             "`packages/contracts` — Shared Zod schemas (single source); pagination and RFC 9457 error schemas; TypeScript types via `.infer<>`. No `z.date()`—use `z.iso.datetime()`.",
@@ -1423,13 +1426,14 @@ MAS_STACKS: dict[str, MasStack] = {
             "nestjs-pino structured JSON logs with correlationId; PII redaction (password, token, secret, rut, email, card data).",
             "## Frontend (`apps/web/`)",
             "`src/features/<domain>/` — `components/`, `hooks/`, `api/`, `routes/`, `locales/{es-CL,en}.json`, `__tests__/`, `index.ts`.",
-            "`src/shared/ui/` — shadcn/ui + Tailwind; language switcher; a11y checked with axe-core.",
+            "`src/shared/` — App shell and layout only (e.g. language switcher); NOT for shadcn/ui components (those live in `packages/ui`).",
             "i18next + react-i18next namespaces per feature; `Intl` API for dates/numbers; TanStack Virtual for lists > 50 items.",
             "Playwright E2E with axe-core; `e2e/`; API client via `pnpm --filter web api-client:generate`.",
             "## Packages",
             "`packages/contracts/` — Shared Zod schemas (single source of truth); pagination, RFC 9457 errors; only coupling point. No `z.date()`—use `z.iso.datetime()`.",
             "`packages/ui/` — shadcn/ui + shared Tailwind config.",
         ),
+        default_product_locale="es-CL",
     ),
 }
 
@@ -1438,11 +1442,12 @@ def write_stack_memory_files(project_root: Path, stack: MasStack) -> None:
     """Write MAS stack memory files for agent-readable project context."""
     memory_dir = project_root / ".specify" / "memory"
     memory_dir.mkdir(parents=True, exist_ok=True)
+    product_locale = stack.default_product_locale or DEFAULT_PRODUCT_LOCALE
     files = {
         "stack.md": stack.render_stack_md(),
         "security-guidelines.md": stack.render_security_guidelines_md(),
         "stack-context.md": stack.render_stack_context_md(),
-        "language-policy.md": render_language_policy_md(),
+        "language-policy.md": render_language_policy_md(product_locale=product_locale),
     }
     for filename, content in files.items():
         (memory_dir / filename).write_text(content, encoding="utf-8")

@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app
 from specify_cli.mas import (
+    DEFAULT_PRODUCT_LOCALE,
     _bullets,
     get_mas_stack,
     language_policy_init_options,
@@ -720,3 +721,31 @@ def test_bullets_renders_headings_and_items():
     assert "- Regular item three" in result
     assert "- ## Section Heading" not in result
     assert "- ### Subsection Heading" not in result
+
+
+def test_nestjs_react_uses_es_cl_locale():
+    """Test that nestjs-react stack uses es-CL as default product locale."""
+    from specify_cli.mas import render_language_policy_md
+
+    stack = get_mas_stack("nestjs-react")
+    assert stack is not None
+    assert stack.default_product_locale == "es-CL"
+
+    # Check init_options_payload includes es-CL
+    payload = stack.init_options_payload()
+    assert payload["product_locale"] == "es-CL"
+
+    # Check render_language_policy_md with es-CL
+    policy_md = render_language_policy_md(product_locale="es-CL")
+    assert "es-CL" in policy_md
+
+
+def test_other_stacks_unchanged_locale():
+    """Test that other stacks don't have a default_product_locale override."""
+    for stack_id in ["cakephp2-mysql", "moodle3", "moodle5-plugin", "moodle5-portal", "laravel-inertia-react"]:
+        stack = get_mas_stack(stack_id)
+        assert stack is not None
+        assert stack.default_product_locale is None, f"{stack_id} should not have default_product_locale"
+        payload = stack.init_options_payload()
+        # Should use the default es-419 (or whatever DEFAULT_PRODUCT_LOCALE is)
+        assert payload["product_locale"] != "es-CL" or stack_id == "nestjs-react"
