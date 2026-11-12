@@ -101,14 +101,40 @@ proyecto/
 
 ### Autenticación y Seguridad
 
-**Decisión**: HttpOnly cookies + CSRF protection (NO JWT en localStorage)
+**Decisión**: `@nestjs/passport` + `@nestjs/jwt` en `AuthModule` dedicado (separado de `AuthzModule`)
 
 | Aspecto | Decisión | Razón |
 |---------|----------|-------|
-| **Tokens de sesión** | HttpOnly cookies | Inmunes a XSS, no accesibles desde JS |
-| **Protección CSRF** | Token en cookie/header | Previene ataques cross-site |
-| **CORS** | Allowlist explícita | Solo orígenes autorizados |
-| **Refresh tokens** | En cookies seguras | Rotación sin exponer a frontend |
+| **Paquetes** | `@nestjs/passport` + `@nestjs/jwt` | Official NestJS packages |
+| **Guard order** | `JwtAuthGuard` (global) → `PermissionsGuard` | Auth antes de authz; `@Public()` opt-out |
+| **Access token** | ~15 min, HttpOnly + Secure + SameSite | Corta vida, inmune a XSS |
+| **Refresh token** | ~7-30 días, hash en DB, family tracking | Rotación con detección de reuso |
+| **CSRF** | Token en cookie/header | Previene ataques cross-site |
+| **Passwords** | Argon2id (`argon2` package) | Estado del arte para hashing |
+| **Throttling** | `@nestjs/throttler` en login/reset | Anti brute-force |
+
+#### IdPs Externos (OPCIONAL, deshabilitado por defecto)
+
+| Aspecto | Decisión | Razón |
+|---------|----------|-------|
+| **Providers** | Google, Microsoft Entra ID | OIDC (authorization code + PKCE) |
+| **Estrategia** | Generic OIDC (`openid-client`) | Una implementación para ambos providers |
+| **NO usar** | `passport-azure-ad` | Archivado, unmaintained |
+| **Microsoft tenant** | Single tenant o `organizations` | NUNCA `common` sin whitelist |
+| **Sesión post-callback** | Nuestras cookies, no IdP tokens | IdP tokens no se usan como sesión |
+| **Habilitación** | Env flags (`OIDC_GOOGLE_ENABLED`) | Deshabilitado por defecto |
+
+#### Identity Linking
+
+| Campo | Descripción |
+|-------|-------------|
+| `provider` | `'local'`, `'google'`, `'microsoft'` |
+| `providerSubject` | Único por provider (IdP `sub` claim) |
+| `userId` | FK a `User` |
+| `email` | Email del IdP (informativo) |
+| `linkedAt` | Timestamp de vinculación |
+
+**Reglas**: Link por `provider + providerSubject`, NUNCA por email solo. Solo vincular si `email_verified: true` y confirmación explícita. JIT provisioning OFF por defecto; nuevo IdP user sin permisos hasta asignar rol.
 
 ### Autorización: @nestjs/authorization + CASL
 
