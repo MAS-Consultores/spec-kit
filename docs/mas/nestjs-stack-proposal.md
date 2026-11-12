@@ -110,6 +110,128 @@ proyecto/
 | **CORS** | Allowlist explícita | Solo orígenes autorizados |
 | **Refresh tokens** | En cookies seguras | Rotación sin exponer a frontend |
 
+### Autorización: @nestjs/authorization + CASL
+
+**Decisión**: RBAC/ABAC granular con permisos `resource:action`, condiciones a nivel de registro, y restricciones a nivel de campo.
+
+| Componente | Decisión | Propósito |
+|------------|----------|-----------|
+| **Enforcement** | `@nestjs/authorization` + `@Can()` | Punto de aplicación en REST y MCP; deny-by-default |
+| **Permission Engine** | CASL (`@casl/ability`) | Definición y evaluación de abilities |
+| **Record Filtering** | `@casl/prisma` `accessibleBy()` | Filtrar queries por condiciones del usuario |
+| **Frontend UI** | `@casl/react` | Visibilidad UI; API siempre enforce |
+
+#### Granularidad de Permisos
+
+| Nivel | Ejemplo | Implementación |
+|-------|---------|----------------|
+| **Acción** | `article:read`, `user:update` | Código verifica permisos, NUNCA nombres de roles |
+| **Registro** | `{ tenantId: user.tenantId }`, `{ status: 'draft' }` | Condiciones JSON en tabla `Permission`; `accessibleBy()` |
+| **Campo** | `can('read', 'User', ['email', 'name'])` | JSON `fields` en permiso; filtrado en serialización/DTO |
+
+#### Esquema de Permisos (PostgreSQL/Prisma)
+
+```prisma
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  permissions RolePermission[]
+  users       UserRole[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id         String           @id @default(uuid())
+  resource   String           // e.g., "article", "user"
+  action     String           // e.g., "read", "update", "delete"
+  conditions Json?            // e.g., { "tenantId": "${user.tenantId}" }
+  fields     Json?            // e.g., ["email", "name"] for field-level
+  roles      RolePermission[]
+  users      UserPermission[]
+  createdAt  DateTime         @default(now())
+  @@unique([resource, action])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+  @@id([userId, roleId])
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+  user         User       @relation(fields: [userId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  @@id([userId, permissionId])
+}
+```
+
+#### Uso en Código
+
+```typescript
+// Controller con @Can()
+@Controller('articles')
+export class ArticlesController {
+  @Get()
+  @Can('article:read')
+  async findAll(@CurrentUser() user: User) {
+    return this.articlesService.findAccessible(user);
+  }
+
+  @Patch(':id')
+  @Can('article:update')
+  async update(@Param('id') id: string, @Body() dto: UpdateArticleDto, @CurrentUser() user: User) {
+    return this.articlesService.update(id, dto, user);
+  }
+}
+
+// Service con accessibleBy()
+@Injectable()
+export class ArticlesService {
+  constructor(private prisma: PrismaService, private casl: CaslAbilityFactory) {}
+
+  async findAccessible(user: User) {
+    const ability = await this.casl.createForUser(user);
+    return this.prisma.article.findMany({
+      where: accessibleBy(ability, 'article', 'read').Article,
+    });
+  }
+}
+
+// MCP Tool con @Can()
+@Tool({
+  name: 'get_articles',
+  description: 'List articles accessible to user',
+  parameters: z.object({}),
+})
+@Can('article:read')
+async getArticles(@CurrentUser() user: User) {
+  return this.articlesService.findAccessible(user);
+}
+```
+
+#### Anti-patrones de Autorización
+
+- ❌ `if (user.role === 'admin')` — verificar roles en código
+- ❌ Autorizar solo en UI con `@casl/react`
+- ❌ Queries de lista sin `accessibleBy()` filtering
+- ❌ Retornar campos restringidos sin filtrar
+- ❌ Aceptar updates de campos que el usuario no puede modificar
+- ❌ Hardcodear permisos en código
+- ❌ Omitir audit logging de cambios de permisos
+
 ### Contraste con Laravel + Inertia + React
 
 | Aspecto | Laravel + Inertia + React | NestJS + React |

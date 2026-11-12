@@ -386,6 +386,18 @@ OpenAPI.
 - CORS is configured with explicit origin allowlist matching the frontend deployment URL.
 - TypeScript strict mode is mandatory across both applications.
 
+### Authorization: @nestjs/authorization + CASL
+
+- **Enforcement**: `@nestjs/authorization` with `@Can()` decorator on REST routes and MCP tools; deny-by-default.
+- **Permission Engine**: CASL (`@casl/ability`) for defining and evaluating abilities per user.
+- **Permission Format**: `resource:action` (e.g., `article:read`, `user:update`); code checks permissions, NEVER role names.
+- **Record-Level**: Conditions stored in permission rules (e.g., `{ tenantId: user.tenantId }`); filter queries with `@casl/prisma` `accessibleBy()`.
+- **Field-Level**: Read/write restrictions per field; applied to response serialization and update DTO filtering.
+- **Storage**: PostgreSQL via Prisma—`Role`, `Permission` (with `conditions` JSON, `fields` JSON), `RolePermission`, `UserRole`, optional `UserPermission`.
+- **Module Structure**: Each domain module declares its own permissions; central `AuthzModule` aggregates abilities.
+- **Audit**: All permission changes (role assignments, grants, revokes) MUST be audited.
+- **Frontend**: `@casl/react` with rules from `/me` for UI visibility only; API ALWAYS enforces.
+
 ### Unified Validation: Zod Everywhere
 
 - **Zod v4.2+** is the ONLY validation library; do NOT use class-validator/class-transformer.
@@ -527,8 +539,13 @@ See `.specify/memory/security-guidelines.md` after init. Highlights include:
 CSRF token validation, `ValidationPipe` with whitelist, Prisma `select`/`omit`
 for safe responses, Helmet, CORS allowlist, throttling.
 
+**Authorization:** `@nestjs/authorization` + `@Can()` on all endpoints and MCP tools,
+CASL abilities per user, `@casl/prisma` `accessibleBy()` for record filtering,
+field-level permissions on responses and updates, permission audit logging.
+
 **Frontend:** No localStorage tokens, CSRF token inclusion in requests, no
-`dangerouslySetInnerHTML` without sanitization, typed API clients.
+`dangerouslySetInnerHTML` without sanitization, typed API clients. `@casl/react`
+for UI visibility only—API always enforces authorization.
 
 ### `speckit-plan` Validation
 
@@ -557,6 +574,18 @@ for safe responses, Helmet, CORS allowlist, throttling.
 - Verify MCP tools call domain services, not Prisma directly.
 - Confirm `/mcp` has same auth as REST endpoints.
 - Verify MCP tools tested with in-memory client.
+
+**Authorization:**
+- For each endpoint and MCP tool: confirm required `resource:action` permission declared via `@Can()`.
+- For each endpoint and MCP tool: document record-level conditions (tenant, owner, status) if applicable.
+- For each endpoint and MCP tool: document field-level read/write restrictions if applicable.
+- Confirm list queries use `@casl/prisma` `accessibleBy()` for record filtering.
+- Confirm response serialization applies field-level permissions; restricted fields never returned.
+- Confirm update DTOs filtered by writable field permissions before processing.
+- Confirm permission schema exists: `Role`, `Permission`, `RolePermission`, `UserRole` tables.
+- Confirm audit logging for all permission changes.
+- Require tests for BOTH allowed and denied authorization cases.
+- Reject role-name checks in code; require `resource:action` permission checks only.
 
 **Modularity Validation:**
 - Each new API feature must be a dedicated module under `src/modules/<domain>/` with documented public exports and dependencies.

@@ -223,8 +223,22 @@ Required guidelines (API — `apps/api`):
 - Apply a global `AuthGuard` that denies by default; mark public routes with `@Public()`.
 - Implement session-based authentication with HttpOnly, Secure, SameSite=Lax cookies.
 - Generate and validate CSRF tokens for all state-changing requests.
-- Enforce per-endpoint authorization with guards, RBAC, or CASL; never rely on frontend-only checks.
-- Use `class-validator` DTOs with global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`.
+
+Authorization (`@nestjs/authorization` + CASL):
+
+- Use `@nestjs/authorization` with `@Can()` decorator on every endpoint and MCP tool; deny-by-default.
+- Use CASL (`@casl/ability`) as the permission engine; build abilities per user from database-stored permissions.
+- Use `resource:action` permission format (e.g., `article:read`, `user:update`); code checks permissions, NEVER role names.
+- Apply record-level conditions (tenant, owner, status) via `@casl/prisma` `accessibleBy()` in all list queries.
+- Apply field-level permissions to response serialization and update DTO filtering; never return or accept restricted fields.
+- Store permissions in PostgreSQL: `Role`, `Permission` (with `conditions` JSON, `fields` JSON), `RolePermission`, `UserRole`, optional `UserPermission`.
+- Each domain module declares its own permissions; central `AuthzModule` aggregates abilities.
+- Audit all permission changes (role assignments, grants, revokes) with timestamp and actor.
+- Test both allowed and denied authorization cases for every endpoint and MCP tool.
+
+Validation and Data Access:
+
+- Use Zod v4.2+ with `nestjs-zod` for DTOs and global `ZodValidationPipe`; do NOT use class-validator.
 - Use Prisma Client exclusively; never use `$queryRawUnsafe()` with interpolation.
 - Use `select` or `omit` in Prisma queries to avoid exposing sensitive fields.
 - Apply `prisma migrate deploy` for shared environments; never use `db push` outside local development.
@@ -241,6 +255,7 @@ Required guidelines (Frontend — `apps/web`):
 - Never use `dangerouslySetInnerHTML` without DOMPurify sanitization.
 - Generate typed API clients from OpenAPI; do not hardcode endpoints.
 - Use Content Security Policy headers to mitigate XSS.
+- Use `@casl/react` with rules served from `/me` endpoint for UI visibility only; the API ALWAYS enforces authorization.
 
 Plan should validate:
 
@@ -248,7 +263,15 @@ Plan should validate:
 - authentication uses HttpOnly cookies with CSRF protection, not localStorage;
 - global `AuthGuard` is registered with `@Public()` route exceptions;
 - CORS allowlist matches frontend deployment URLs;
+- every endpoint and MCP tool declares required `resource:action` permission via `@Can()`;
+- record-level conditions and field-level restrictions are documented for applicable endpoints;
+- list queries use `accessibleBy()` for record filtering by user permissions;
+- response serialization and update DTOs apply field-level permissions;
+- permission schema (`Role`, `Permission`, `RolePermission`, `UserRole`) exists in Prisma;
+- audit logging is implemented for all permission changes;
+- tests cover both allowed and denied authorization cases;
 - endpoints are mapped to guards, DTOs, and response types with `select`/`omit`;
 - Prisma migrations are required for schema changes;
 - OpenAPI client generation and synchronization process is documented;
-- frontend includes CSRF tokens in mutating requests.
+- frontend includes CSRF tokens in mutating requests;
+- frontend uses `@casl/react` for UI visibility only, with API enforcement documented.
