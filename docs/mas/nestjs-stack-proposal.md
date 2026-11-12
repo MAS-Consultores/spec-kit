@@ -917,6 +917,264 @@ export class UsuariosService {
 - ❌ Hard delete sin permiso `<category>:eliminar_permanente` y audit log
 - ❌ Cascades inconsistentes (parent soft-deleted, children huérfanos)
 
+## Auditoría Comprehensiva (Principio Constitucional)
+
+### Decisión
+
+**TODA acción relevante DEBE ser auditada**—esto es un principio fundacional del stack, no opcional.
+Implementación mediante módulo `audit` reutilizable requerido en cada proyecto (no código detallado en constitución).
+
+### Campos del Registro de Auditoría
+
+| Campo | Descripción |
+|-------|-------------|
+| `userId` | Usuario que ejecutó la acción |
+| `clientId` | Cliente/aplicación (para service accounts) |
+| `action` | Acción ejecutada (create, update, delete, etc.) |
+| `permission` | Permiso utilizado (categoria:accion) |
+| `timestamp` | Fecha y hora |
+| `entity` | Tipo de entidad |
+| `recordId` | ID del registro afectado |
+| `beforeValue` | Valor anterior (masked) |
+| `afterValue` | Valor posterior (masked) |
+| `origin` | Origen: REST, MCP, job |
+| `ip` | Dirección IP |
+| `userAgent` | User agent del cliente |
+| `requestId` | ID de request para correlación |
+
+### Acciones Auditadas
+
+| Categoría | Acciones |
+|-----------|----------|
+| **CRUD** | create, update, soft delete, restore, hard delete |
+| **Permisos** | role assignment, permission grant, permission revoke |
+| **Auth** | login (success/failed), logout, password change, token refresh |
+| **Exports** | data export (PDF, CSV, Excel) |
+| **MCP** | tool calls (entrada, salida, errores) |
+
+### Implementación
+
+```typescript
+// src/audit/audit.module.ts
+@Module({
+  imports: [PrismaModule],
+  providers: [AuditService, AuditInterceptor],
+  exports: [AuditService],
+})
+export class AuditModule {}
+
+// src/audit/audit.service.ts
+@Injectable()
+export class AuditService {
+  constructor(private prisma: PrismaService) {}
+
+  async log(entry: AuditEntry): Promise<void> {
+    // Mask sensitive fields before logging
+    const masked = this.maskSensitiveFields(entry);
+    
+    await this.prisma.auditLog.create({
+      data: {
+        userId: masked.userId,
+        clientId: masked.clientId,
+        action: masked.action,
+        permission: masked.permission,
+        entity: masked.entity,
+        recordId: masked.recordId,
+        beforeValue: masked.beforeValue,
+        afterValue: masked.afterValue,
+        origin: masked.origin,
+        ip: masked.ip,
+        userAgent: masked.userAgent,
+        requestId: masked.requestId,
+      },
+    });
+  }
+
+  private maskSensitiveFields(entry: AuditEntry): AuditEntry {
+    const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'ssn'];
+    // Mask fields in beforeValue and afterValue
+    return {
+      ...entry,
+      beforeValue: this.maskObject(entry.beforeValue, sensitiveFields),
+      afterValue: this.maskObject(entry.afterValue, sensitiveFields),
+    };
+  }
+}
+```
+
+### Prisma Schema
+
+```prisma
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  clientId  String?
+  action    String
+  permission String?
+  entity    String
+  recordId  String?
+  beforeValue Json?
+  afterValue  Json?
+  origin    String   // REST, MCP, job
+  ip        String?
+  userAgent String?
+  requestId String?
+  createdAt DateTime @default(now())
+  
+  // NO deletedAt - append-only table
+  // NO @@map("audit_logs") si se prefiere convención
+  
+  @@index([userId])
+  @@index([entity, recordId])
+  @@index([action])
+  @@index([createdAt])
+}
+```
+
+### NestJS Interceptor
+
+```typescript
+// src/audit/audit.interceptor.ts
+@Injectable()
+export class AuditInterceptor implements NestInterceptor {
+  constructor(private auditService: AuditService) {}
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    const startTime = Date.now();
+    
+    return next.handle().pipe(
+      tap(async (response) => {
+        const auditMeta = Reflect.getMetadata('audit', context.getHandler());
+        if (auditMeta) {
+          await this.auditService.log({
+            userId: request.user?.id,
+            action: auditMeta.action,
+            permission: auditMeta.permission,
+            entity: auditMeta.entity,
+            recordId: request.params?.id,
+            origin: 'REST',
+            ip: request.ip,
+            userAgent: request.headers['user-agent'],
+            requestId: request.headers['x-request-id'],
+          });
+        }
+      }),
+    );
+  }
+}
+
+// Decorator para marcar acciones auditadas
+export const Audited = (meta: AuditMetadata) => SetMetadata('audit', meta);
+```
+
+### Uso en Controller
+
+```typescript
+@Controller('usuarios')
+export class UsuariosController {
+  @Post()
+  @Can('usuarios:crear')
+  @Audited({ action: 'create', entity: 'Usuario', permission: 'usuarios:crear' })
+  async create(@Body() dto: CreateUsuarioDto) {
+    return this.usuariosService.create(dto);
+  }
+
+  @Delete(':id')
+  @Can('usuarios:eliminar')
+  @Audited({ action: 'soft_delete', entity: 'Usuario', permission: 'usuarios:eliminar' })
+  async softDelete(@Param('id') id: string) {
+    return this.usuariosService.softDelete(id);
+  }
+}
+```
+
+### Permisos de Auditoría
+
+```typescript
+// src/audit/audit.permissions.ts
+export const auditoriaPermissions: PermissionManifest = {
+  category: 'auditoria',
+  actions: [
+    { code: 'ver', description: 'Ver registros de auditoría' },
+    { code: 'exportar', description: 'Exportar datos de auditoría' },
+  ],
+};
+```
+
+### Frontend: Vista de Auditoría
+
+```typescript
+// apps/web/src/features/audit/pages/AuditLogPage.tsx
+function AuditLogPage() {
+  const search = Route.useSearch(); // TanStack Router search params
+  
+  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
+    queryKey: ['audit-logs', search],
+    queryFn: ({ pageParam }) => api.audit.list({ ...search, cursor: pageParam }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+
+  return (
+    <Can permission="auditoria:ver">
+      <AuditFilters />
+      <VirtualizedAuditTable 
+        data={data?.pages.flatMap(p => p.items) ?? []}
+        onLoadMore={fetchNextPage}
+        hasMore={hasNextPage}
+      />
+      <Can permission="auditoria:exportar">
+        <ExportAuditButton filters={search} />
+      </Can>
+    </Can>
+  );
+}
+```
+
+### Retención y Archivado
+
+```typescript
+// Configuración de retención
+export const AUDIT_RETENTION_DAYS = process.env.AUDIT_RETENTION_DAYS 
+  ? parseInt(process.env.AUDIT_RETENTION_DAYS) 
+  : 365; // 1 año por defecto
+
+// Job de archivado (ejecutar periódicamente)
+@Injectable()
+export class AuditArchiveService {
+  async archiveOldRecords() {
+    const cutoffDate = subDays(new Date(), AUDIT_RETENTION_DAYS);
+    
+    // Mover a tabla de archivo o storage externo
+    const oldRecords = await this.prisma.auditLog.findMany({
+      where: { createdAt: { lt: cutoffDate } },
+    });
+    
+    await this.archiveToStorage(oldRecords); // S3, etc.
+    
+    // Solo después de confirmar archivo exitoso
+    await this.prisma.auditLog.deleteMany({
+      where: { createdAt: { lt: cutoffDate } },
+    });
+  }
+}
+```
+
+### Anti-patrones
+
+- ❌ Features sin audit trail (auditoría es constitucional)
+- ❌ Loggear passwords, tokens, secrets, PII sin máscara
+- ❌ UPDATE o DELETE en tabla AuditLog (append-only)
+- ❌ Bypass del interceptor/extension de auditoría
+- ❌ Exponer audit logs sin permiso `auditoria:ver`
+- ❌ Ignorar MCP tool calls en auditoría
+- ❌ Sin política de retención configurada
+
+### Nota
+
+El módulo `audit` podría convertirse posteriormente en un paquete interno compartido o template
+para consistencia entre proyectos del stack.
+
 ## Paginación Obligatoria (Server-Side)
 
 ### Requisitos API

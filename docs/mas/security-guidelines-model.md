@@ -271,6 +271,20 @@ Soft Delete:
 - Hard delete requires justification (legal erasure, retention policies) and full audit logging.
 - Cascades handled consistently: soft-deleting parent soft-deletes or detaches children per business rules.
 
+Comprehensive Auditing (Constitution-Level Principle):
+
+- EVERY relevant action MUST be audited—foundational stack principle, not optional.
+- Audit fields: who (userId, clientId), what (action, permission), when, which (entity, recordId), before/after (masked), origin (REST/MCP/job), context (IP, userAgent, requestId).
+- Audited actions: create, update, soft delete, restore, hard delete, permission/role changes, login/logout/failed auth, exports, MCP tool calls.
+- Reusable `AuditModule` with NestJS interceptor and/or Prisma extension for automatic capture.
+- Append-only `AuditLog` table—no update/delete operations allowed.
+- Sensitive data MUST be masked: passwords, tokens, secrets, PII never logged unmasked.
+- Permission category `auditoria`: `ver` (view logs), `exportar` (export audit data).
+- Frontend: paginated audit view with filters (entity, action, user, date range).
+- Configurable retention policy; archival strategy for old records documented.
+- Each domain module declares audited actions; new features must include audit coverage.
+- Note: `audit` module may later become internal shared package/template.
+
 Required guidelines (Frontend — `apps/web`):
 
 - Never store secrets or auth tokens accessible to JavaScript; rely on HttpOnly cookies.
@@ -315,4 +329,12 @@ Plan should validate:
 - unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations;
 - restore action protected by `<category>:restaurar` permission;
 - hard delete protected by `<category>:eliminar_permanente` with audit logging and justification;
-- cascades handled consistently (parent soft-delete → children soft-deleted or detached).
+- cascades handled consistently (parent soft-delete → children soft-deleted or detached);
+- `AuditModule` exists with append-only `AuditLog` table (no update/delete);
+- audit captures: userId, action, timestamp, entity, recordId, before/after (masked), origin, context;
+- audited actions include: create, update, soft delete, restore, hard delete, permission changes, auth events, exports, MCP calls;
+- sensitive fields (passwords, tokens, secrets, PII) masked before logging;
+- permission category `auditoria` with `ver` and `exportar` actions;
+- frontend has paginated audit view with filters;
+- retention policy is configurable and documented;
+- each new feature declares audited actions; features without audit trail are rejected.

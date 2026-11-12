@@ -449,6 +449,20 @@ OpenAPI.
 - `eliminar_permanente` = hard delete (restricted permission, audited, justified cases only).
 - Cascades handled consistently: soft-deleting parent soft-deletes or detaches children.
 
+### Comprehensive Auditing (Constitution-Level)
+
+- **EVERY relevant action MUST be audited**—foundational stack principle, not optional.
+- Audit fields: who (userId, clientId), what (action, permission), when, which (entity, recordId), before/after (masked), origin (REST/MCP/job), context (IP, userAgent, requestId).
+- Audited actions: create, update, soft delete, restore, hard delete, permission/role changes, login/logout/failed auth, exports, MCP tool calls.
+- Reusable `AuditModule` with NestJS interceptor and/or Prisma extension; automatic capture.
+- Append-only `AuditLog` table—no update/delete operations allowed.
+- Sensitive data masked: passwords, tokens, secrets, PII never logged unmasked.
+- Permission category `auditoria`: `ver` (view), `exportar` (export).
+- Frontend: paginated audit view with filters (entity, action, user, date range).
+- Configurable retention policy; archival strategy for old records.
+- Each domain module declares audited actions; new features must include audit coverage.
+- Note: `audit` module may later become internal shared package/template.
+
 ### Modular Architecture
 
 **API (`apps/api`):**
@@ -640,6 +654,19 @@ for UI visibility only—API always enforces authorization.
 - Confirm restore action protected by `<category>:restaurar` permission.
 - Confirm hard delete protected by `<category>:eliminar_permanente` with audit logging and justification.
 - Confirm cascades handled consistently (parent soft-delete → children soft-deleted or detached).
+
+**Auditing (Constitution-Level):**
+- Confirm `AuditModule` exists with append-only `AuditLog` table (no update/delete).
+- Confirm audit captures: userId, action, timestamp, entity, recordId, before/after (masked), origin, context.
+- Confirm audited actions: create, update, soft delete, restore, hard delete, permission changes, auth events, exports, MCP calls.
+- Confirm sensitive fields (passwords, tokens, secrets, PII) are masked before logging.
+- Confirm permission category `auditoria` with `ver` and `exportar` actions.
+- Confirm frontend has paginated audit view with filters.
+- Confirm retention policy is configurable and documented.
+- For each new feature: confirm audited actions are declared and implemented.
+- Reject features without audit trail—auditing is a constitution-level requirement.
+
+**General Authorization:**
 - Require tests for BOTH allowed and denied authorization cases.
 - Reject role-name checks in code; require `category:action` permission checks only.
 
