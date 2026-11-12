@@ -451,37 +451,150 @@ Paquetes internos se referencian con protocolo workspace:
 - ❌ Usar `^` o `~` para dependencias internas (usar `workspace:*`)
 - ❌ Usar `npm audit` o `yarn audit`
 
-## Validación Unificada: Zod Everywhere
+## Validación Unificada: Ambos Lados, Única Fuente
 
 ### Decisión
 
-**Zod v4.2+** es la ÚNICA librería de validación en todo el stack. NO se usa class-validator ni class-transformer.
+**Zod v4.2+** es la ÚNICA librería de validación. Schemas compartidos en `packages/contracts`
+son la ÚNICA FUENTE DE VERDAD. TODO se valida en AMBOS frontend (UX) y backend (autoritativo).
+
+### Principio Fundamental
+
+| Lado | Propósito | ¿Suficiente solo? |
+|------|-----------|-------------------|
+| **Frontend** | UX (feedback inmediato) | ❌ NO — puede ser bypassed |
+| **Backend** | Autoritativo (seguridad) | ✅ SÍ — siempre re-valida |
 
 ### Implementación
 
-| Capa | Herramienta | Uso |
-|------|-------------|-----|
-| **REST DTOs** | `nestjs-zod` | `createZodDto(schema)` + `ZodValidationPipe` global |
-| **MCP Tools** | Zod directo | Schemas para inputs de herramientas |
-| **React Forms** | `zodResolver` | React Hook Form + schemas de `packages/contracts` |
-| **OpenAPI** | `nestjs-zod` | Generación automática desde Zod schemas |
+| Capa | Herramienta | Schema Source |
+|------|-------------|---------------|
+| **REST Body/Query/Params** | `nestjs-zod` + `ZodValidationPipe` | `packages/contracts` |
+| **MCP Tool Inputs** | Zod directo | `packages/contracts` |
+| **React Forms** | React Hook Form + `zodResolver` | `packages/contracts` (mismo schema) |
+| **Route Search Params** | TanStack Router `validateSearch` | `packages/contracts` |
+| **API Responses** | `.safeParse()` en dev | `packages/contracts` |
+| **Business Rules (DB)** | Service + RFC 9457 errors | `packages/contracts` (error schema) |
 
-### Configuración
+### Ejemplo Completo
 
 ```typescript
-// Zod schema (packages/contracts)
-export const createUserSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(2),
-}).strict(); // Reject unknown keys
+// packages/contracts/src/usuarios/create-usuario.schema.ts
+export const createUsuarioSchema = z.object({
+  email: z.string().email({ message: 'Email inválido' }),
+  name: z.string().min(2, { message: 'Nombre muy corto' }),
+  password: z.string().min(8, { message: 'Mínimo 8 caracteres' }),
+}).strict();
 
-// API DTO (apps/api)
+export type CreateUsuarioInput = z.infer<typeof createUsuarioSchema>;
+
+// packages/contracts/src/common/rfc9457.schema.ts
+export const fieldErrorSchema = z.object({
+  field: z.string(),
+  code: z.string(),
+  message: z.string(),
+});
+
+export const problemDetailSchema = z.object({
+  type: z.string().url(),
+  title: z.string(),
+  status: z.number(),
+  detail: z.string().optional(),
+  errors: z.array(fieldErrorSchema).optional(), // Field-level errors
+});
+```
+
+```typescript
+// apps/api - Backend validation (autoritativo)
 import { createZodDto } from 'nestjs-zod';
-export class CreateUserDto extends createZodDto(createUserSchema) {}
+import { createUsuarioSchema } from '@project/contracts';
 
-// React Form (apps/web)
+export class CreateUsuarioDto extends createZodDto(createUsuarioSchema) {}
+
+@Controller('usuarios')
+export class UsuariosController {
+  @Post()
+  @Can('usuarios:crear')
+  async create(@Body() dto: CreateUsuarioDto) { // ZodValidationPipe valida
+    return this.usuariosService.create(dto);
+  }
+}
+
+// Business rule validation in service
+@Injectable()
+export class UsuariosService {
+  async create(dto: CreateUsuarioInput) {
+    const existing = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException({
+        type: 'https://api.example.com/errors/email-taken',
+        title: 'Email already registered',
+        status: 409,
+        errors: [{ field: 'email', code: 'EMAIL_TAKEN', message: 'Este email ya está registrado' }],
+      });
+    }
+    // ... create user
+  }
+}
+```
+
+```typescript
+// apps/web - Frontend validation (UX)
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-const form = useForm({ resolver: zodResolver(createUserSchema) });
+import { createUsuarioSchema, CreateUsuarioInput } from '@project/contracts';
+
+function CreateUsuarioForm() {
+  const form = useForm<CreateUsuarioInput>({
+    resolver: zodResolver(createUsuarioSchema), // MISMO schema que backend
+  });
+
+  const mutation = useMutation({
+    mutationFn: api.usuarios.create,
+    onError: (error) => {
+      // Map RFC 9457 errors to form fields
+      if (error.response?.data?.errors) {
+        error.response.data.errors.forEach(({ field, message }) => {
+          form.setError(field as keyof CreateUsuarioInput, { message });
+        });
+      }
+    },
+  });
+
+  return (
+    <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))}>
+      <Input {...form.register('email')} error={form.formState.errors.email?.message} />
+      <Input {...form.register('name')} error={form.formState.errors.name?.message} />
+      <Input type="password" {...form.register('password')} error={form.formState.errors.password?.message} />
+    </form>
+  );
+}
+```
+
+```typescript
+// apps/web - Route search params validation
+import { z } from 'zod';
+import { createFileRoute } from '@tanstack/react-router';
+import { usuariosSearchSchema } from '@project/contracts';
+
+export const Route = createFileRoute('/usuarios/')({
+  validateSearch: usuariosSearchSchema, // Type-safe + validated
+});
+
+// usuariosSearchSchema in packages/contracts
+export const usuariosSearchSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  search: z.string().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+});
+```
+
+### Anti-patrones
+
+- ❌ Validar solo en frontend — backend SIEMPRE re-valida
+- ❌ Duplicar reglas fuera de `packages/contracts`
+- ❌ Ignorar errores RFC 9457 en frontend — mapear a form fields
+- ❌ Schemas no-strict — siempre `.strict()` para rechazar keys desconocidas
 ```
 
 ## REST API con OpenAPI Obligatorio

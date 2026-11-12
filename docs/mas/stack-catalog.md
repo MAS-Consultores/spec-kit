@@ -402,13 +402,15 @@ OpenAPI.
 - **Audit**: All permission changes (role assignments, grants, revokes) MUST be audited.
 - **Frontend**: `@casl/react` with rules from `/me` for UI visibility only; API ALWAYS enforces.
 
-### Unified Validation: Zod Everywhere
+### Unified Validation: Both Sides, Single Source
 
-- **Zod v4.2+** is the ONLY validation library; do NOT use class-validator/class-transformer.
-- **API DTOs**: Use `nestjs-zod` with `createZodDto()` and global `ZodValidationPipe`.
-- **MCP tools**: Zod schemas for input validation.
-- **React forms**: React Hook Form + `zodResolver` with schemas from `packages/contracts`.
-- All schemas must be strict (reject unknown keys).
+- **Zod v4.2+** is the ONLY validation library; shared schemas in `packages/contracts` are the SINGLE SOURCE OF TRUTH.
+- **EVERYTHING** validated on BOTH frontend (UX) and backend (authoritative); frontend-only validation is a security hole.
+- **Backend (authoritative)**: `nestjs-zod` + `ZodValidationPipe` for body, query, params, headers, file metadata, MCP inputs.
+- **Frontend (UX)**: React Hook Form + `zodResolver` for forms; TanStack Router `validateSearch` for route search params.
+- **Business rules** (DB-dependent) validated in services; return RFC 9457 with field-level `errors` array.
+- **Frontend maps** RFC 9457 `errors` to form fields via `setError()`.
+- All schemas must be strict (reject unknown keys); no duplicated hand-written rules.
 
 ### REST API with Mandatory OpenAPI
 
@@ -576,8 +578,14 @@ for UI visibility only—API always enforces authorization.
 
 **Validation:**
 - Confirm Zod v4.2+ as ONLY validation library; reject class-validator/class-transformer.
-- Verify `nestjs-zod` for DTOs with `createZodDto()` and global `ZodValidationPipe`.
-- Confirm shared schemas in `packages/contracts`.
+- For each input (body, query, params, headers, MCP): confirm shared schema in `packages/contracts`.
+- Confirm backend validates with `nestjs-zod` + `ZodValidationPipe`; never skip validation.
+- Confirm frontend validates forms with `zodResolver` using SAME shared schema.
+- Confirm route search params use TanStack Router `validateSearch` with Zod.
+- Confirm business-rule errors return RFC 9457 with field-level `errors` array.
+- Confirm frontend maps RFC 9457 `errors` to form fields.
+- Confirm no duplicated hand-written validation rules; all derive from `packages/contracts`.
+- Require validation tests: valid passes, invalid rejects with correct errors.
 
 **OpenAPI:**
 - Confirm `@nestjs/swagger` enabled with Zod integration.

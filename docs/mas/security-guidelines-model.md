@@ -240,9 +240,18 @@ Authorization (`@nestjs/authorization` + CASL):
 - Audit all permission changes (role assignments, grants, revokes) with timestamp and actor.
 - Test both allowed and denied authorization cases for every endpoint and MCP tool.
 
-Validation and Data Access:
+Validation (Both Sides, Single Source):
 
-- Use Zod v4.2+ with `nestjs-zod` for DTOs and global `ZodValidationPipe`; do NOT use class-validator.
+- Shared Zod schemas in `packages/contracts` are the SINGLE SOURCE OF TRUTH for all validation.
+- EVERYTHING validated on BOTH frontend (UX) and backend (authoritative); frontend-only validation is a security hole.
+- Backend: Zod v4.2+ with `nestjs-zod` + `ZodValidationPipe` for ALL inputs (body, query, params, headers, file metadata, MCP inputs).
+- Frontend: React Hook Form + `zodResolver` for forms; TanStack Router `validateSearch` for route search params.
+- Business-rule validations (DB-dependent) live in services; return RFC 9457 with field-level `errors` array.
+- Frontend maps RFC 9457 `errors` to form fields via `setError()`.
+- No duplicated hand-written validation rules; all validation derives from shared schemas.
+
+Data Access:
+
 - Use Prisma Client exclusively; never use `$queryRawUnsafe()` with interpolation.
 - Use `select` or `omit` in Prisma queries to avoid exposing sensitive fields.
 - Apply `prisma migrate deploy` for shared environments; never use `db push` outside local development.
@@ -267,6 +276,14 @@ Plan should validate:
 - authentication uses HttpOnly cookies with CSRF protection, not localStorage;
 - global `AuthGuard` is registered with `@Public()` route exceptions;
 - CORS allowlist matches frontend deployment URLs;
+- for each input (body, query, params, headers, MCP): shared Zod schema exists in `packages/contracts`;
+- backend validates each input with `nestjs-zod` + `ZodValidationPipe`; never skip validation;
+- frontend forms validate with `zodResolver` using SAME shared schema;
+- route search params use TanStack Router `validateSearch` with Zod schema;
+- business-rule errors return RFC 9457 with field-level `errors` array;
+- frontend maps RFC 9457 `errors` to form fields via `setError()`;
+- no duplicated hand-written validation rules; all derive from `packages/contracts`;
+- validation tests exist: valid passes, invalid rejects with correct errors;
 - every endpoint and MCP tool declares required `category:action` permission via `@Can()`;
 - every new/changed module has permission manifest in `<domain>.permissions.ts`;
 - all `@Can()` permissions are declared in manifests; all manifest actions are used (CI test);
