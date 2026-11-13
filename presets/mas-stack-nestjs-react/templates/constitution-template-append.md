@@ -42,7 +42,8 @@ Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
 ### Frontend Stack
 
 React SPA with mandatory libraries and patterns:
-- MUST use shadcn/ui initialized via official CLI (`shadcn init`) with `components.json` and `src/components/ui/`
+- MUST use shadcn/ui initialized via official CLI (`shadcn init`) in `packages/ui` (shared primitives) and `apps/web`
+- Primitives live in `packages/ui/src/components/`, exported by the package, consumed by `apps/web`
 - MUST NOT reimplement shadcn/ui primitives by hand (Button, Input, Dialog, Table, Card, Badge, Select, Dropdown, etc.)
 - MUST use Tailwind CSS only for custom styling, layouts, and spacing—not to rebuild existing primitives
 - MUST use TanStack Router with file-based routing
