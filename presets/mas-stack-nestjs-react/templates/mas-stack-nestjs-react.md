@@ -118,7 +118,14 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `e2e/` — Playwright E2E tests
 - [ ] `playwright.config.ts` with `screenshot: 'off'`, `video: 'off'` or
   `'retain-on-failure'`, `trace: 'off'` or `'retain-on-failure'` (no screenshots
-  in tests to reduce tokens and artifact noise)
+  in tests: no `page.screenshot()`, no `toHaveScreenshot()`)
+- [ ] AI agents MUST NOT take, generate, or save ad hoc screenshots during
+  `/speckit.implement`, demos, or pilots—not with Playwright, not with a
+  browser, and not with scripts. Visual review is performed by a human
+  (revisión visual humana). Playwright + axe-core gates, including computed
+  Tailwind style verification, remain mandatory and MUST run without
+  screenshots (`screenshot: 'off'`; no `toHaveScreenshot()`; no
+  `page.screenshot()`)
 - [ ] `tailwind.config.ts`
 
 ### packages/contracts (Required)

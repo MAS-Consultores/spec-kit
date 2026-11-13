@@ -968,6 +968,51 @@ def test_nestjs_react_requires_tailwind_source_directive(tmp_path):
         "stack-context.md must require Playwright style verification"
 
 
+_AD_HOC_SCREENSHOT_RULE = (
+    "AI agents MUST NOT take, generate, or save ad hoc screenshots during "
+    "`/speckit.implement`, demos, or pilots—not with Playwright, not with a "
+    "browser, and not with scripts. Visual review is performed by a human "
+    "(revisión visual humana). Playwright + axe-core gates, including computed "
+    "Tailwind style verification, remain mandatory and MUST run without "
+    "screenshots (`screenshot: 'off'`; no `toHaveScreenshot()`; no "
+    "`page.screenshot()`)."
+)
+
+
+def test_nestjs_react_constitution_forbids_ad_hoc_agent_screenshots(tmp_path):
+    """Generated nestjs-react constitution forbids ad hoc AI screenshots.
+
+    Playwright + axe gates, including computed Tailwind style checks, stay
+    mandatory and still run with screenshots disabled.
+    """
+    project = tmp_path / "no-ad-hoc-screenshots"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    assert _AD_HOC_SCREENSHOT_RULE in constitution
+    assert "At least one Playwright spec MUST verify computed styles" in constitution
+
+    stack_context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    security = (project / ".specify" / "memory" / "security-guidelines.md").read_text(encoding="utf-8")
+    assert _AD_HOC_SCREENSHOT_RULE in stack_context
+    assert _AD_HOC_SCREENSHOT_RULE in security
+
+    laravel = get_mas_stack("laravel-inertia-react")
+    assert laravel is not None
+    laravel_rules = "\n".join(
+        laravel.security_controls
+        + laravel.anti_patterns
+        + laravel.expected_artifacts
+        + laravel.plan_validation_checks
+    )
+    assert "ad hoc screenshots" not in laravel_rules
+
+
 def test_nestjs_react_prisma_esm_config_and_no_import_fixing_scripts(tmp_path):
     """Test that nestjs-react stack requires correct Prisma ESM config and prohibits import-fixing scripts."""
     project = tmp_path / "prisma-esm"

@@ -31,6 +31,10 @@ Playwright and Vitest MUST NOT generate or store screenshots or image snapshots:
 - `playwright.config.ts` MUST set `screenshot: 'off'`
 - MUST NOT use `page.screenshot()`, `toHaveScreenshot()`, or image snapshot matchers
 
+### No Ad Hoc Screenshots by AI Agents
+
+AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.implement`, demos, or pilots—not with Playwright, not with a browser, and not with scripts. Visual review is performed by a human (revisión visual humana). Playwright + axe-core gates, including computed Tailwind style verification, remain mandatory and MUST run without screenshots (`screenshot: 'off'`; no `toHaveScreenshot()`; no `page.screenshot()`).
+
 ### Authentication and MCP Security
 
 Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
