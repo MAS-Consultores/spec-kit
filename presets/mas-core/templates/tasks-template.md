@@ -85,6 +85,7 @@ When the selected stack is `nestjs-react`, replace the generic sample paths and 
 - `pnpm verify` tasks for `openapi:generate`, `api-client:generate`, and `scripts/check-casl.ts` (TypeScript AST).
 - CASL: `createPrismaAbility` / `PrismaQuery`, `accessibleBy(...).ofType('Model')`, import `accessibleBy` from `@casl/prisma/runtime` when the Prisma client has a custom output.
 - `packages/ui` source-only exports to `src`; `components.json` workspace aliases; verify `cn` imports and a `radix-ui` dependency.
+- Direct `shadcn` dependency, then non-interactive `shadcn add button input label card badge dialog select dropdown-menu table skeleton form --yes --overwrite` (`shadcn init` does not add primitives).
 - `apps/web/src/index.css`: `@theme inline`, `tw-animate-css`, `shadcn/tailwind.css`, and `@source`.
 - Commit `apps/web/src/routeTree.gen.ts`. Exclude it from ESLint only.
 - Playwright: `playwright install --with-deps chromium`, `globalSetup` with a dedicated e2e database (`migrate deploy` + truncate + seed), setup project `storageState` per role, dedicated `webServer` ports. Axe waits for `document.getAnimations()`.

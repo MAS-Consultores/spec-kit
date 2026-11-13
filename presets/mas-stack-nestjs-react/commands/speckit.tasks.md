@@ -14,8 +14,13 @@ Also require tasks for:
 - `apps/api/prisma.config.ts` at the API package root with `schema: 'prisma/schema.prisma'`
 - dependency versions resolved with `npm view` (latest stable, no prereleases; TypeScript limited by the typescript-eslint peer)
 - `openapi:generate`, `api-client:generate`, and an AST-based `scripts/check-casl.ts` inside `pnpm verify`
+- `apps/api` devDependency `@modelcontextprotocol/client` at the latest stable (note: `@nestjs/mcp/testing` imports it and does not declare it)
+- `nest-cli.json` `builder: swc` plus `typeCheck: true`, scripts `start:e2e` (`nest build && node dist/main.js`) and `openapi:generate` that sets `OPENAPI_GENERATE=1` before importing compiled `main` (never `tsx src/main.ts`)
+- compiled `exports` for `packages/contracts` (`@demo/contracts`)
+- `ThrottlerGuard` via `{ provide: APP_GUARD, useClass: ThrottlerGuard }` next to `ThrottlerModule`, not `new ThrottlerGuard()`
 - `createPrismaAbility`, `accessibleBy(...).ofType(...)`, and `@casl/prisma/runtime` when the Prisma output is custom
 - source-only `packages/ui`, workspace `components.json` aliases, `cn` import check, and `radix-ui`
+- dependency `shadcn` (the CSS imports `shadcn/tailwind.css`; `shadcn init` does not add primitives) and a non-interactive `shadcn add` for button, input, table, dialog, form, label, card, badge, select, dropdown-menu, and skeleton
 - `@theme inline`, `tw-animate-css`, `shadcn/tailwind.css`, and `@source` in `apps/web/src/index.css`
 - committed `routeTree.gen.ts` (ESLint-ignored, not gitignored)
 - Playwright chromium install, dedicated e2e database via `migrate deploy` + truncate + seed, `storageState` per role, and private webServer ports
