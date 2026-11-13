@@ -47,8 +47,10 @@ class InitStep(StepBase):
           here: true
           integration: copilot
           script: sh
+          stack: nestjs-react
+          skip_external_skills: true
 
-    Supported config fields (all optional):
+    Supported config fields (``stack`` is required by MAS):
 
     ``project``
         Project name or path to create.  Use ``"."`` for the current
@@ -69,8 +71,12 @@ class InitStep(StepBase):
         empty.
     ``ignore_agent_tools``
         Skip checks for the coding agent CLI (defaults to ``true``).
+    ``stack``
+        Approved MAS stack ID, passed explicitly to ``specify init``.
+    ``skip_external_skills``
+        Skip external skill downloads (defaults to ``false``, like the CLI).
     ``preset``
-        Preset ID to install during initialization.
+        Legacy preset ID; incompatible with MAS stack initialization.
     """
 
     type_key = "init"
@@ -92,6 +98,8 @@ class InitStep(StepBase):
         )
         script = self._resolve(config.get("script"), context)
         preset = self._resolve(config.get("preset"), context)
+        stack = self._resolve(config.get("stack"), context)
+        skip_external_skills = self._resolve_bool(config.get("skip_external_skills"), context)
 
         force = self._resolve_bool(config.get("force"), context)
         # Workflows run unattended; skip the agent CLI presence check by default.
@@ -126,6 +134,11 @@ class InitStep(StepBase):
             argv.extend(["--script", str(script)])
         if preset:
             argv.extend(["--preset", str(preset)])
+        if stack:
+            argv.extend(["--stack", str(stack)])
+        if skip_external_skills:
+            argv.append("--skip-external-skills")
+        argv.append("--non-interactive")
         if ignore_agent_tools:
             argv.append("--ignore-agent-tools")
 
@@ -168,6 +181,8 @@ class InitStep(StepBase):
                         "integration_options": integration_options,
                         "script": script,
                         "preset": preset,
+                        "stack": stack,
+                        "skip_external_skills": skip_external_skills,
                         "force": force,
                         "ignore_agent_tools": ignore_agent_tools,
                         "exit_code": 1,
@@ -191,6 +206,8 @@ class InitStep(StepBase):
                         "integration_options": integration_options,
                         "script": script,
                         "preset": preset,
+                        "stack": stack,
+                        "skip_external_skills": skip_external_skills,
                         "force": force,
                         "ignore_agent_tools": ignore_agent_tools,
                         "exit_code": 1,
@@ -219,6 +236,8 @@ class InitStep(StepBase):
             "integration_options": integration_options,
             "script": script,
             "preset": preset,
+            "stack": stack,
+            "skip_external_skills": skip_external_skills,
             "force": force,
             "ignore_agent_tools": ignore_agent_tools,
             "exit_code": exit_code,

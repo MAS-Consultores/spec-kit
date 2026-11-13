@@ -3565,7 +3565,7 @@ class TestInitStep:
         ctx = StepContext(
             project_root=str(tmp_path), default_integration="copilot"
         )
-        config = {"id": "bootstrap", "here": True, "script": "sh"}
+        config = {"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "here": True, "script": "sh"}
         result = step.execute(config, ctx)
 
         assert result.status == StepStatus.COMPLETED
@@ -3598,6 +3598,8 @@ class TestInitStep:
         )
         result = step.execute(
             {
+                "stack": "nestjs-react",
+                "skip_external_skills": True,
                 "id": "bootstrap",
                 "here": True,
                 "script": "sh",
@@ -3620,6 +3622,8 @@ class TestInitStep:
         )
         result = step.execute(
             {
+                "stack": "nestjs-react",
+                "skip_external_skills": True,
                 "id": "bootstrap",
                 "here": True,
                 "script": "sh",
@@ -3639,7 +3643,7 @@ class TestInitStep:
             project_root=str(tmp_path), default_integration="copilot"
         )
         result = step.execute(
-            {"id": "bootstrap", "here": True, "script": "sh"}, ctx
+            {"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "here": True, "script": "sh"}, ctx
         )
         assert result.status == StepStatus.COMPLETED
         assert result.output["integration"] == "copilot"
@@ -3655,7 +3659,7 @@ class TestInitStep:
         step = InitStep()
         ctx = StepContext(project_root=str(tmp_path))
         result = step.execute(
-            {"id": "bootstrap", "here": True, "script": "sh"}, ctx
+            {"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "here": True, "script": "sh"}, ctx
         )
         assert result.status == StepStatus.COMPLETED
         assert result.output["integration"] == "gemini"
@@ -3672,6 +3676,8 @@ class TestInitStep:
         )
         result = step.execute(
             {
+                "stack": "nestjs-react",
+                "skip_external_skills": True,
                 "id": "bootstrap",
                 "project": "demo",
                 "script": "sh",
@@ -3689,6 +3695,8 @@ class TestInitStep:
         ctx = StepContext(project_root=str(tmp_path))
         result = step.execute(
             {
+                "stack": "nestjs-react",
+                "skip_external_skills": True,
                 "id": "bootstrap",
                 "here": True,
                 "integration": "no-such-agent",
@@ -3716,6 +3724,8 @@ class TestInitStep:
 
         result = InitStep().execute(
             {
+                "stack": "nestjs-react",
+                "skip_external_skills": True,
                 "id": "bootstrap",
                 "here": True,
                 "integration": "no-such-agent",
@@ -3785,7 +3795,7 @@ class TestInitStep:
             project_root=str(tmp_path), default_integration="copilot"
         )
         result = step.execute(
-            {"id": "bootstrap", "here": True, "script": "sh"},
+            {"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "here": True, "script": "sh"},
             ctx,
         )
         assert result.status == StepStatus.FAILED
@@ -3806,7 +3816,7 @@ class TestInitStep:
             project_root=str(tmp_path), default_integration="copilot"
         )
         result = step.execute(
-            {"id": "bootstrap", "here": True, "script": "sh"},
+            {"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "here": True, "script": "sh"},
             ctx,
         )
         assert result.status == StepStatus.COMPLETED
@@ -3821,7 +3831,7 @@ class TestInitStep:
         # No default_integration on context either
         ctx = StepContext(project_root=str(tmp_path))
         result = step.execute(
-            {"id": "bootstrap", "here": True, "script": "sh"},
+            {"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "here": True, "script": "sh"},
             ctx,
         )
         assert result.status == StepStatus.COMPLETED
@@ -3837,6 +3847,8 @@ class TestInitStep:
         )
         result = step.execute(
             {
+                "stack": "nestjs-react",
+                "skip_external_skills": True,
                 "id": "bootstrap",
                 "here": True,
                 "script": "sh",
@@ -3854,14 +3866,14 @@ class TestInitStep:
         from specify_cli.workflows.step.init import InitStep
 
         step = InitStep()
-        errors = step.validate({"id": "bootstrap", "script": "bogus"})
+        errors = step.validate({"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "script": "bogus"})
         assert any("'script' must be 'sh' or 'ps'" in e for e in errors)
 
     def test_validate_accepts_valid(self):
         from specify_cli.workflows.step.init import InitStep
 
         step = InitStep()
-        assert step.validate({"id": "bootstrap", "script": "sh"}) == []
+        assert step.validate({"stack": "nestjs-react", "skip_external_skills": True, "id": "bootstrap", "script": "sh"}) == []
 
 
 class TestGateStep:

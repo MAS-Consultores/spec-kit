@@ -312,14 +312,16 @@ class TestCopilotCommandsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
                 "--integration-options", "--commands", "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        expected = sorted([
+        from tests.mas_helpers import MAS_INIT_FILES
+
+        expected = sorted([*MAS_INIT_FILES,
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
@@ -375,14 +377,16 @@ class TestCopilotCommandsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
                 "--integration-options", "--commands", "--script", "ps",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        expected = sorted([
+        from tests.mas_helpers import MAS_INIT_FILES
+
+        expected = sorted([*MAS_INIT_FILES,
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
@@ -567,7 +571,7 @@ class TestCopilotSkillsMode:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init",
+                    "init", "--stack", "nestjs-react", "--skip-external-skills",
                     "--here",
                     "--integration",
                     "copilot",
@@ -878,7 +882,7 @@ class TestCopilotSkillsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
                 "--script", "sh",
             ], catch_exceptions=False)
         finally:
@@ -903,14 +907,16 @@ class TestCopilotSkillsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
                 "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        expected = sorted([
+        from tests.mas_helpers import MAS_INIT_FILES
+
+        expected = sorted([*MAS_INIT_FILES,
             # Skill files (core commands)
             *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
             # Integration metadata
@@ -1163,7 +1169,7 @@ class TestCopilotNoModelInvocationOption:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init",
+                    "init", "--stack", "nestjs-react", "--skip-external-skills",
                     "--here",
                     "--integration",
                     "copilot",
@@ -1237,12 +1243,11 @@ class TestCopilotNoModelInvocationOption:
         # preset commands start honouring the option.
         assert "disable-model-invocation" not in fm
 
-        # The docs say ``--force`` is needed here: preset add modified
-        # installed skill files, so a plain upgrade refuses.
+        # Preset writes refresh managed hashes; a plain upgrade can reapply
+        # the option without treating generated content as a user edit.
         result = _run_in_project(project, ["integration", "upgrade", "copilot"])
-        assert result.exit_code != 0
-        assert "modified since installation" in result.output
-        assert "disable-model-invocation" not in _skill_frontmatter(skill_file)
+        assert result.exit_code == 0, result.output
+        assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("copilot")._disable_model_invocation = False
         result = _run_in_project(project, ["integration", "upgrade", "copilot", "--force"])

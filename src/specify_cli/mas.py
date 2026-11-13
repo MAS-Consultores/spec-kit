@@ -1703,6 +1703,8 @@ MAS_STACKS: dict[str, MasStack] = {
 
 def write_stack_memory_files(project_root: Path, stack: MasStack) -> None:
     """Write MAS stack memory files for agent-readable project context."""
+    from .integrations._file_changes import before_file_change, after_file_change
+
     memory_dir = project_root / ".specify" / "memory"
     memory_dir.mkdir(parents=True, exist_ok=True)
     product_locale = stack.default_product_locale or DEFAULT_PRODUCT_LOCALE
@@ -1713,7 +1715,10 @@ def write_stack_memory_files(project_root: Path, stack: MasStack) -> None:
         "language-policy.md": render_language_policy_md(product_locale=product_locale),
     }
     for filename, content in files.items():
-        (memory_dir / filename).write_text(content, encoding="utf-8")
+        path = memory_dir / filename
+        before_file_change(path)
+        path.write_text(content, encoding="utf-8")
+        after_file_change(path)
 
 
 def valid_stack_ids() -> tuple[str, ...]:

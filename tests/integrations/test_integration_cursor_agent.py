@@ -24,7 +24,7 @@ class TestCursorAgentInitFlow:
 
         runner = CliRunner()
         target = tmp_path / "test-proj"
-        result = runner.invoke(app, ["init", str(target), "--integration", "cursor-agent", "--ignore-agent-tools", "--script", "sh"])
+        result = runner.invoke(app, ["init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "cursor-agent", "--ignore-agent-tools", "--script", "sh"])
 
         assert result.exit_code == 0, f"init --integration cursor-agent failed: {result.output}"
         assert (target / ".cursor" / "skills" / "speckit-plan" / "SKILL.md").exists()

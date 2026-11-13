@@ -23,11 +23,15 @@ def bundle_init(
     bundle: str = typer.Argument(None, help="Optional bundle to install after init"),
     integration: str = typer.Option(None, "--integration", help="Integration override"),
     offline: bool = typer.Option(False, "--offline", help="Do not access the network"),
+    mas_stack: str | None = typer.Option(None, "--stack", help="Approved MAS stack for a new project"),
+    skip_external_skills: bool = typer.Option(False, "--skip-external-skills", help="Skip external skill downloads during init"),
 ) -> None:
     """Ensure the project is initialized (idempotent), then optionally install a bundle."""
     from .project import find_project_root
 
     try:
+        mas_stack = mas_stack if isinstance(mas_stack, str) else None
+        skip_external_skills = skip_external_skills is True
         project_root = find_project_root()
         if project_root is None:
             init_integration = _resolve_init_integration(integration, None)
@@ -36,7 +40,8 @@ def bundle_init(
                 f"'{_escape_markup(str(init_integration))}'…[/cyan]"
             )
             _run_init(
-                init_integration, script_type=_default_script_type(), offline=offline
+                init_integration, script_type=_default_script_type(), offline=offline,
+                stack=mas_stack, skip_external_skills=skip_external_skills
             )
             project_root = require_project_root()
     except BundlerError as exc:
@@ -53,4 +58,6 @@ def bundle_init(
             integration=integration,
             offline=offline,
             refresh=False,
+            mas_stack=mas_stack,
+            skip_external_skills=skip_external_skills,
         )

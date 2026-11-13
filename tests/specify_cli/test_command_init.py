@@ -80,7 +80,7 @@ def _init(tmp_path: Path, name: str):
         return CliRunner().invoke(
             app,
             [
-                "init",
+                "init", "--stack", "nestjs-react", "--skip-external-skills",
                 name,
                 "--integration",
                 "generic",
@@ -112,7 +112,7 @@ def test_reinit_preserves_feature_numbering(tmp_path: Path, monkeypatch, numberi
 
     monkeypatch.chdir(project)
     result = CliRunner().invoke(app, [
-        "init", "--here", "--force", "--integration", "generic",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", "--integration", "generic",
         "--integration-options", "--commands-dir .agent/commands",
         "--script", "sh", "--non-interactive", "--ignore-agent-tools", "--offline",
     ])
@@ -160,7 +160,7 @@ def test_invalid_integration_value_is_rendered_literally(tmp_path: Path):
     try:
         result = CliRunner().invoke(
             app,
-            ["init", "proj", "--integration", "nope[/red]", "--ignore-agent-tools"],
+            ["init", "--stack", "nestjs-react", "--skip-external-skills", "proj", "--integration", "nope[/red]", "--ignore-agent-tools"],
             catch_exceptions=True,
         )
     finally:
@@ -250,7 +250,7 @@ def test_output_free_init_recommends_switching_integrations(tmp_path, monkeypatc
     result = CliRunner().invoke(
         app,
         [
-            "init", *(["--here"] if here else ["proj"]),
+            "init", "--stack", "nestjs-react", "--skip-external-skills", *(["--here"] if here else ["proj"]),
             "--integration", "generic",
             "--integration-options", "--commands-dir .agent/commands",
             "--ignore-agent-tools",
@@ -291,7 +291,7 @@ def test_rendering_init_preserves_command_guidance(tmp_path):
 def test_rendering_init_preserves_skill_guidance(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(
-        app, ["init", "proj", "--integration", "copilot", "--ignore-agent-tools"],
+        app, ["init", "--stack", "nestjs-react", "--skip-external-skills", "proj", "--integration", "copilot", "--ignore-agent-tools"],
     )
     assert result.exit_code == 0, result.output
     output = _strip(result.output)
@@ -310,7 +310,7 @@ def test_init_force_syncs_manifest_hash_for_preset_override(tmp_path, monkeypatc
 
     monkeypatch.chdir(tmp_path)
     args = ["--integration", "codex", "--script", "sh", "--ignore-agent-tools", "--non-interactive"]
-    result = CliRunner().invoke(app, ["init", "proj", *args])
+    result = CliRunner().invoke(app, ["init", "--stack", "nestjs-react", "--skip-external-skills", "proj", *args])
     assert result.exit_code == 0, result.output
     project = tmp_path / "proj"
     preset = tmp_path / "tasks-preset"
@@ -332,7 +332,7 @@ provides:
     original_plan = (project / plan_rel).read_bytes()
     (project / plan_rel).write_bytes(b"User-edited skill\n")
 
-    result = CliRunner().invoke(app, ["init", "--here", "--force", *args])
+    result = CliRunner().invoke(app, ["init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", *args])
     assert result.exit_code == 0, result.output
 
     manifest = IntegrationManifest.load("codex", project)
@@ -358,12 +358,12 @@ def test_init_force_keeps_recovered_markers(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
     args = ["--integration", "codex", "--script", "sh", "--ignore-agent-tools", "--non-interactive"]
-    result = CliRunner().invoke(app, ["init", "proj", *args])
+    result = CliRunner().invoke(app, ["init", "--stack", "nestjs-react", "--skip-external-skills", "proj", *args])
     assert result.exit_code == 0, result.output
     project = tmp_path / "proj"
     integration_class = type(get_integration("codex"))
     original_setup = integration_class.setup
-    rel = ".agents/skills/speckit-plan/SKILL.md"
+    rel = ".agents/skills/speckit-analyze/SKILL.md"
 
     def setup_with_recovered_file(self, project_root, manifest, *args, **kwargs):
         created = original_setup(self, project_root, manifest, *args, **kwargs)
@@ -372,7 +372,7 @@ def test_init_force_keeps_recovered_markers(tmp_path, monkeypatch):
 
     monkeypatch.setattr(integration_class, "setup", setup_with_recovered_file)
     monkeypatch.chdir(project)
-    result = CliRunner().invoke(app, ["init", "--here", "--force", *args])
+    result = CliRunner().invoke(app, ["init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", *args])
 
     assert result.exit_code == 0, result.output
     assert IntegrationManifest.load("codex", project).is_recovered(rel)

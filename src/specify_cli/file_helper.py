@@ -6,6 +6,7 @@ import os
 import stat
 import sys
 import tempfile
+import time
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
@@ -285,9 +286,18 @@ class FileHelper:
             with os.fdopen(fd, "wb") as stream:
                 stream.write(content)
             temporary_path.chmod(mode)
-            if self._path(path, allow_missing=True) != destination:
-                raise FileHelperError(f"Destination changed during write: {path}")
-            os.replace(temporary_path, destination)
+            for attempt in range(4):
+                # Recheck the boundary before each attempt; transient Windows
+                # sharing/access failures must not bypass path validation.
+                if self._path(path, allow_missing=True) != destination:
+                    raise FileHelperError(f"Destination changed during write: {path}")
+                try:
+                    os.replace(temporary_path, destination)
+                    break
+                except PermissionError as exc:
+                    if os.name != "nt" or getattr(exc, "winerror", None) not in (5, 32, 33) or attempt == 3:
+                        raise
+                    time.sleep(0.05 * (attempt + 1))
         finally:
             temporary_path.unlink(missing_ok=True)
 

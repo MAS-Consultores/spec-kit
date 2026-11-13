@@ -96,7 +96,7 @@ class IntegrationListCatalogTestBase:
         try:
             os.chdir(project)
             result = runner.invoke(app, [
-                "init", "--here",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here",
                 "--integration", "copilot",
                 "--script", "sh",
                 "--ignore-agent-tools",

@@ -141,7 +141,7 @@ class TestKiroIntegration:
             os.chdir(target)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--integration", "kiro-cli",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "kiro-cli",
                 "--ignore-agent-tools", "--script", "sh",
             ], catch_exceptions=False)
         finally:

@@ -239,7 +239,7 @@ class TestAlquimiaAIIntegration:
             result = runner.invoke(
                 app,
                 [
-                    "init",
+                    "init", "--stack", "nestjs-react", "--skip-external-skills",
                     "--here",
                     "--integration",
                     "alquimia",
@@ -276,7 +276,7 @@ class TestAlquimiaAIIntegration:
             result = runner.invoke(
                 app,
                 [
-                    "init",
+                    "init", "--stack", "nestjs-react", "--skip-external-skills",
                     "--here",
                     "--integration",
                     "alquimia",
@@ -319,7 +319,7 @@ class TestAlquimiaAIIntegration:
                 result = runner.invoke(
                     app,
                     [
-                        "init",
+                        "init", "--stack", "nestjs-react", "--skip-external-skills",
                         "--here",
                         "--script",
                         "sh",
@@ -360,7 +360,7 @@ class TestAlquimiaAIIntegration:
         result = runner.invoke(
             app,
             [
-                "init",
+                "init", "--stack", "nestjs-react", "--skip-external-skills",
                 str(target),
                 "--integration",
                 "alquimia",

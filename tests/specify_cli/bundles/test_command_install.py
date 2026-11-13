@@ -1090,7 +1090,7 @@ def test_install_initializes_uninitialized_project(tmp_path: Path):
     previous = Path.cwd()
     os.chdir(project)
     try:
-        result = runner.invoke(app, ["bundle", "install", str(artifact), "--offline"])
+        result = runner.invoke(app, ["bundle", "install", str(artifact), "--offline", "--stack", "nestjs-react"])
         assert result.exit_code == 0, result.output
     finally:
         os.chdir(previous)
@@ -1100,3 +1100,11 @@ def test_install_initializes_uninitialized_project(tmp_path: Path):
     assert marker.exists()
     data = json.loads(marker.read_text(encoding="utf-8"))
     assert "copilot" in json.dumps(data)
+
+
+@pytest.mark.parametrize("stack", [None, "unknown-stack"])
+def test_bootstrap_rejects_missing_or_invalid_mas_stack(tmp_path, monkeypatch, stack):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(BundlerError, match="requires --stack"):
+        _commands._run_init("copilot", script_type="sh", offline=True, stack=stack)
+    assert list(tmp_path.iterdir()) == []

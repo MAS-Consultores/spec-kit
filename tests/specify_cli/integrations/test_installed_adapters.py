@@ -1636,7 +1636,7 @@ def test_init_external_adapter_from_registered_catalog(tmp_path, server):
     publish(server)
     project = catalog_project(tmp_path, server)
     result = run(project, [
-        "init", "--here", "--force", "--non-interactive", "--ignore-agent-tools",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", "--non-interactive", "--ignore-agent-tools",
         "--integration", KEY, "--trust-integration", "--script", "py",
     ])
     assert result.exit_code == 0, result.output
@@ -1649,7 +1649,7 @@ def test_new_project_init_from_catalog_environment(tmp_path, server, monkeypatch
     monkeypatch.setenv("SPECKIT_INTEGRATION_CATALOG_URL", f"{server.url}/catalog.json")
     project = tmp_path / "new-project"
     result = runner.invoke(app, [
-        "init", str(project), "--non-interactive", "--ignore-agent-tools",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", str(project), "--non-interactive", "--ignore-agent-tools",
         "--integration", KEY, "--trust-integration",
     ], catch_exceptions=False)
     assert result.exit_code == 0, result.output
@@ -2300,7 +2300,7 @@ def test_cancelled_init_does_not_persist_a_prepared_adapter(tmp_path, server):
     project = catalog_project(tmp_path, server)
     before = snapshot(project)
     result = run(project, [
-        "init", "--here", "--ignore-agent-tools", "--integration", KEY,
+        "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--ignore-agent-tools", "--integration", KEY,
         "--trust-integration", "--script", "py",
     ], input="n\n")
     assert result.exit_code == 0, result.output
@@ -2556,7 +2556,7 @@ def test_review_failed_init_removes_only_new_scaffolding(tmp_path, server, monke
         (project / "notes.txt").write_text("preserve")
     before = snapshot(project)
     result = run(tmp_path, [
-        "init", str(project), "--force", "--ignore-agent-tools",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", str(project), "--force", "--ignore-agent-tools",
         "--integration", KEY, "--trust-integration", "--script", "py",
     ])
     assert result.exit_code == 1, result.output
@@ -2573,7 +2573,7 @@ def test_review_cancelled_init_leaves_existing_uninitialized_directory_unchanged
     notes = project / "notes.txt"
     notes.write_text("preserve")
     result = run(project, [
-        "init", "--here", "--ignore-agent-tools", "--integration", KEY,
+        "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--ignore-agent-tools", "--integration", KEY,
         "--trust-integration", "--script", "py",
     ], input="n\n")
     assert result.exit_code == 0, result.output
@@ -2645,7 +2645,7 @@ def test_review_failed_init_preserves_new_unowned_scaffolding_content(tmp_path, 
     publish(server, code=implementation(body=body))
     monkeypatch.setenv("SPECKIT_INTEGRATION_CATALOG_URL", f"{server.url}/catalog.json")
     result = run(tmp_path, [
-        "init", str(project), "--ignore-agent-tools", "--integration", KEY,
+        "init", "--stack", "nestjs-react", "--skip-external-skills", str(project), "--ignore-agent-tools", "--integration", KEY,
         "--trust-integration", "--script", "py",
     ])
     assert result.exit_code == 1, result.output
@@ -3380,7 +3380,7 @@ def test_catalog_init_checks_required_tools_and_scaffolds_host_skills(tmp_path, 
     before = snapshot(project)
     monkeypatch.setenv("PATH", str(tmp_path / "absent-tools"))
     arguments = [
-        "init", "--here", "--force", "--ignore-agent-tools",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", "--ignore-agent-tools",
         "--integration", KEY, "--trust-integration", "--script", script,
     ]
     denied = run(project, arguments)
@@ -4595,7 +4595,7 @@ def test_external_init_package_directories_follow_late_commit_rollback(
 
         monkeypatch.setattr(installer, "_grant_trust", fail_ownership)
     arguments = [
-        "init", str(project), "--force", "--ignore-agent-tools",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", str(project), "--force", "--ignore-agent-tools",
         "--integration", KEY, "--trust-integration", "--script", "py",
     ]
     if package_kind in {"preset", "both"}:
@@ -4603,7 +4603,15 @@ def test_external_init_package_directories_follow_late_commit_rollback(
     if package_kind in {"extension", "both"}:
         arguments.extend(["--extension", str(extension)])
     result = run(tmp_path, arguments)
-    if failure == "none":
+    if package_kind in {"preset", "both"}:
+        # MAS rejects custom preset composition before any package mutation.
+        assert result.exit_code == 1, result.output
+        assert "mutually exclusive" in result.output
+        assert snapshot(project) == before
+        assert project.exists() == (original != "absent")
+        assert all(path.is_dir() for path in original_directories)
+        assert KEY not in read_records(project)
+    elif failure == "none":
         assert result.exit_code == 0, result.output
         verify_installed_packages()
         assert KEY in read_records(project)
@@ -4693,12 +4701,13 @@ def test_package_post_copy_failure_restores_original_state(
         monkeypatch.setattr(owner, method, fail_after_copy)
     if route == "init":
         result = run(tmp_path, [
-            "init", str(project), "--force", "--ignore-agent-tools",
+            "init", "--stack", "nestjs-react", "--skip-external-skills", str(project), "--force", "--ignore-agent-tools",
             "--integration", KEY, "--trust-integration", "--script", "py",
             f"--{package_kind}", str(source),
         ])
         assert result.exit_code == 1, result.output
-        assert "sample post-copy package failure" in " ".join(result.output.split())
+        expected_error = "mutually exclusive" if package_kind == "preset" else "sample post-copy package failure"
+        assert expected_error in " ".join(result.output.split())
         assert project.exists() == (original != "absent")
         assert "Recovery snapshots retained" not in result.output
     else:
@@ -4783,14 +4792,18 @@ def test_builtin_init_keeps_optional_install_failures_best_effort(tmp_path, monk
     monkeypatch.setattr(manager_type, "install_from_directory", fail_optional_install)
     project = tmp_path / "builtin-target"
     result = run(tmp_path, [
-        "init", str(project), "--ignore-agent-tools", "--integration", "copilot",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", str(project), "--ignore-agent-tools", "--integration", "copilot",
         "--script", "py", f"--{package_kind}", str(source),
     ])
-    assert result.exit_code == 0, result.output
-    assert attempted == [True]
     if package_kind == "preset":
-        assert "sample optional builtin install failure" in " ".join(result.output.split())
-    assert (project / ".github/skills/speckit-plan/SKILL.md").exists()
+        assert result.exit_code == 1, result.output
+        assert "mutually exclusive" in result.output
+        assert attempted == []
+        assert not project.exists()
+    else:
+        assert result.exit_code == 0, result.output
+        assert attempted == [True]
+        assert (project / ".github/skills/speckit-plan/SKILL.md").exists()
 
 
 @pytest.mark.parametrize("operation", ["upgrade", "uninstall"])

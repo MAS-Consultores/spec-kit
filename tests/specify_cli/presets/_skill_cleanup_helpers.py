@@ -21,7 +21,7 @@ def _install_scaffold_preset() -> CliRunner:
     runner = CliRunner()
     preset = Path(__file__).resolve().parents[3] / "presets" / "scaffold"
     for args in (
-        ["init", "--here", "--integration", "copilot", "--script", "sh", "--ignore-agent-tools"],
+        ["init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot", "--script", "sh", "--ignore-agent-tools"],
         ["preset", "add", "--dev", str(preset)],
     ):
         result = runner.invoke(app, args, catch_exceptions=False)

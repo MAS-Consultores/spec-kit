@@ -291,7 +291,8 @@ def test_init_creates_gitignore_with_specify_entry(tmp_path):
     )
 
     assert result.exit_code == 0, result.output
-    assert (project / ".gitignore").read_text(encoding="utf-8") == ".specify/\n"
+    assert (project / ".gitignore").is_file(), result.output
+    assert (project / ".gitignore").read_text(encoding="utf-8") == ".specify/\n", result.output
 
 
 def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
@@ -316,7 +317,7 @@ def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
 
     assert result.exit_code == 0, result.output
     gitignore = (project / ".gitignore").read_text(encoding="utf-8")
-    assert gitignore == "node_modules/\ndist/\n.specify/\n"
+    assert gitignore == "node_modules/\ndist/\n.specify/\n", result.output
     assert gitignore.splitlines().count(".specify/") == 1
 
 

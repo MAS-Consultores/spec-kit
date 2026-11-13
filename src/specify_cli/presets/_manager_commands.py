@@ -670,7 +670,9 @@ class _PresetCommandMethods:
                 pack_id, {"registered_skills": merged_skills}
             )
 
-    def unregister_agent_artifacts(self, agent_name: str) -> None:
+    def unregister_agent_artifacts(
+        self, agent_name: str, *, preserve_paths: frozenset[Path] = frozenset(),
+    ) -> None:
         """Remove ``agent_name``'s tracked preset command/skill artifacts.
 
         Mirrors ``ExtensionManager.unregister_agent_artifacts()`` (#2948):
@@ -785,7 +787,8 @@ class _PresetCommandMethods:
                     ]
                 if command_names_to_unregister:
                     self._unregister_commands(
-                        {agent_name: command_names_to_unregister}
+                        {agent_name: command_names_to_unregister},
+                        **({"preserve_paths": preserve_paths} if preserve_paths else {}),
                     )
                 new_registered_commands = copy.deepcopy(registered_commands)
                 new_registered_commands.pop(agent_name, None)
@@ -799,7 +802,8 @@ class _PresetCommandMethods:
             ):
                 if agent_skill_names:
                     self._delete_agent_preset_skills(
-                        agent_name, agent_skill_names, pack_id
+                        agent_name, agent_skill_names, pack_id,
+                        **({"preserve_paths": preserve_paths} if preserve_paths else {}),
                     )
                 remaining = {
                     other_agent: names
@@ -811,7 +815,10 @@ class _PresetCommandMethods:
             if updates:
                 self.registry.update(pack_id, updates)
 
-    def _unregister_commands(self, registered_commands: Dict[str, List[str]]) -> None:
+    def _unregister_commands(
+        self, registered_commands: Dict[str, List[str]], *,
+        preserve_paths: frozenset[Path] = frozenset(),
+    ) -> None:
         """Remove previously registered command files from agent directories.
 
         Args:
@@ -821,7 +828,10 @@ class _PresetCommandMethods:
             registrar = self._command_registrar()
         except ImportError:
             return
-        registrar.unregister_commands(registered_commands, self.project_root)
+        registrar.unregister_commands(
+            registered_commands, self.project_root,
+            **({"preserve_paths": preserve_paths} if preserve_paths else {}),
+        )
 
     def _merge_pack_registered_commands(
         self, pack_id: str, written: Optional[Dict[str, List[str]]]

@@ -96,9 +96,18 @@ specify bundle add <bundle_id-or-path>
 
 `add` accepts the same arguments and options as `install`.
 
+In the MAS fork, initialization of a new project requires an explicit approved
+`--stack`, for example `specify bundle install ./bundle --stack nestjs-react`.
+Use `--skip-external-skills` to scaffold without fetching external skills;
+`--offline` also implies this during initialization. These initialization options
+are accepted by `install`, `add`, and `init`. Existing projects keep their stack.
+Bundle components are installed after initialization using normal bundle rules.
+
 | Option | Description |
 | --- | --- |
 | `--integration <id>` | Select an integration for initialization, or confirm one when the active integration cannot be determined |
+| `--stack <id>` | Required MAS stack when creating a new project |
+| `--skip-external-skills` | Skip external skill installation during initialization |
 | `--offline` | Do not access the network |
 | `--refresh` | Reapply owned components from the supplied source |
 | `--version <version>` | Select an exact current or historical catalog release |
@@ -273,7 +282,7 @@ including optional `installed_versions` and `bundle_references`.
 ## Initialize a project with a bundle
 
 ```bash
-specify bundle init [bundle_id]
+specify bundle init [bundle_id] --stack nestjs-react
 ```
 
 | Option | Description |

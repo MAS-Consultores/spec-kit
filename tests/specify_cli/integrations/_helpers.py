@@ -12,12 +12,12 @@ from tests.conftest import strip_ansi
 
 runner = CliRunner()
 
-def _init_project(tmp_path, integration="copilot", integration_options=None):
+def _init_project(tmp_path, integration="copilot", integration_options=None, *, legacy_without_presets=False):
     """Helper: init a spec-kit project with the given integration."""
     project = tmp_path / "proj"
     project.mkdir()
     args = [
-        "init", "--here",
+        "init", "--stack", "nestjs-react", "--skip-external-skills", "--here",
         "--integration", integration,
         "--script", "sh",
         "--ignore-agent-tools",
@@ -31,6 +31,14 @@ def _init_project(tmp_path, integration="copilot", integration_options=None):
     finally:
         os.chdir(old_cwd)
     assert result.exit_code == 0, f"init failed: {result.output}"
+    if legacy_without_presets:
+        # Recreate a pre-MAS project to exercise historical layout migrations.
+        # Projects that retain command-overriding presets must still be refused.
+        from specify_cli.presets import PresetManager
+
+        manager = PresetManager(project)
+        manager.remove("mas-stack-nestjs-react")
+        manager.remove("mas-core")
     return project
 
 def _run_in_project(project, args):

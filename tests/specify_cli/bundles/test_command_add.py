@@ -35,6 +35,8 @@ def test_add_forwards_refresh_default_without_refreshing(project: Path):
         offline=False,
         refresh=False,
         version=None,
+        mas_stack=None,
+        skip_external_skills=False,
     )
 
 
@@ -49,6 +51,8 @@ def test_add_forwards_version(project: Path):
         offline=False,
         refresh=False,
         version="1.1.0",
+        mas_stack=None,
+        skip_external_skills=False,
     )
 
 
@@ -86,7 +90,8 @@ def test_bundle_add_by_id_initializes_empty_project_from_firstparty_catalog(
 
     with patch("specify_cli.authentication.http.open_url", side_effect=fake_open_url):
         result = runner.invoke(
-            app, ["bundle", "add", bundle_id, "--integration", "copilot"]
+            app, ["bundle", "add", bundle_id, "--integration", "copilot",
+                  "--stack", "nestjs-react", "--skip-external-skills"]
         )
 
     assert result.exit_code == 0, result.output

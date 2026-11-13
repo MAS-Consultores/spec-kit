@@ -182,7 +182,7 @@ class MarkdownIntegrationTests:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--integration", self.KEY, "--script", "sh",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", self.KEY, "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -203,7 +203,7 @@ class MarkdownIntegrationTests:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--integration", self.KEY, "--script", "sh",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", self.KEY, "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -262,7 +262,9 @@ class MarkdownIntegrationTests:
 
 
 
-        return sorted(files)
+        from tests.mas_helpers import MAS_INIT_FILES
+
+        return sorted([*files, *MAS_INIT_FILES])
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""
@@ -275,7 +277,7 @@ class MarkdownIntegrationTests:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", self.KEY, "--script", "sh",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", self.KEY, "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -300,7 +302,7 @@ class MarkdownIntegrationTests:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", self.KEY, "--script", "ps",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", self.KEY, "--script", "ps",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:

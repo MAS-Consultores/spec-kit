@@ -25,7 +25,7 @@ def _run_init(project, *flags: str) -> Result:
         os.chdir(project)
         return CliRunner().invoke(
             app,
-            ["init", "--here", *flags, "--script", "sh", "--ignore-agent-tools"],
+            ["init", "--stack", "nestjs-react", "--skip-external-skills", "--here", *flags, "--script", "sh", "--ignore-agent-tools"],
             catch_exceptions=False,
         )
     finally:

@@ -226,7 +226,7 @@ class TestHermesIntegration(SkillsIntegrationTests):
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", self.KEY,
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", self.KEY,
                 "--script", "sh", "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -264,7 +264,7 @@ class TestHermesIntegration(SkillsIntegrationTests):
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", self.KEY,
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", self.KEY,
                 "--script", "ps", "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -335,7 +335,7 @@ class TestHermesInitFlow:
         runner = CliRunner()
         target = tmp_path / "test-proj"
         result = runner.invoke(app, [
-            "init", str(target),
+            "init", "--stack", "nestjs-react", "--skip-external-skills", str(target),
             "--integration", "hermes",
             "--ignore-agent-tools",
             "--script", "sh",

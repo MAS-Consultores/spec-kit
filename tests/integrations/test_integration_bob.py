@@ -384,7 +384,7 @@ class TestBobInitFlowDefault:
 
         target = tmp_path / "test-proj"
         result = CliRunner().invoke(app, [
-            "init", str(target), "--integration", "bob",
+            "init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "bob",
             "--ignore-agent-tools", "--script", "sh",
         ])
         assert result.exit_code == 0, f"init --integration bob failed: {result.output}"
@@ -402,7 +402,7 @@ class TestBobInitFlowDefault:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "bob", "--script", "sh",
+                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "bob", "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -429,7 +429,7 @@ class TestBobInitFlowLegacy:
 
         target = tmp_path / "test-proj"
         result = CliRunner().invoke(app, [
-            "init", str(target), "--integration", "bob",
+            "init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "bob",
             "--integration-options", "--legacy-commands",
             "--ignore-agent-tools", "--script", "sh",
         ])
@@ -453,7 +453,7 @@ class TestBobInitFlowLegacy:
 
         target = tmp_path / "test-proj"
         result = CliRunner().invoke(app, [
-            "init", str(target), "--integration", "bob",
+            "init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "bob",
             "--integration-options", "--legacy-commands",
             "--ignore-agent-tools", "--script", "sh",
         ])
@@ -662,7 +662,7 @@ class TestBobUseFlowPreservesLegacyLayout:
         target = tmp_path / "proj"
         runner = CliRunner()
         result = runner.invoke(app, [
-            "init", str(target), "--integration", "bob",
+            "init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "bob",
             "--integration-options", "--legacy-commands",
             "--ignore-agent-tools", "--script", "sh",
         ])

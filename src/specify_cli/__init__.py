@@ -479,6 +479,8 @@ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker |
 
 def ensure_specify_gitignored(project_path: Path, tracker: StepTracker | None = None) -> None:
     """Ensure generated Spec Kit state is ignored by git."""
+    from .integrations._file_changes import before_file_change, after_file_change
+
     gitignore = project_path / ".gitignore"
     entry = ".specify/"
 
@@ -492,12 +494,15 @@ def ensure_specify_gitignored(project_path: Path, tracker: StepTracker | None = 
                 return
 
             separator = "" if content == "" or content.endswith(("\n", "\r")) else "\n"
+            before_file_change(gitignore)
             gitignore.write_text(f"{content}{separator}{entry}\n", encoding="utf-8")
             detail = "updated"
         else:
+            before_file_change(gitignore)
             gitignore.write_text(f"{entry}\n", encoding="utf-8")
             detail = "created"
 
+        after_file_change(gitignore)
         if tracker:
             tracker.complete("gitignore", detail)
         else:

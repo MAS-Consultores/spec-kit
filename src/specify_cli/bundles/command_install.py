@@ -39,6 +39,8 @@ def bundle_install(
     ),
     integration: str = typer.Option(None, "--integration", help="Override integration"),
     offline: bool = typer.Option(False, "--offline", help="Do not access the network"),
+    mas_stack: str | None = typer.Option(None, "--stack", help="Approved MAS stack for a new project"),
+    skip_external_skills: bool = typer.Option(False, "--skip-external-skills", help="Skip external skill downloads during init"),
     refresh: bool = typer.Option(
         False,
         "--refresh",
@@ -78,6 +80,8 @@ def bundle_install(
         from .installer import install_bundle
         from .resolver import resolve_install_plan
 
+        mas_stack = mas_stack if isinstance(mas_stack, str) else None
+        skip_external_skills = skip_external_skills is True
         project_root = find_project_root()
         stack = None
 
@@ -125,7 +129,8 @@ def bundle_install(
                 f"'{_escape_markup(str(init_integration))}'…[/cyan]"
             )
             _run_init(
-                init_integration, script_type=_default_script_type(), offline=offline
+                init_integration, script_type=_default_script_type(), offline=offline,
+                stack=mas_stack, skip_external_skills=skip_external_skills
             )
             project_root = require_project_root()
 

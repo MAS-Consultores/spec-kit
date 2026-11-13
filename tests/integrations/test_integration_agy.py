@@ -47,7 +47,7 @@ class TestAgyInitFlow:
         result = runner.invoke(
             app,
             [
-                "init",
+                "init", "--stack", "nestjs-react", "--skip-external-skills",
                 str(target),
                 "--integration",
                 "agy",
@@ -72,7 +72,7 @@ class TestAgyInitFlow:
         result = runner.invoke(
             app,
             [
-                "init",
+                "init", "--stack", "nestjs-react", "--skip-external-skills",
                 str(target),
                 "--integration",
                 "agy",

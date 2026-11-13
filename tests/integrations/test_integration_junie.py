@@ -118,7 +118,7 @@ class TestJunieIntegration(MarkdownIntegrationTests):
         result = CliRunner().invoke(
             app,
             [
-                "init",
+                "init", "--stack", "nestjs-react", "--skip-external-skills",
                 str(tmp_path / "junie-next-steps"),
                 "--integration",
                 self.KEY,
@@ -235,7 +235,7 @@ class TestJunieIntegration(MarkdownIntegrationTests):
             result = runner.invoke(
                 app,
                 [
-                    "init",
+                    "init", "--stack", "nestjs-react", "--skip-external-skills",
                     "--here",
                     "--integration",
                     self.KEY,
@@ -311,4 +311,6 @@ class TestJunieIntegration(MarkdownIntegrationTests):
         files.append(".specify/workflows/speckit/workflow.yml")
         files.append(".specify/workflows/workflow-registry.json")
 
-        return sorted(files)
+        from tests.mas_helpers import MAS_INIT_FILES
+
+        return sorted([*files, *MAS_INIT_FILES])

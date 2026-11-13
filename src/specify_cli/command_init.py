@@ -824,6 +824,16 @@ def register(app: typer.Typer) -> None:
                 tracker.start("mas-presets")
                 install_mas_stack_presets(project_path, mas_stack)
                 tracker.complete("mas-presets", " + ".join(mas_stack.preset_composition))
+                # Preset installation replaces managed agent commands after setup.
+                # Refresh only files setup owns, preserving untouched recovery marks.
+                from .integrations._helpers import _resync_manifest_after_registration
+
+                _resync_manifest_after_registration(
+                    manifest,
+                    resolved_integration.key,
+                    unmodified_files=set(manifest.files),
+                    continuing="MAS presets were installed, but manifest hashes may be stale.",
+                )
 
                 # Install external skills from stack
                 tracker.start("stack-skills")
@@ -1131,6 +1141,7 @@ def register(app: typer.Typer) -> None:
             or cursor_agent_skill_mode
             or copilot_skill_mode
             or devin_skill_mode
+            or _is_skills_integration
         )
 
         if codex_skill_mode:
@@ -1153,6 +1164,12 @@ def register(app: typer.Typer) -> None:
                 f"{step_num}. Start Devin in this project directory; spec-kit skills were installed to [cyan].devin/skills[/cyan]"
             )
             step_num += 1
+        for key, name, directory in (("dsh", "DSH with `dsh web`", ".dsh/skills"), ("grok", "Grok Build", ".grok/skills"), ("mcode", "MiniMax Code", ".minimax/skills")):
+            if selected_ai == key and _is_skills_integration:
+                steps_lines.append(
+                    f"{step_num}. Start {name} in this project directory; spec-kit skills were installed to [cyan]{directory}[/cyan]"
+                )
+                step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
 
         invoke_prefix = _invoke_prefix_for_integration(
@@ -1186,6 +1203,10 @@ def register(app: typer.Typer) -> None:
         )
         steps_lines.append(
             f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
+        )
+
+        steps_lines.append(
+            f"   {step_num}.6 [cyan]{_display_cmd('converge')}[/] - Verify implementation against the specification"
         )
 
         steps_panel = Panel(

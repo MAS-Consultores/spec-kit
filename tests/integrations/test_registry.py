@@ -264,7 +264,7 @@ class TestMultiInstallSafeContracts:
             init_result = runner.invoke(
                 app,
                 [
-                    "init",
+                    "init", "--stack", "nestjs-react", "--skip-external-skills",
                     "--here",
                     "--integration",
                     ordered_keys[0],
