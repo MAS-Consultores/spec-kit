@@ -206,6 +206,30 @@ def _install_extension_during_init(project_path: Path, ext_spec: str, speckit_ve
     return f"{manifest.name} v{manifest.version} installed"
 
 
+def _merge_impact_lines(project_path: Path) -> list[str]:
+    """Explain what a non-empty init merge overwrites, including a .git-only tree."""
+    try:
+        names = sorted(entry.name for entry in project_path.iterdir())
+    except OSError:
+        names = []
+    preview = ", ".join(names[:25])
+    if len(names) > 25:
+        preview = f"{preview} (+{len(names) - 25} more)"
+    lines = [
+        "Merge impact (this is what --force skips confirming):",
+        "- Overwrites Spec Kit files that already exist: templates, commands, skills, and .specify/memory for the selected stack.",
+        "- Leaves unrelated project files in place. Init does not delete files.",
+        "- Does not rewrite .git, commit history, branches, or remotes.",
+    ]
+    if ".git" in names:
+        lines.append(
+            "- .git is present, so the directory counts as non-empty even when it has no application code yet."
+        )
+    if preview:
+        lines.append(f"- Existing top-level entries: {preview}")
+    return lines
+
+
 def _shell_quote_arg(value: str) -> str:
     """Quote *value* as one argument for the shells of the host OS.
 
@@ -251,7 +275,13 @@ def register(app: typer.Typer) -> None:
         force: bool = typer.Option(
             False,
             "--force",
-            help="Force merge/overwrite when using --here (skip confirmation)",
+            help=(
+                "Skip confirmation and merge into a non-empty directory, "
+                "including one that only contains .git. Overwrites colliding "
+                "Spec Kit files (templates, commands, skills, .specify/memory). "
+                "Does not delete unrelated files and does not rewrite .git, "
+                "history, branches, or remotes."
+            ),
         ),
         allow_symlinks: bool = typer.Option(
             False, "--allow-symlinks",
@@ -454,10 +484,9 @@ def register(app: typer.Typer) -> None:
                 console.print(
                     f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)"
                 )
+                for line in _merge_impact_lines(project_path):
+                    console.print(f"[yellow]{line}[/yellow]")
                 if force:
-                    console.print(
-                        "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
-                    )
                     console.print(
                         "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
                     )
@@ -471,8 +500,9 @@ def register(app: typer.Typer) -> None:
                 else:
                     try:
                         proceed = typer.confirm(
-                            "Template files will be merged with existing content "
-                            "and may overwrite existing files. Do you want to continue?"
+                            "Merge Spec Kit into this directory as described above? "
+                            "Colliding Spec Kit files will be overwritten. "
+                            ".git and unrelated files stay."
                         )
                     except (typer.Abort, EOFError):
                         if _stdin_is_interactive():
@@ -504,9 +534,8 @@ def register(app: typer.Typer) -> None:
                         console.print(
                             f"[yellow]Warning:[/yellow] Directory '{safe_name}' is not empty ({len(existing_items)} items)"
                         )
-                        console.print(
-                            "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
-                        )
+                        for line in _merge_impact_lines(project_path):
+                            console.print(f"[yellow]{line}[/yellow]")
                     console.print(
                         f"[cyan]--force supplied: merging into existing directory '[cyan]{safe_name}[/cyan]'[/cyan]"
                     )
