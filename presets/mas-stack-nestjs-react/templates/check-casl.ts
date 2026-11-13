@@ -1,9 +1,11 @@
 /**
  * Reference CASL consistency check (TypeScript AST).
  * Copy to scripts/check-casl.ts and run it from `pnpm verify`.
- * Negative fixtures (missing @Can, scope mismatch, unused manifest action) must fail.
+ * Negative fixtures must fail: a handler missing @Can and @Public, MCP scopes
+ * that do not include the handler's @Can permission, and a manifest action
+ * (other than reserved: true) that no @Can or @Tool scope uses.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
@@ -17,6 +19,8 @@ const HTTP = new Set([
   "Head",
   "Options",
 ]);
+
+const ROOT = "apps/api/src";
 
 function filesUnder(dir: string, acc: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -47,57 +51,142 @@ function decoratorNames(node: ts.Node): string[] {
   });
 }
 
-function stringArg(expr: ts.Expression): string | undefined {
-  if (!ts.isCallExpression(expr)) return undefined;
-  const first = expr.arguments[0];
-  if (first && ts.isStringLiteral(first)) return first.text;
+function propName(name: ts.PropertyName, source: ts.SourceFile): string {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  return name.getText(source);
+}
+
+function propertyInit(
+  obj: ts.ObjectLiteralExpression,
+  name: string,
+  source: ts.SourceFile,
+): ts.Expression | undefined {
+  for (const prop of obj.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    if (propName(prop.name, source) === name) return prop.initializer;
+  }
   return undefined;
 }
 
-const failures: string[] = [];
+function stringList(expr: ts.Expression | undefined): string[] {
+  if (!expr) return [];
+  if (ts.isStringLiteral(expr)) return [expr.text];
+  if (ts.isArrayLiteralExpression(expr)) {
+    return expr.elements.flatMap((element) =>
+      ts.isStringLiteral(element) ? [element.text] : [],
+    );
+  }
+  return [];
+}
 
-for (const file of filesUnder("apps/api/src")) {
+function toolScopes(expr: ts.CallExpression, source: ts.SourceFile): string[] {
+  const scopes: string[] = [];
+  for (const index of [0, 1]) {
+    const arg = expr.arguments[index];
+    if (!arg || !ts.isObjectLiteralExpression(arg)) continue;
+    scopes.push(...stringList(propertyInit(arg, "scopes", source)));
+  }
+  return scopes;
+}
+
+function callDecorator(
+  node: ts.Node,
+  name: string,
+): ts.CallExpression | undefined {
+  const decorators = ts.getDecorators(node) ?? [];
+  for (const decorator of decorators) {
+    const expr = decorator.expression;
+    if (ts.isCallExpression(expr) && calleeName(expr.expression) === name) return expr;
+  }
+  return undefined;
+}
+
+interface ManifestAction {
+  file: string;
+  category: string;
+  code: string;
+  reserved: boolean;
+}
+
+function manifestActions(file: string, source: ts.SourceFile): ManifestAction[] {
+  const found: ManifestAction[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isObjectLiteralExpression(node)) {
+      const actions = propertyInit(node, "actions", source);
+      const categoryExpr = propertyInit(node, "category", source);
+      if (
+        actions &&
+        ts.isArrayLiteralExpression(actions) &&
+        categoryExpr &&
+        ts.isStringLiteral(categoryExpr)
+      ) {
+        for (const element of actions.elements) {
+          if (!ts.isObjectLiteralExpression(element)) continue;
+          const codeExpr = propertyInit(element, "code", source);
+          if (!codeExpr || !ts.isStringLiteral(codeExpr)) continue;
+          const reservedExpr = propertyInit(element, "reserved", source);
+          const reserved =
+            reservedExpr !== undefined &&
+            reservedExpr.kind === ts.SyntaxKind.TrueKeyword;
+          found.push({
+            file,
+            category: categoryExpr.text,
+            code: codeExpr.text,
+            reserved,
+          });
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
+const failures: string[] = [];
+const declared = new Set<string>();
+const used = new Set<string>();
+
+if (!existsSync(ROOT)) {
+  console.log("casl:check ok");
+  process.exit(0);
+}
+
+for (const file of filesUnder(ROOT)) {
   const text = readFileSync(file, "utf8");
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  if (file.endsWith(".permissions.ts")) {
+    for (const action of manifestActions(file, source)) {
+      const permission = `${action.category}:${action.code}`;
+      declared.add(permission);
+      if (!action.reserved) {
+        const unusedLabel = `${file}: unused manifest action '${permission}'`;
+        if (!failures.includes(unusedLabel)) failures.push(unusedLabel);
+      }
+    }
+  }
   const visit = (node: ts.Node): void => {
-    if (ts.isMethodDeclaration(node)) {
+    if (ts.isMethodDeclaration(node) && node.name) {
       const names = decoratorNames(node);
       const exposed = names.some((name) => HTTP.has(name) || name === "Tool");
       if (exposed && !names.includes("Can") && !names.includes("Public")) {
         failures.push(`${file}: handler ${node.name.getText(source)} lacks @Can or @Public`);
       }
-      const tool = ts.getDecorators(node)?.find((decorator) => {
-        const expr = decorator.expression;
-        return ts.isCallExpression(expr) && calleeName(expr.expression) === "Tool";
-      });
-      const can = ts.getDecorators(node)?.find((decorator) => {
-        const expr = decorator.expression;
-        return ts.isCallExpression(expr) && calleeName(expr.expression) === "Can";
-      });
-      if (tool && can) {
-        const toolExpr = tool.expression;
-        const canExpr = can.expression;
-        if (ts.isCallExpression(toolExpr) && ts.isCallExpression(canExpr)) {
-          const options = toolExpr.arguments[1];
-          const permission = stringArg(canExpr);
-          if (
-            options &&
-            ts.isObjectLiteralExpression(options) &&
-            permission
-          ) {
-            const scopes = options.properties.find(
-              (prop) =>
-                ts.isPropertyAssignment(prop) &&
-                prop.name.getText(source) === "scopes",
+      const canExpr = callDecorator(node, "Can");
+      const toolExpr = callDecorator(node, "Tool");
+      const permissions = canExpr ? stringList(canExpr.arguments[0]) : [];
+      for (const permission of permissions) used.add(permission);
+      if (toolExpr) {
+        const scopes = toolScopes(toolExpr, source);
+        for (const scope of scopes) used.add(scope);
+        if (permissions.length > 0) {
+          const missing = permissions.filter((permission) => !scopes.includes(permission));
+          if (missing.length > 0) {
+            failures.push(
+              `${file}: @Tool scopes do not include @Can('${missing.join(", ")}')`,
             );
-            if (scopes && ts.isPropertyAssignment(scopes)) {
-              const init = scopes.initializer.getText(source);
-              if (!init.includes(permission)) {
-                failures.push(
-                  `${file}: @Tool scopes do not include @Can('${permission}')`,
-                );
-              }
-            }
           }
         }
       }
@@ -105,6 +194,21 @@ for (const file of filesUnder("apps/api/src")) {
     ts.forEachChild(node, visit);
   };
   visit(source);
+}
+
+for (const failure of [...failures]) {
+  if (!failure.includes("unused manifest action")) continue;
+  const match = failure.match(/'([^']+)'/);
+  if (match && used.has(match[1])) {
+    const index = failures.indexOf(failure);
+    if (index >= 0) failures.splice(index, 1);
+  }
+}
+
+for (const permission of used) {
+  if (permission.includes(":") && !declared.has(permission)) {
+    failures.push(`undeclared permission '${permission}'`);
+  }
 }
 
 if (failures.length > 0) {

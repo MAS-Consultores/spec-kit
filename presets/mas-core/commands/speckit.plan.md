@@ -3,6 +3,14 @@ description: Execute MAS stack-aware implementation planning.
 strategy: wrap
 ---
 
+## MAS Feature Branch Check
+
+Before planning, verify the git branch. Read `.specify/feature.json` and require
+`feature_directory`. `git rev-parse --abbrev-ref HEAD` must equal the basename of
+that directory (the `NNN-short-name` branch `/speckit.specify` created from `main`).
+If the directory is missing, HEAD is `main` or `master`, or the names differ, return
+`HARD_FAIL` and stop. Do not create a branch here and do not plan on `main`.
+
 ## MAS Stack-Aware Planning Requirements
 
 Before executing the core planning workflow, read these required project memory

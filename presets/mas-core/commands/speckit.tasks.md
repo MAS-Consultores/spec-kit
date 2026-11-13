@@ -3,6 +3,14 @@ description: Generate MAS stack-aware implementation tasks.
 strategy: wrap
 ---
 
+## MAS Feature Branch Check
+
+Before generating tasks, verify the git branch. Read `.specify/feature.json` and
+require `feature_directory`. `git rev-parse --abbrev-ref HEAD` must equal the
+basename of that directory. If the directory is missing, HEAD is `main` or `master`,
+or the names differ, return `HARD_FAIL` and stop. Do not create a branch here and
+do not generate tasks on `main`.
+
 ## MAS Stack-Aware Task Generation Requirements
 
 Before executing core task generation, read and treat the following files as required MAS context:

@@ -156,6 +156,8 @@ class InitStep(StepBase):
             try:
                 with os.scandir(base) as it:
                     for entry in it:
+                        if entry.name == ".git":
+                            continue
                         if (
                             entry.name in _ENGINE_OWNED_DIRS
                             and entry.is_dir(follow_symlinks=False)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -1137,27 +1138,87 @@ def test_nestjs_react_pins_active_lts_from_nodejs_index(tmp_path):
 
     assert "CRITICAL" in analyze_skill
     assert ".nvmrc" in analyze_skill
+    assert "**not** by itself CRITICAL" in analyze_skill
+    assert "setup task" in analyze_skill
     assert "not a warning" in analyze_skill
     assert "index.json" in analyze_skill
     assert "26.13.1" in tasks_skill
     assert "corepack@latest" in tasks_skill
 
 
-def test_init_force_explains_git_merge(tmp_path, monkeypatch):
+def test_init_git_only_directory_does_not_require_force(tmp_path, monkeypatch):
     project = tmp_path / "with-git"
     project.mkdir()
-    subprocess_mod = __import__("subprocess")
-    subprocess_mod.run(["git", "init"], cwd=project, check=True, capture_output=True)
+    subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
     monkeypatch.chdir(project)
     result = CliRunner().invoke(
         app,
-        ["init", ".", "--force", "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        ["init", ".", "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    assert ".git" in result.output
+    assert ".git is the only existing entry" in result.output
+    assert "continuing without --force" in result.output
+    assert (project / ".specify" / "memory" / "stack.md").exists()
+
+
+def test_init_real_files_still_require_force(tmp_path, monkeypatch):
+    project = tmp_path / "with-files"
+    project.mkdir()
+    subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
+    (project / "README.md").write_text("existing\n", encoding="utf-8")
+    monkeypatch.chdir(project)
+    result = CliRunner().invoke(
+        app,
+        ["init", ".", "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code != 0
+    assert "--force" in result.output
     assert "Does not rewrite .git" in result.output
-    assert "Overwrite" in result.output or "Overwrites" in result.output
+
+
+def test_mas_feature_branch_is_mandatory_for_cursor_and_codex(tmp_path):
+    cursor_project = tmp_path / "cursor-app"
+    codex_project = tmp_path / "codex-app"
+    for project, integration, skills_root in (
+        (cursor_project, "cursor-agent", ".cursor/skills"),
+        (codex_project, "codex", ".agents/skills"),
+    ):
+        result = CliRunner().invoke(
+            app,
+            ["init", str(project), "--integration", integration, "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        specify = (project / skills_root / "speckit-specify" / "SKILL.md").read_text(encoding="utf-8")
+        plan = (project / skills_root / "speckit-plan" / "SKILL.md").read_text(encoding="utf-8")
+        tasks = (project / skills_root / "speckit-tasks" / "SKILL.md").read_text(encoding="utf-8")
+        implement = (project / skills_root / "speckit-implement" / "SKILL.md").read_text(encoding="utf-8")
+        assert "create-new-feature.sh" in specify
+        assert "git checkout main" in specify
+        assert "not optional" in specify
+        assert "HARD_FAIL" in plan
+        assert "feature_directory" in plan
+        assert "HARD_FAIL" in tasks
+        assert "git merge --no-ff" in implement
+        assert ".cursor/commands" not in specify
+    constitution = (cursor_project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    assert ".cursor/skills/speckit-*/SKILL.md" in constitution
+    assert "not installed under `.cursor/commands`" in constitution
+
+
+def test_check_casl_reads_tool_options_and_manifests():
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "presets/mas-stack-nestjs-react/templates/check-casl.ts"
+    ).read_text(encoding="utf-8")
+    assert "arguments[index]" in script or "arguments[0]" in script
+    assert "scopes" in script
+    assert "unused manifest action" in script
+    assert "lacks @Can or @Public" in script
+    assert "reserved" in script
+    assert "@Tool scopes do not include" in script
 
 
 def test_mas_constitution_keeps_security_standard_inside_principle_one():

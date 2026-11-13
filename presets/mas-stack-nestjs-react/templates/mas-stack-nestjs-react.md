@@ -17,7 +17,7 @@ specify init . --stack nestjs-react --integration cursor-agent
 ```
 
 - **Key**: `cursor-agent` (not `cursor`)
-- **Skills location**: `.cursor/skills/speckit-*/SKILL.md`
+- **Skills location**: `.cursor/skills/speckit-*/SKILL.md` (not `.cursor/commands`)
 - **Invocation**: `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, etc.
 - Run commands from Cursor's chat panel, not the terminal.
 

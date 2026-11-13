@@ -503,7 +503,7 @@ Paquetes internos se referencian con protocolo workspace:
 - One-liner: `curl -s https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const hit=JSON.parse(s).find(e=>e.lts!==false);if(!hit){console.error("no Active LTS");process.exit(1)}const exact=hit.version.replace(/^v/,"");console.log(exact);console.log(exact.split(".")[0])})'`
 - Equivalente jq: `curl -s https://nodejs.org/dist/index.json | jq -r 'first(.[] | select(.lts != false)) | .version | ltrimstr("v")'`
 - Node 25+ no incluye Corepack (el tarball `node-v26.13.1` no tiene `bin/corepack`; el de v24 sí). Setup: `npm i -g corepack@latest && corepack enable` (alternativa: instalar globalmente el `pnpm@X.Y.Z` exacto). `packageManager` sigue fijado.
-- `/speckit.analyze` marca **CRITICAL** (no warning) si falta `.nvmrc` o si el major de Node no es el Active LTS resuelto con ese índice.
+- `/speckit.analyze` corre antes de implement y es de solo lectura. Que falte `.nvmrc` no es CRITICAL por sí solo. Es **CRITICAL** si `tasks.md` no tiene una tarea de setup que cree `.nvmrc` con la versión exacta del índice. Si `.nvmrc` ya existe, un major distinto del Active LTS resuelto con ese índice es **CRITICAL**.
 - Renovate mantiene todo en la última estable, sin prereleases; los saltos de major llegan como PR con revisión.
 - Conflictos de peers: elegir el conjunto estable más nuevo mutuamente compatible y documentar la excepción en
   `pnpm.peerDependencyRules.allowedVersions`, cubierta por un smoke test en CI (`ZodValidationPipe`,

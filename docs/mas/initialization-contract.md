@@ -183,6 +183,13 @@ A recommended shape is:
 
 The Markdown files remain the primary agent-readable memory surface.
 
+## Integration command files
+
+`--integration cursor-agent` installs Spec Kit commands as
+`.cursor/skills/speckit-*/SKILL.md`. It does not install `.cursor/commands`.
+Other skills-mode integrations use their own skills directory (for example
+`.agents/skills/` for Codex and `.claude/skills/` for Claude).
+
 ## User-Configurable At Init
 
 Users may configure:
@@ -192,7 +199,7 @@ Users may configure:
 - integration-specific options;
 - shell script type through `--script`;
 - branch numbering;
-- normal `--force` behavior for merging into existing directories;
+- normal `--force` behavior for merging into directories that already contain project files. A directory whose only entry is `.git` (the usual `git init` then `specify init .` flow) does not require `--force`;
 - `--skip-external-skills` to skip `npx skills` installation during init;
 - `--strict-external-skills` to require every declared external skill to
   install successfully (default is fail-soft when `npx` or the network is

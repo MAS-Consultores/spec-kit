@@ -73,6 +73,13 @@ provides:
       replaces: "speckit.tasks"
       strategy: "wrap"
 
+    - type: "command"
+      name: "speckit.implement"
+      file: "commands/speckit.implement.md"
+      description: "MAS feature-branch implementation and local merge to main"
+      replaces: "speckit.implement"
+      strategy: "wrap"
+
 tags:
   - "mas"
   - "governance"

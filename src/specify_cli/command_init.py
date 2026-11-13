@@ -206,8 +206,13 @@ def _install_extension_during_init(project_path: Path, ext_spec: str, speckit_ve
     return f"{manifest.name} v{manifest.version} installed"
 
 
+def _content_entries(items: list[Path]) -> list[Path]:
+    """Entries that conflict with init. A lone ``.git`` from ``git init`` does not."""
+    return [item for item in items if item.name != ".git"]
+
+
 def _merge_impact_lines(project_path: Path) -> list[str]:
-    """Explain what a non-empty init merge overwrites, including a .git-only tree."""
+    """Explain what a non-empty init merge overwrites."""
     try:
         names = sorted(entry.name for entry in project_path.iterdir())
     except OSError:
@@ -220,11 +225,8 @@ def _merge_impact_lines(project_path: Path) -> list[str]:
         "- Overwrites Spec Kit files that already exist: templates, commands, skills, and .specify/memory for the selected stack.",
         "- Leaves unrelated project files in place. Init does not delete files.",
         "- Does not rewrite .git, commit history, branches, or remotes.",
+        "- A directory whose only entry is .git does not need --force.",
     ]
-    if ".git" in names:
-        lines.append(
-            "- .git is present, so the directory counts as non-empty even when it has no application code yet."
-        )
     if preview:
         lines.append(f"- Existing top-level entries: {preview}")
     return lines
@@ -276,11 +278,11 @@ def register(app: typer.Typer) -> None:
             False,
             "--force",
             help=(
-                "Skip confirmation and merge into a non-empty directory, "
-                "including one that only contains .git. Overwrites colliding "
-                "Spec Kit files (templates, commands, skills, .specify/memory). "
-                "Does not delete unrelated files and does not rewrite .git, "
-                "history, branches, or remotes."
+                "Skip confirmation and merge into a non-empty directory. "
+                "A directory that contains only .git does not need this flag. "
+                "Overwrites colliding Spec Kit files (templates, commands, skills, "
+                ".specify/memory). Does not delete unrelated files and does not "
+                "rewrite .git, history, branches, or remotes."
             ),
         ),
         allow_symlinks: bool = typer.Option(
@@ -480,9 +482,10 @@ def register(app: typer.Typer) -> None:
 
             original_directory = initial_directory_state(project_path)
             existing_items = original_directory[1] if original_directory else list(project_path.iterdir())
-            if existing_items:
+            content_items = _content_entries(existing_items)
+            if content_items:
                 console.print(
-                    f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)"
+                    f"[yellow]Warning:[/yellow] Current directory is not empty ({len(content_items)} items)"
                 )
                 for line in _merge_impact_lines(project_path):
                     console.print(f"[yellow]{line}[/yellow]")
@@ -517,6 +520,11 @@ def register(app: typer.Typer) -> None:
                     if not proceed:
                         console.print("[yellow]Operation cancelled[/yellow]")
                         raise typer.Exit(0)
+            elif existing_items:
+                console.print(
+                    "[dim].git is the only existing entry; continuing without --force. "
+                    "History, branches, and remotes stay as they are.[/dim]"
+                )
         else:
             project_path = Path(project_name).absolute()
             original_directory = initial_directory_state(project_path)
@@ -529,10 +537,15 @@ def register(app: typer.Typer) -> None:
                     )
                     raise typer.Exit(1)
                 existing_items = original_directory[1] if original_directory else list(project_path.iterdir())
-                if force:
-                    if existing_items:
+                content_items = _content_entries(existing_items)
+                if existing_items and not content_items:
+                    console.print(
+                        f"[dim]'{safe_name}' contains only .git; continuing without --force.[/dim]"
+                    )
+                elif force:
+                    if content_items:
                         console.print(
-                            f"[yellow]Warning:[/yellow] Directory '{safe_name}' is not empty ({len(existing_items)} items)"
+                            f"[yellow]Warning:[/yellow] Directory '{safe_name}' is not empty ({len(content_items)} items)"
                         )
                         for line in _merge_impact_lines(project_path):
                             console.print(f"[yellow]{line}[/yellow]")
