@@ -134,7 +134,9 @@ When `--stack` is valid, init should execute this conceptual flow:
 13. Install the bundled `speckit` workflow and any default extensions using
     existing behavior.
 14. Print next steps that show the selected stack and remind the user that
-    `speckit-plan` will validate against it.
+    `speckit-plan` will validate against it. Do not recommend running
+    `speckit.constitution` or `speckit-constitution`: the constitution is
+    already written from the stack during init.
 
 ## Invalid Stack Flow
 
