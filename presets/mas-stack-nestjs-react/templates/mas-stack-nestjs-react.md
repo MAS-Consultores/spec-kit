@@ -82,6 +82,8 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `tsconfig.base.json` (shared TypeScript config)
 - [ ] `.eslintrc.cjs` with `eslint-plugin-boundaries` rules
 - [ ] `.swcrc` with `legacyDecorator: true` and `decoratorMetadata: true`
+- [ ] `apps/api/nest-cli.json` with `compilerOptions.builder: "swc"` and `compilerOptions.typeCheck: true`
+- [ ] API scripts: `dev` is `nest start --watch`; `build` is `nest build`; `start:e2e` is `nest build && node dist/main.js`; `openapi:generate` builds with SWC and sets `OPENAPI_GENERATE=1` before importing compiled `main`. Never `tsx src/main.ts` for the Nest process (`tsx` is only for `prisma.seed`)
 
 ### apps/api (Required)
 
@@ -142,7 +144,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `src/pagination.schema.ts` — Standard pagination
 - [ ] `src/rfc9457.schema.ts` — RFC 9457 error schema
 - [ ] `src/index.ts` — Barrel export
-- [ ] `package.json` with TypeScript build
+- [ ] `package.json` with a real build and `exports` pointing at compiled `.js` (not `.ts`). Specifiers inside the package use `.js`. `dev`, `start:e2e`, and `openapi:generate` build this package before the API process starts
 
 ### packages/ui (Required)
 

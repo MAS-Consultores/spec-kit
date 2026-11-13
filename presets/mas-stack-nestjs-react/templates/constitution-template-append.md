@@ -11,6 +11,9 @@ TypeScript strict mode with ZERO `any` tolerance:
 - MUST NOT disable, set to warn, or use `eslint-disable` to bypass no-explicit-any
 - ESLint ignores generated files (`routeTree.gen.ts`, `generated/prisma/**`). `routeTree.gen.ts` MUST still be committed so `tsc --noEmit` works on a clean clone
 - `tsconfig.json` includes sources and tests for the editor and `projectService`; `tsconfig.build.json` includes only `src` for `nest build`
+- API dev, e2e, and OpenAPI MUST run on the SWC build: `nest-cli.json` `builder: "swc"` and `typeCheck: true`; `dev` is `nest start --watch`; `start:e2e` is `nest build && node dist/main.js`; `openapi:generate` sets `OPENAPI_GENERATE=1` before importing compiled `main`. `tsx src/main.ts` is forbidden for the Nest process
+- `@demo/contracts` (and any internal TypeScript package imported with `.js` specifiers) MUST ship compiled `exports`. `packages/ui` stays source-only
+- `ThrottlerGuard` MUST be registered as `{ provide: APP_GUARD, useClass: ThrottlerGuard }` in a module that imports `ThrottlerModule`. Do not construct it with `new` (`Reflector` stays undefined under SWC)
 
 ### Latest Stable Versions
 
@@ -63,6 +66,7 @@ Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
 - MCP registration MUST use `McpModule.forRootAsync({ decorators: [Public(), SkipCsrf()] })` so a missing Bearer token is 401, not a CSRF 403
 - Passwords MUST be hashed with Argon2id; login endpoints MUST have throttling
 - MCP endpoints MUST require Bearer token: missing or invalid token MUST return exactly 401 with `WWW-Authenticate: Bearer` header
+- `apps/api` MUST declare `@modelcontextprotocol/client` as a devDependency (latest stable). `@nestjs/mcp/testing` imports it and does not declare the dependency
 - Secrets MUST be read at runtime from Zod-validated config; MUST NOT use hardcoded fallbacks
 
 ### Frontend Stack
