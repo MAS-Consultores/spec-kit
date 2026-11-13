@@ -307,6 +307,7 @@ jobs:
           cd "$work"
           pnpm install --frozen-lockfile
           bash scripts/ensure-postgres.sh
+          pnpm db:generate
           env -u SEED_DATABASE_URL pnpm --filter @demo/api exec prisma migrate deploy
           pnpm --filter @demo/api exec prisma migrate deploy
           pnpm db:seed

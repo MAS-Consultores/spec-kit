@@ -56,6 +56,11 @@ def _install_ps(repo: Path) -> None:
         "ensure-feature-branch.ps1",
     ):
         shutil.copy(REPO / "scripts" / "powershell" / name, dest / name)
+    templates = repo / ".specify" / "templates"
+    templates.mkdir(parents=True)
+    (templates / "spec-template.md").write_text("# spec\n", encoding="utf-8")
+    (templates / "plan-template.md").write_text("# plan\n", encoding="utf-8")
+    (templates / "tasks-template.md").write_text("# tasks\n", encoding="utf-8")
 
 
 def _head(repo: Path) -> str:
