@@ -88,7 +88,7 @@ export class AuthService {
   private async issue(res: Response, userId: string, scopes: string[], familyId: string): Promise<void> {
     const access = this.jwt.sign({ sub: userId, scopes }, { expiresIn: "15m" });
     const refresh = this.jwt.sign(
-      { sub: userId, family: familyId },
+      { sub: userId, family: familyId, jti: randomUUID() },
       { secret: requiredEnv("JWT_REFRESH_SECRET"), expiresIn: "7d" },
     );
     await this.prisma.refreshToken.create({

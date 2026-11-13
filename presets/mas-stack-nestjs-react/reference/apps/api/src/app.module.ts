@@ -26,14 +26,16 @@ import { requiredEnv } from "./env.js";
       global: true,
       secret: requiredEnv("JWT_ACCESS_SECRET"),
     }),
-    ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          name: "default",
-          ttl: 60_000,
-          limit: Number(process.env["LOGIN_THROTTLE_LIMIT"] ?? "1000"),
-        },
-      ],
+    ThrottlerModule.forRootAsync({
+      useFactory: () => ({
+        throttlers: [
+          {
+            name: "default",
+            ttl: 60_000,
+            limit: Number(process.env["LOGIN_THROTTLE_LIMIT"] ?? "1000"),
+          },
+        ],
+      }),
     }),
     McpModule.forRoot({
       name: "demo",

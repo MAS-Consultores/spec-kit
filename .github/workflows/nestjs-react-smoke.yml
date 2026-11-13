@@ -227,7 +227,7 @@ jobs:
           if (-not (Test-Path "specs\$branch\tasks.md")) { Write-Error "tasks.md missing"; exit 1 }
           git checkout main
           $PSNativeCommandUseErrorActionPreference = $false
-          & .\.specify\scripts\powershell\ensure-feature-branch.ps1
+          pwsh -NoProfile -File .\.specify\scripts\powershell\ensure-feature-branch.ps1
           if ($LASTEXITCODE -eq 0) { Write-Error "main must be rejected"; exit 1 }
 
   reference:
