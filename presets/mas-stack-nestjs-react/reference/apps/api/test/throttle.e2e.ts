@@ -10,7 +10,7 @@ describe("throttler", () => {
   let app: Awaited<ReturnType<typeof NestFactory.create>>;
   beforeAll(async () => {
     process.env["LOGIN_THROTTLE_LIMIT"] = "2";
-    app = await NestFactory.create(AppModule, { logger: false });
+    app = await NestFactory.create(AppModule, { logger: ["error"], abortOnError: false });
     app.setGlobalPrefix("api");
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
     app.use(cookieParser());

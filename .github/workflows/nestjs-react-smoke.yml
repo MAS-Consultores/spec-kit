@@ -184,7 +184,7 @@ jobs:
           python3 -c 'import json,subprocess; p=json.load(open("out.json")); head=subprocess.check_output(["git","symbolic-ref","HEAD"],text=True).strip(); assert head=="refs/heads/"+p["BRANCH_NAME"]'
           bash .specify/scripts/bash/ensure-feature-branch.sh
           bash .specify/scripts/bash/setup-plan.sh
-          python3 -c 'import json,pathlib; p=json.load(open("out.json")); d=pathlib.Path("specs",p["BRANCH_NAME"]); d.mkdir(exist_ok=True); (d/"research.md").write_text("ok\n"); (d/"data-model.md").write_text("ok\n"); (d/"quickstart.md").write_text("ok\n"); (d/"contracts").mkdir(exist_ok=True)'
+          python3 -c 'import json,pathlib; p=json.load(open("out.json")); d=pathlib.Path("specs",p["BRANCH_NAME"]); d.mkdir(exist_ok=True); (d/"research.md").write_text("ok\n"); (d/"data-model.md").write_text("ok\n"); (d/"quickstart.md").write_text("ok\n"); c=d/"contracts"; c.mkdir(exist_ok=True); (c/"api.md").write_text("ok\n")'
           bash .specify/scripts/bash/setup-tasks.sh
           python3 -c 'import json,pathlib; p=json.load(open("out.json")); text=pathlib.Path("specs",p["BRANCH_NAME"],"tasks.md").read_text(); assert text.strip()'
           git checkout main
@@ -218,6 +218,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $dir = Join-Path "specs" $branch
           New-Item -ItemType Directory -Force -Path (Join-Path $dir "contracts") | Out-Null
+          Set-Content -Path (Join-Path $dir "contracts\api.md") -Value "ok"
           Set-Content -Path (Join-Path $dir "research.md") -Value "ok"
           Set-Content -Path (Join-Path $dir "data-model.md") -Value "ok"
           Set-Content -Path (Join-Path $dir "quickstart.md") -Value "ok"

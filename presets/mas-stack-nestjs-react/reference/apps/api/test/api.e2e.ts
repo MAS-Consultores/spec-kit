@@ -28,7 +28,7 @@ function server(app: INestApplication): Parameters<typeof request>[0] {
 }
 
 async function boot(): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = await NestFactory.create(AppModule, { logger: ["error"], abortOnError: false });
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
   app.use(cookieParser());

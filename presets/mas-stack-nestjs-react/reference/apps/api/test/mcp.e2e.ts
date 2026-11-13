@@ -21,7 +21,7 @@ describe("mcp", () => {
   beforeAll(async () => {
     process.env["JWT_ACCESS_SECRET"] ??= "test-access-secret-test-access";
     process.env["LOGIN_THROTTLE_LIMIT"] = "1000";
-    app = await NestFactory.create(AppModule, { logger: false });
+    app = await NestFactory.create(AppModule, { logger: ["error"], abortOnError: false });
     app.setGlobalPrefix("api");
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
     app.use(cookieParser());
