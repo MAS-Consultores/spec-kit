@@ -1043,6 +1043,88 @@ def test_nestjs_react_prisma_esm_config_and_no_import_fixing_scripts(tmp_path):
     assert "nest build" in stack_context, "stack-context.md must document nest build"
 
 
+def test_nestjs_react_closes_demo2_framework_gaps(tmp_path):
+    """Demo 2 gaps that must show up in generated NestJS memory and commands."""
+    project = tmp_path / "demo2-gaps"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    tasks_skill = (project / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").read_text(encoding="utf-8")
+    plan_skill = (project / ".agents" / "skills" / "speckit-plan" / "SKILL.md").read_text(encoding="utf-8")
+    analyze_skill = (project / ".agents" / "skills" / "speckit-analyze" / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "apps/api/prisma.config.ts" in context
+    assert "schema: 'prisma/schema.prisma'" in context
+    assert "npm view" in context
+    assert "typescript-eslint" in context
+    assert "Mandatory Auth Phase" in context
+    assert "SkipCsrf()" in context
+    assert "insufficient_scope" in context
+    assert "isError: true" in context
+    assert "allowBuilds" in context
+    assert "approve-builds --all" in context
+    assert "migrate reset" in context
+    assert "node --import tsx" in context
+    assert "createPrismaAbility" in context
+    assert ".ofType(" in context
+    assert "@casl/prisma/runtime" in context
+    assert "queryClient.query" in context
+    assert "createMongoAbility" not in context
+    assert "MongoAbility" not in context
+    assert "onUnhandledFrame" in context
+    assert "getAnimations()" in context
+    assert "richColors" in context
+    assert "@theme inline" in context
+    assert "routeTree.gen.ts" in context and "Do not list it in `.gitignore`" in context
+    assert "dist/generated/prisma/client.js" in context
+    assert "tsconfig.build.json" in context
+    assert "projectService" in context
+    assert "escapeLike" in context
+    assert "LOGIN_THROTTLE_LIMIT" in context
+    assert "getZodError()" in context
+    assert "source-only" in context
+    assert "radix-ui" in context
+
+    assert "AuthModule" in constitution
+    assert "queryClient.query" in constitution
+    assert "SkipCsrf()" in constitution
+
+    assert "blocking auth phase" in tasks_skill
+    assert "check-casl.ts" in tasks_skill
+    assert "allowBuilds" in tasks_skill
+    assert "queryClient.query" in tasks_skill
+
+    assert "@demo/api" in plan_skill
+    assert "es-CL" in plan_skill
+
+    assert "CRITICAL" in analyze_skill
+    assert "AuthModule" in analyze_skill
+    assert "insufficient" not in analyze_skill or "routeTree" in analyze_skill
+
+
+def test_init_force_explains_git_merge(tmp_path, monkeypatch):
+    project = tmp_path / "with-git"
+    project.mkdir()
+    subprocess_mod = __import__("subprocess")
+    subprocess_mod.run(["git", "init"], cwd=project, check=True, capture_output=True)
+    monkeypatch.chdir(project)
+    result = CliRunner().invoke(
+        app,
+        ["init", ".", "--force", "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    assert ".git" in result.output
+    assert "Does not rewrite .git" in result.output
+    assert "Overwrite" in result.output or "Overwrites" in result.output
+
+
 def test_mas_constitution_keeps_security_standard_inside_principle_one():
     template = Path(__file__).resolve().parents[1] / "presets/mas-core/templates/constitution-template.md"
     content = template.read_text(encoding="utf-8")

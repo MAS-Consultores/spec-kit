@@ -1652,7 +1652,7 @@ export default defineConfig({
 export const Route = createFileRoute('/articulos/')({
   validateSearch: PaginationParamsSchema,
   loaderDeps: ({ search }) => search,
-  loader: ({ context: { queryClient }, deps }) => queryClient.ensureQueryData(articulosQuery(deps)),
+  loader: ({ context: { queryClient }, deps }) => queryClient.query(articulosQuery(deps)),
 });
 
 // src/routes/articulos/index.lazy.tsx — componente cargado bajo demanda

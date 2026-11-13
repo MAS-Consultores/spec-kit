@@ -9,14 +9,17 @@ TypeScript strict mode with ZERO `any` tolerance:
 - MUST NOT use `: any`, `as any`, or `<any>` anywhere in source code
 - ESLint MUST use `typescript-eslint/strictTypeChecked` with `@typescript-eslint/no-explicit-any: 'error'`
 - MUST NOT disable, set to warn, or use `eslint-disable` to bypass no-explicit-any
-- Only generated files (`routeTree.gen.ts`, `generated/prisma/**`) are excluded
+- ESLint ignores generated files (`routeTree.gen.ts`, `generated/prisma/**`). `routeTree.gen.ts` MUST still be committed so `tsc --noEmit` works on a clean clone
+- `tsconfig.json` includes sources and tests for the editor and `projectService`; `tsconfig.build.json` includes only `src` for `nest build`
 
 ### Latest Stable Versions
 
 Always use the latest stable release, never prereleases:
 - MUST respect minimum major versions: @nestjs/core 12, prisma 7, zod 4, react 19, @casl/ability 7, @tanstack/react-table 9
 - MUST NOT downgrade to resolve peer dependency warnings
-- MUST verify versions against npm registry (`npm view <pkg> version`) before claiming a version does not exist
+- MUST resolve versions at implementation time with `npm view <pkg> version` and reject prereleases; MUST NOT copy version numbers from templates or claim a version is missing without that output
+- TypeScript MAY be pinned below absolute latest when `typescript-eslint`'s peer range requires it: use the highest stable TypeScript that satisfies that peer, and document the exception
+- `prisma` and `@prisma/client` MUST be the same exact Prisma 7.x stable version
 
 ### Real Tests and Hard Gates
 
@@ -38,7 +41,9 @@ AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.i
 ### Authentication and MCP Security
 
 Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
+- If the project has no AuthModule, tasks MUST add a blocking auth phase (login, HttpOnly cookies, CSRF, rotating refresh with reuse detection, roles, user seed) and analyze MUST mark its absence CRITICAL
 - Access tokens MUST be short-lived (~15 min); refresh tokens MUST rotate and be stored in HttpOnly + Secure + SameSite cookies with CSRF protection
+- MCP registration MUST use `McpModule.forRootAsync({ decorators: [Public(), SkipCsrf()] })` so a missing Bearer token is 401, not a CSRF 403
 - Passwords MUST be hashed with Argon2id; login endpoints MUST have throttling
 - MCP endpoints MUST require Bearer token: missing or invalid token MUST return exactly 401 with `WWW-Authenticate: Bearer` header
 - Secrets MUST be read at runtime from Zod-validated config; MUST NOT use hardcoded fallbacks
@@ -53,6 +58,8 @@ React SPA with mandatory libraries and patterns:
 - `apps/web/src/index.css` MUST include `@source` directive pointing to `packages/ui/src` for Tailwind 4 to generate classes used by shared primitives
 - MUST use TanStack Router with file-based routing
 - MUST use TanStack Query for all server state (no duplicating API data in Zustand)
+- Route loaders MUST call `queryClient.query(options)` (`ensureQueryData` and `prefetchQuery` are deprecated and fail `no-deprecated`)
+- `packages/ui` MUST be source-only (exports point at `src`, not `dist`)
 - MUST use TanStack Table v9 API (`useTable` + `stockFeatures`, not legacy `useReactTable`)
 - At least one Playwright spec MUST verify computed styles (e.g., button background not transparent, cell padding > 0) to catch CSS generation failures
 

@@ -67,7 +67,8 @@ The following structure MUST be present for a valid `nestjs-react` project:
 
 ### Monorepo Root (Required)
 
-- [ ] `pnpm-workspace.yaml` with `apps/*` and `packages/*`
+- [ ] `pnpm-workspace.yaml` with `packages: [apps/*, packages/*]` and `allowBuilds` set to `true` for `prisma`, `@prisma/engines`, `argon2`, `esbuild`, `@swc/core`, and `msw`. `pnpm approve-builds --all` writes `false`; do not use it as the source of truth.
+- [ ] Do not commit version numbers copied from docs. Resolve each dependency with `npm view <pkg> version` and reject prereleases. TypeScript is the highest stable release allowed by the `typescript-eslint` peer range (documented exception).
 - [ ] `pnpm-lock.yaml` committed (NOT `package-lock.json` or `yarn.lock`)
 - [ ] Root `package.json` with:
   - `packageManager: 'pnpm@X.Y.Z'` (exact version for Corepack)
@@ -100,7 +101,10 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `prisma/schema.prisma` with Prisma 7.x config:
   - `generator client { provider = "prisma-client" output = "../src/generated/prisma" moduleFormat = "esm" importFileExtension = "js" }`
   - `datasource db { provider = "postgresql" }` (no url; use prisma.config.ts)
-- [ ] `prisma/prisma.config.ts` — Prisma 7.x config with `defineConfig({ schema, datasource: { url }, migrate: { adapter } })`
+- [ ] `apps/api/prisma.config.ts` (package root, not `prisma/prisma.config.ts`) with `schema: 'prisma/schema.prisma'`
+- [ ] `tsconfig.json` includes src and tests (editor + ESLint `projectService`); `tsconfig.build.json` includes only `src` for `nest build` (`rootDir: src` → `dist/generated/prisma/client.js`)
+- [ ] Seed script: `node --import tsx prisma/seed.ts` (`tsx` dependency). Do not use `node --experimental-strip-types` for the seed.
+- [ ] Test DB reset: `prisma migrate deploy` + `TRUNCATE`, never `prisma migrate reset`
 - [ ] `prisma/migrations/` — Migration files (run `prisma migrate deploy` pre-deploy)
 - [ ] `src/generated/prisma/` — Generated Prisma client (gitignored, SWC compiles to dist)
 - [ ] `vitest.config.ts` (Vitest for NestJS 12 ESM)
@@ -138,14 +142,19 @@ The following structure MUST be present for a valid `nestjs-react` project:
 
 ### packages/ui (Required)
 
-- [ ] `src/components/` — shadcn/ui components
-- [ ] `tailwind.config.ts` — Shared Tailwind config
-- [ ] `package.json`
+- [ ] Source-only package: `exports` map `./components/*` → `./src/components/*.tsx` (no `dist` build)
+- [ ] `components.json` aliases use the workspace package name (not the npm package `cn`)
+- [ ] Direct dependency `radix-ui`; `cn` imported from the local utils module
+- [ ] `apps/web/src/index.css` has `@theme inline`, `@import "tw-animate-css"`, `@import "shadcn/tailwind.css"`, and `@source` for `packages/ui/src`
+- [ ] `--destructive` meets WCAG 2.1 AA; sonner does not use `richColors`
+- [ ] `apps/web/src/routeTree.gen.ts` is committed (excluded from ESLint only, not from git)
 
 ### scripts/ (Required)
 
 - [ ] `scripts/permissions-sync.ts` — `pnpm permissions:sync`
 - [ ] `scripts/openapi-generate.ts` — `pnpm openapi:generate`
+- [ ] `scripts/check-casl.ts` — TypeScript AST check wired into `pnpm verify` together with `openapi:generate` and `api-client:generate`
+- [ ] `pnpm verify` and quickstart commands use `pnpm --filter` with the `name` from each `package.json` (for example `@demo/api`), not the directory name alone
 
 ### docker/ (Recommended)
 

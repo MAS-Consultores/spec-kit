@@ -75,6 +75,22 @@ description: "MAS stack-aware task list template for feature implementation"
 
 ---
 
+## NestJS + React only (`stack.md` Canonical ID `nestjs-react`)
+
+When the selected stack is `nestjs-react`, replace the generic sample paths and add these blocking tasks before user stories. Other stacks ignore this section.
+
+- Auth phase when `AuthModule` is absent: login, HttpOnly cookies, CSRF, rotating refresh with reuse detection, roles, and user seed. `/speckit.analyze` marks a missing phase CRITICAL.
+- `apps/api/prisma.config.ts` with `schema: 'prisma/schema.prisma'` (not under `prisma/`).
+- Resolve dependency versions with `npm view <pkg> version` (latest stable, no prereleases). Do not copy version numbers from templates. TypeScript is the highest stable release allowed by the `typescript-eslint` peer.
+- `pnpm verify` tasks for `openapi:generate`, `api-client:generate`, and `scripts/check-casl.ts` (TypeScript AST).
+- CASL: `createPrismaAbility` / `PrismaQuery`, `accessibleBy(...).ofType('Model')`, import `accessibleBy` from `@casl/prisma/runtime` when the Prisma client has a custom output.
+- `packages/ui` source-only exports to `src`; `components.json` workspace aliases; verify `cn` imports and a `radix-ui` dependency.
+- `apps/web/src/index.css`: `@theme inline`, `tw-animate-css`, `shadcn/tailwind.css`, and `@source`.
+- Commit `apps/web/src/routeTree.gen.ts`. Exclude it from ESLint only.
+- Playwright: `playwright install --with-deps chromium`, `globalSetup` with a dedicated e2e database (`migrate deploy` + truncate + seed), setup project `storageState` per role, dedicated `webServer` ports. Axe waits for `document.getAnimations()`.
+- Loaders use `queryClient.query(options)`.
+- `pnpm-workspace.yaml` `allowBuilds` true for prisma, `@prisma/engines`, argon2, esbuild, `@swc/core`, msw.
+
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
