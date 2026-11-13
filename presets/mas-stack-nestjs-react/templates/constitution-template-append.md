@@ -46,9 +46,11 @@ React SPA with mandatory libraries and patterns:
 - Primitives live in `packages/ui/src/components/`, exported by the package, consumed by `apps/web`
 - MUST NOT reimplement shadcn/ui primitives by hand (Button, Input, Dialog, Table, Card, Badge, Select, Dropdown, etc.)
 - MUST use Tailwind CSS only for custom styling, layouts, and spacing—not to rebuild existing primitives
+- `apps/web/src/index.css` MUST include `@source` directive pointing to `packages/ui/src` for Tailwind 4 to generate classes used by shared primitives
 - MUST use TanStack Router with file-based routing
 - MUST use TanStack Query for all server state (no duplicating API data in Zustand)
 - MUST use TanStack Table v9 API (`useTable` + `stockFeatures`, not legacy `useReactTable`)
+- At least one Playwright spec MUST verify computed styles (e.g., button background not transparent, cell padding > 0) to catch CSS generation failures
 
 ### Comprehensive Auditing
 

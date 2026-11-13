@@ -942,3 +942,28 @@ def test_nestjs_react_generated_memory_has_no_forbidden_terms(tmp_path):
     for path in memory_files:
         violations += _forbidden_term_violations(path.name, path.read_text(encoding="utf-8"))
     assert not violations, "\n".join(violations)
+
+
+def test_nestjs_react_requires_tailwind_source_directive(tmp_path):
+    """Test that nestjs-react stack docs require @source directive for Tailwind 4 monorepo."""
+    project = tmp_path / "tailwind-source"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    # Check constitution requires @source
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    assert "@source" in constitution, "Constitution must require @source directive"
+    assert "packages/ui" in constitution, "Constitution must reference packages/ui for @source"
+
+    # Check stack-context.md documents the @source configuration (detailed stack docs)
+    stack_context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    assert "@source" in stack_context, "stack-context.md must document @source directive"
+    assert "Tailwind 4" in stack_context, "stack-context.md must mention Tailwind 4"
+
+    # Check Playwright style verification is documented
+    assert "computed" in stack_context.lower() or "getComputedStyle" in stack_context, \
+        "stack-context.md must require Playwright style verification"
