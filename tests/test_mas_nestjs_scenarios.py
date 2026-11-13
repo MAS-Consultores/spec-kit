@@ -106,6 +106,17 @@ def test_init_layouts_omit_constitution_step(tmp_path: Path, integration: str, l
     assert "api-e2e" in analyze or "supertest" in analyze
 
 
+def test_constitution_pins_check_casl_to_typescript_5_9_3():
+    text = (
+        _REPO / "presets/mas-stack-nestjs-react/templates/constitution-template-append.md"
+    ).read_text(encoding="utf-8")
+    catalog = (_REPO / "docs/mas/stack-catalog.md").read_text(encoding="utf-8")
+    for blob in (text, catalog):
+        assert "5.9.3" in blob
+        assert "createSourceFile" in blob
+        assert "typescript@7" in blob or "TypeScript 7" in blob
+
+
 def test_upstream_followups_still_list_constitution_when_no_stack():
     assert init_followup_commands(mas_stack=False)[0] == "constitution"
     assert "constitution" not in init_followup_commands(mas_stack=True)

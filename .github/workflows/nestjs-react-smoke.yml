@@ -122,10 +122,25 @@ jobs:
           git init -b main "$work"
           uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
             --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
-          uv run python - <<PY
+          # Git Bash rewrites /tmp arguments for native Windows programs.
+          # The path baked into a Python script is not rewritten, so convert it.
+          if [ "${RUNNER_OS:-}" = "Windows" ]; then
+            SMOKE_WORK="$(cygpath -w "$work")"
+          else
+            SMOKE_WORK="$work"
+          fi
+          export SMOKE_WORK
+          uv run python - <<'PY'
+          import os
           from pathlib import Path
-          root = Path("${work}")
-          context = (root / ".specify/memory/stack-context.md").read_text(encoding="utf-8")
+          root = Path(os.environ["SMOKE_WORK"])
+          context_path = root / ".specify" / "memory" / "stack-context.md"
+          if not context_path.is_file():
+              raise SystemExit(
+                  f"specify init did not write {context_path}; "
+                  "MAS memory is missing at the path passed to init"
+              )
+          context = context_path.read_text(encoding="utf-8")
           for needle in ("@scarf/scarf", "start:e2e", "OPENAPI_GENERATE", "@modelcontextprotocol/client", "shadcn add", "console.warn", "supertest"):
               if needle not in context:
                   raise SystemExit(f"missing {needle}")

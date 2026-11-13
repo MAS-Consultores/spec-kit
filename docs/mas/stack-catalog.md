@@ -385,7 +385,7 @@ OpenAPI.
 - PostgreSQL is the database; schema changes require `prisma migrate` with reviewed migration files.
 - Authentication uses HttpOnly cookies with CSRF protection; no JWT storage in localStorage.
 - CORS is configured with explicit origin allowlist matching the frontend deployment URL.
-- TypeScript strict mode is mandatory across both applications.
+- TypeScript strict mode is mandatory across both applications. Application TypeScript is the highest stable release allowed by the `typescript-eslint` peer. `scripts/check-casl.ts` is pinned separately to the latest TypeScript 5.x stable (`typescript@5`, exact `5.9.3` as of 2026-11-13) because TypeScript 7's package root does not export `createSourceFile`. That pin is not a prerelease and does not lower the app compiler. Review it when a stable TypeScript release exports an equivalent parser API.
 
 ### Authorization: Custom AuthzModule + CASL
 

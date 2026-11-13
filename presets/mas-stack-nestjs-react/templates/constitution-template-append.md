@@ -22,6 +22,7 @@ Always use the latest stable release, never prereleases:
 - MUST NOT downgrade to resolve peer dependency warnings
 - MUST resolve versions at implementation time with `npm view <pkg> version` and reject prereleases; MUST NOT copy version numbers from templates or claim a version is missing without that output
 - TypeScript MAY be pinned below absolute latest when `typescript-eslint`'s peer range requires it: use the highest stable TypeScript that satisfies that peer, and document the exception
+- `scripts/check-casl.ts` is a separate pin: it MUST run on the latest TypeScript 5.x stable (`typescript@5`, exact `5.9.3` as of 2026-11-13). TypeScript 7's package root no longer exports `createSourceFile`, so the AST walk cannot load `typescript@7`. This is not a prerelease and it does not lower the application's TypeScript. Revisit the pin when a stable TypeScript release exports an equivalent parser API; until then do not point the script at TypeScript 7
 - `prisma` and `@prisma/client` MUST be the same exact Prisma 7.x stable version
 - `pnpm-workspace.yaml` MUST list `allowBuilds` explicitly (`true` for `prisma`, `@prisma/engines`, `argon2`, `esbuild`, `@swc/core`, `msw`; `false` for `@scarf/scarf`). A later package whose install script is not listed fails pnpm 12: add that name in the same change, `true` only when the script is required, never via `pnpm approve-builds --all`
 
