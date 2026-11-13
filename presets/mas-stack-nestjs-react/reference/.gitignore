@@ -1,0 +1,10 @@
+node_modules
+.snippet-check
+apps/*/.snippet-check
+dist
+apps/api/src/generated
+.vitest-unit.json
+.vitest-e2e.json
+playwright-report
+test-results
+.env

@@ -1,0 +1,62 @@
+generator client {
+  provider             = "prisma-client"
+  output               = "../src/generated/prisma"
+  moduleFormat         = "esm"
+  importFileExtension  = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String           @id @default(uuid())
+  email        String           @unique
+  passwordHash String
+  deletedAt    DateTime?
+  permissions  UserPermission[]
+  tokens       RefreshToken[]
+}
+
+model Permission {
+  id    String           @id @default(uuid())
+  code  String           @unique
+  users UserPermission[]
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+  user         User       @relation(fields: [userId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([userId, permissionId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+}
+
+model Note {
+  id        String    @id @default(uuid())
+  title     String
+  body      String
+  createdBy String
+  deletedAt DateTime?
+  deletedBy String?
+}
+
+model AuditLog {
+  id       String   @id @default(uuid())
+  action   String
+  entity   String
+  entityId String
+  actorId  String
+  at       DateTime @default(now())
+}

@@ -1,0 +1,13 @@
+# pnpm
+/core
+/custom-features
+/getting-started
+/migrate-from-react-router
+/pnpm-@tanstack+react-table-migrate-v8-to-v9
+/pnpm-@tanstack+react-table-table-state
+/pnpm-@tanstack+table-core-migrate-v8-to-v9
+/pnpm-@tanstack+table-core-table-state
+/react-router
+/router-query
+/table-features
+# pnpm end

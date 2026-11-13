@@ -1,0 +1,24 @@
+{
+  "name": "@demo/ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./components/button": "./src/components/button.tsx",
+    "./lib/utils": "./src/lib/utils.ts"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "tailwind-merge": "3.7.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "react": "19.3.1",
+    "typescript": "6.0.3"
+  },
+  "peerDependencies": {
+    "react": "19.3.1"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

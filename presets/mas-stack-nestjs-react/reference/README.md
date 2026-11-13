@@ -1,0 +1,42 @@
+# NestJS + React reference
+
+This tree is the version set that passed CI. `specify init --stack nestjs-react` copies it to `.specify/reference/`. New projects copy these `package.json` files and `pnpm-lock.yaml`. Renovate updates only this skeleton, and that pull request must pass the smoke workflow.
+
+## Clean machine
+
+Node is the Active LTS in `.nvmrc`. Corepack is not bundled on Node 25+. Do not install it into `/usr`.
+
+Linux and macOS, with a user prefix:
+
+```bash
+npm config set prefix ~/.local
+export PATH="$HOME/.local/bin:$PATH"
+npm i -g corepack@latest
+corepack enable
+```
+
+Or install Node with nvm and load it before `pnpm`:
+
+```bash
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh"
+nvm use
+```
+
+Windows: nvm-windows, or `npm config set prefix %USERPROFILE%\.local` and add that directory to the user PATH. Then the same `npm i -g corepack@latest` and `corepack enable`.
+
+Postgres on a new machine often has no cluster and no `postgresql.conf`. `scripts/ensure-postgres.sh` exits 1 and prints `initdb -D "$PGDATA"` when `PGDATA` has no config, or when the server is down. Create two databases and keep the URLs different:
+
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/app
+export SEED_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/e2e
+bash scripts/ensure-postgres.sh
+```
+
+`prisma db seed` would otherwise use `DATABASE_URL` from `.env`. The seed script refuses to run unless `SEED_DATABASE_URL` is set and different.
+
+Playwright does not download browsers during `pnpm install`. If chromium is missing, `node scripts/ensure-playwright.mjs` (from `apps/web`) exits 1 and tells you to run `pnpm exec playwright install chromium`. Dev servers do not assume ports 3000, 4173, or 5432 are free. Playwright binds a free port. If 5432 is busy, point `DATABASE_URL` and `SEED_DATABASE_URL` at the port that is listening.
+
+## Known warnings that do not fail CI
+
+Prisma 7 prints that Node majors above 24 are outside its narrow preinstall table. The Active LTS (26) is inside `engines.node` (`>=24`) and the warning is not a failure. pnpm may warn that some Nest packages declare peers up to Nest 11. Those peers are allowed in `pnpm-workspace.yaml` `peerDependencyRules`. Do not use `pnpm approve --all`.

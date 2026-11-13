@@ -1,0 +1,35 @@
+{
+  "name": "mas-nestjs-react-reference",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "verify": "pnpm lint && pnpm typecheck && pnpm madge && pnpm casl && pnpm shadcn:check && pnpm i18n:check && pnpm openapi:check && pnpm test && pnpm skips:check",
+    "lint": "eslint .",
+    "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
+    "routes:gen": "node scripts/generate-route-tree.mjs",
+    "madge": "madge --circular --extensions ts --exclude 'generated/prisma|routeTree.gen' apps packages",
+    "casl": "pnpm --filter @demo/casl-check exec node --experimental-strip-types check-casl.ts",
+    "shadcn:check": "node scripts/check-shadcn.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "openapi:check": "node scripts/generate-openapi.mjs --check",
+    "test": "pnpm --filter @demo/api test && pnpm --filter @demo/web test",
+    "skips:check": "node scripts/check-skips.mjs",
+    "build": "pnpm --filter @demo/contracts build && pnpm --filter @demo/api build && pnpm --filter @demo/web build",
+    "db:migrate": "pnpm --filter @demo/api exec prisma migrate deploy",
+    "db:seed": "pnpm --filter @demo/api exec prisma db seed",
+    "test:e2e:api": "pnpm --filter @demo/api test:e2e",
+    "test:e2e:mcp": "pnpm --filter @demo/api test:mcp",
+    "test:e2e:web": "pnpm --filter @demo/web exec playwright test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.15.0",
+    "madge": "8.0.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2"
+  }
+}
