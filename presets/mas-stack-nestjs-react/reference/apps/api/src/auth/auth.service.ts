@@ -86,7 +86,8 @@ export class AuthService {
   }
 
   private async issue(res: Response, userId: string, scopes: string[], familyId: string): Promise<void> {
-    const access = this.jwt.sign({ sub: userId, scopes }, { expiresIn: "15m" });
+    const csrf = randomBytes(16).toString("hex");
+    const access = this.jwt.sign({ sub: userId, scopes, csrf }, { expiresIn: "15m" });
     const refresh = this.jwt.sign(
       { sub: userId, family: familyId, jti: randomUUID() },
       { secret: requiredEnv("JWT_REFRESH_SECRET"), expiresIn: "7d" },
@@ -99,7 +100,6 @@ export class AuthService {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
-    const csrf = randomBytes(16).toString("hex");
     res.cookie("access_token", access, { httpOnly: true, sameSite: "lax", path: "/" });
     res.cookie("refresh_token", refresh, {
       httpOnly: true,

@@ -8,6 +8,7 @@ import { IS_PUBLIC } from "./decorators.js";
 export interface AccessPayload {
   sub: string;
   scopes: string[];
+  csrf: string;
 }
 
 @Injectable()
