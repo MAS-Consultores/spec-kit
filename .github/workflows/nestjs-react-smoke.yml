@@ -1,0 +1,144 @@
+name: NestJS React stack smoke
+
+on:
+  push:
+    branches: ["nestjs-react-support"]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Active LTS from index.json
+        id: node
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request, pathlib, os
+          url = "https://nodejs.org/dist/index.json"
+          try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                  text = response.read().decode()
+          except Exception as exc:
+              raise SystemExit(f"failed to fetch {url}: {exc}; refusing to guess a Node version")
+          try:
+              payload = json.loads(text)
+          except json.JSONDecodeError as exc:
+              raise SystemExit(f"index.json is not valid JSON: {exc}; refusing to guess a Node version")
+          if not isinstance(payload, list):
+              raise SystemExit("index.json must be an array; refusing to guess a Node version")
+          hit = next((entry for entry in payload if isinstance(entry, dict) and entry.get("lts") is not False), None)
+          if hit is None or not str(hit.get("version", "")).startswith("v"):
+              raise SystemExit("no Active LTS in index.json; refusing to guess a Node version")
+          exact = hit["version"][1:]
+          path = os.environ["GITHUB_OUTPUT"]
+          with open(path, "a", encoding="utf-8") as handle:
+              handle.write(f"version={exact}\n")
+          print(exact)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: Enable Corepack
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm i -g corepack@latest
+          corepack enable
+          node -p "process.versions.node"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install Python test dependencies
+        run: uv sync --extra test
+
+      - name: Policy and scenario tests
+        run: uv run pytest tests/test_mas_nestjs_scenarios.py -q --tb=short
+
+      - name: Feature script on Bash
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          mkdir -p "$work/.specify/scripts/bash" "$work/.specify/templates"
+          cp scripts/bash/create-new-feature.sh scripts/bash/common.sh "$work/.specify/scripts/bash/"
+          printf '# spec\n' > "$work/.specify/templates/spec-template.md"
+          bash "$work/.specify/scripts/bash/create-new-feature.sh" --json --short-name user-login "Add user login" > "$work/out.json"
+          python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); assert p["BRANCH_NAME"].endswith("user-login")' "$work/out.json"
+          set +e
+          bash "$work/.specify/scripts/bash/create-new-feature.sh" --short-name x "   " >/tmp/feature-fail.txt 2>&1
+          code=$?
+          set -e
+          test "$code" -ne 0
+
+      - name: Feature script on PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:TEMP "speckit-smoke"
+          if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          git init -b main $work
+          git -C $work config user.email smoke@example.com
+          git -C $work config user.name smoke
+          New-Item -ItemType Directory -Force -Path "$work/.specify/scripts/powershell","$work/.specify/templates" | Out-Null
+          Copy-Item scripts/powershell/create-new-feature.ps1,scripts/powershell/common.ps1 "$work/.specify/scripts/powershell/"
+          Set-Content -Path "$work/.specify/templates/spec-template.md" -Value "# spec"
+          & "$work/.specify/scripts/powershell/create-new-feature.ps1" -Json -ShortName "user-login" "Add user login"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Init scaffold smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          uv run python - <<PY
+          from pathlib import Path
+          root = Path("${work}")
+          context = (root / ".specify/memory/stack-context.md").read_text(encoding="utf-8")
+          for needle in ("@scarf/scarf", "start:e2e", "OPENAPI_GENERATE", "@modelcontextprotocol/client", "shadcn add", "console.warn", "supertest"):
+              if needle not in context:
+                  raise SystemExit(f"missing {needle}")
+          app = root / "apps/api/package.json"
+          if not app.is_file():
+              print("no app skeleton; skip install, build, typecheck, lint, unit, and postgres e2e")
+          else:
+              raise SystemExit("app skeleton present; this workflow must install and test it")
+          PY
+          uv run python - <<'PY'
+          import json, urllib.request
+          from specify_cli.mas_policy import is_prerelease, latest_stable
+          def versions(name):
+              with urllib.request.urlopen(f"https://registry.npmjs.org/{name}", timeout=60) as response:
+                  payload = json.load(response)
+              return list(payload["versions"])
+          prisma = latest_stable(versions("prisma"), major=7)
+          nest = latest_stable(versions("@nestjs%2Fcore"))
+          assert not is_prerelease(prisma) and prisma.startswith("7.")
+          assert not is_prerelease(nest)
+          print("stable", prisma, nest)
+          PY

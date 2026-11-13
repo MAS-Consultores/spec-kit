@@ -1227,23 +1227,28 @@ def register(app: typer.Typer) -> None:
         def _display_cmd(name: str) -> str:
             return f"{invoke_prefix}speckit{invoke_separator}{name}"
 
+        from .mas_policy import init_followup_commands
+
+        summaries = {
+            "constitution": "Establish project principles",
+            "specify": "Create baseline specification",
+            "plan": "Create implementation plan",
+            "tasks": "Generate actionable tasks",
+            "implement": "Execute implementation",
+            "converge": "Verify implementation against the specification",
+        }
         steps_lines.append(
             f"{step_num}. Start using {usage_label} with your coding agent:"
         )
-        steps_lines.append(
-            "   Project principles are already in [cyan].specify/memory/constitution.md[/cyan] from the selected stack."
-        )
-
-        follow_on = (
-            ("specify", "Create baseline specification"),
-            ("plan", "Create implementation plan"),
-            ("tasks", "Generate actionable tasks"),
-            ("implement", "Execute implementation"),
-            ("converge", "Verify implementation against the specification"),
-        )
-        for index, (name, summary) in enumerate(follow_on, start=1):
+        if mas_stack is not None:
             steps_lines.append(
-                f"   {step_num}.{index} [cyan]{_display_cmd(name)}[/] - {summary}"
+                "   Project principles are already in [cyan].specify/memory/constitution.md[/cyan] from the selected stack."
+            )
+        for index, name in enumerate(
+            init_followup_commands(mas_stack=mas_stack is not None), start=1
+        ):
+            steps_lines.append(
+                f"   {step_num}.{index} [cyan]{_display_cmd(name)}[/] - {summaries[name]}"
             )
 
         steps_panel = Panel(

@@ -1,13 +1,19 @@
 /**
  * Reference CASL consistency check (TypeScript AST).
  * Copy to scripts/check-casl.ts and run it from `pnpm verify`.
+ * Run it with the latest TypeScript 5.x stable (5.9.3). TypeScript 7's
+ * package root does not export createSourceFile, so this script must not
+ * load `typescript@7`.
+
  * Negative fixtures must fail: a handler missing @Can and @Public, MCP scopes
  * that do not include the handler's @Can permission, and a manifest action
  * (other than reserved: true) that no @Can or @Tool scope uses.
  */
+import { createRequire } from "node:module";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import ts from "typescript";
+
+const ts = createRequire(import.meta.url)("typescript");
 
 const HTTP = new Set([
   "Get",
