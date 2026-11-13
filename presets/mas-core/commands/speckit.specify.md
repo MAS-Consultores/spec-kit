@@ -51,11 +51,24 @@ until the feature branch exists and is checked out.
    - PowerShell: `.specify/scripts/powershell/create-new-feature.ps1 -Json -ShortName "<short-name>" "<feature description>"`
 5. Parse `BRANCH_NAME` from the JSON. It must look like `NNN-short-name` (sequential
    prefix unless `.specify/init-options.json` sets `feature_numbering` to `timestamp`).
-6. Create and switch to that branch from the current `main` checkout:
-   `git checkout -b "$BRANCH_NAME"`. If the branch already exists, `git checkout "$BRANCH_NAME"`.
-   If either command fails, stop and do not write the spec.
-7. Confirm `git rev-parse --abbrev-ref HEAD` equals `BRANCH_NAME`. The script already
-   created `specs/<BRANCH_NAME>/spec.md` and `.specify/feature.json`. Fill that spec
+6. The script checks out `BRANCH_NAME` itself, including when the repository has
+   no commits yet (`git checkout -b` moves the symbolic HEAD off `main`). Do not
+   run a second `git checkout -b` when that branch is already current. If HEAD is
+   not `BRANCH_NAME`, stop and do not write the spec.
+7. Confirm `git rev-parse --abbrev-ref HEAD` equals `BRANCH_NAME` and that
+   `git symbolic-ref HEAD` is `refs/heads/<BRANCH_NAME>` (not a symbolic `main`
+   with only `BRANCH_NAME` printed). The script already created
+   `specs/<BRANCH_NAME>/spec.md` and `.specify/feature.json`. Fill that spec
    file. Do not create a second feature directory.
+
+## Empty repository commits
+
+When the git repository has no commits, `main` is only a symbolic HEAD. After
+`create-new-feature`, HEAD is the feature branch and there is still no commit
+object. `/speckit.specify` and `/speckit.clarify` commit on that feature branch.
+Those commits are the first history of the repository. Do not try to create an
+initial commit on `main` first, and do not expect `main` to exist until a later
+local merge (`git branch main` from the feature branch, or the implement merge).
+`/speckit.analyze` does not commit.
 
 {CORE_TEMPLATE}

@@ -59,6 +59,13 @@ else
     exit 1
 fi
 
+# Write the resolved template to tasks.md. JSON mode still prints the
+# template for callers that parse stdout; the file is the artifact.
+TASKS_FILE="$FEATURE_DIR/tasks.md"
+if [[ ! -f "$TASKS_FILE" ]]; then
+    printf '%s\n' "$TASKS_TEMPLATE_CONTENT" > "$TASKS_FILE"
+fi
+
 # Output results
 if $JSON_MODE; then
     if has_jq; then

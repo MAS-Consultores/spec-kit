@@ -69,6 +69,12 @@ if ($tasksTemplate -and (Test-Path -LiteralPath $tasksTemplate -PathType Leaf)) 
     $tasksTemplate = ''
 }
 
+$tasksFile = Join-Path $paths.FEATURE_DIR 'tasks.md'
+if (-not (Test-Path -LiteralPath $tasksFile -PathType Leaf)) {
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($tasksFile, $tasksTemplateContent, $utf8NoBom)
+}
+
 # Output results
 if ($Json) {
     [PSCustomObject]@{

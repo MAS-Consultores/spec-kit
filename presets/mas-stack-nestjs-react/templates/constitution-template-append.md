@@ -20,11 +20,73 @@ TypeScript strict mode with ZERO `any` tolerance:
 Always use the latest stable release, never prereleases:
 - MUST respect minimum major versions: @nestjs/core 12, prisma 7, zod 4, react 19, @casl/ability 7, @tanstack/react-table 9
 - MUST NOT downgrade to resolve peer dependency warnings
-- MUST resolve versions at implementation time with `npm view <pkg> version` and reject prereleases; MUST NOT copy version numbers from templates or claim a version is missing without that output
+- A new project MUST copy `package.json` files and `pnpm-lock.yaml` from `.specify/reference/` (installed by `specify init --stack nestjs-react`). Those are the versions that passed CI. Do not resolve versions at generation time and do not run `npm view` to pick them
+- `npm view` is only for the Renovate pull request that updates the skeleton in this preset. That PR is the only place versions move, and it must pass the NestJS React smoke workflow before merge
+- MUST reject prereleases; the lockfile is the proof the set is stable
 - TypeScript MAY be pinned below absolute latest when `typescript-eslint`'s peer range requires it: use the highest stable TypeScript that satisfies that peer, and document the exception
 - `scripts/check-casl.ts` is a separate pin: it MUST run on the latest TypeScript 5.x stable (`typescript@5`, exact `5.9.3` as of 2026-11-13). TypeScript 7's package root no longer exports `createSourceFile`, so the AST walk cannot load `typescript@7`. This is not a prerelease and it does not lower the application's TypeScript. Revisit the pin when a stable TypeScript release exports an equivalent parser API; until then do not point the script at TypeScript 7
 - `prisma` and `@prisma/client` MUST be the same exact Prisma 7.x stable version
 - `pnpm-workspace.yaml` MUST list `allowBuilds` explicitly (`true` for `prisma`, `@prisma/engines`, `argon2`, `esbuild`, `@swc/core`, `msw`; `false` for `@scarf/scarf`). A later package whose install script is not listed fails pnpm 12: add that name in the same change, `true` only when the script is required, never via `pnpm approve-builds --all`
+- pnpm 12 ignores `package.json#pnpm.peerDependencyRules`. Peer exceptions live in `pnpm-workspace.yaml` under `peerDependencyRules.allowedVersions`
+- pnpm 12 writes `minimumReleaseAgeExclude` into `pnpm-workspace.yaml` for packages newer than the release-age gate and prints `Agent skills awaiting approval` for packages that ship skills (for example `@tanstack/react-table` and `@tanstack/table-core`). Approve those named packages only: `pnpm approve @tanstack/react-table @tanstack/table-core --yes`, which sets `permissions.<name>.skills: true`. Do not run `pnpm approve --all` or `pnpm approve-builds --all`
+- `prisma db seed` loads `DATABASE_URL` from the environment and from `.env`. E2E MUST set `SEED_DATABASE_URL` to the e2e database. `prisma.config.ts` uses `datasource.url: process.env.SEED_DATABASE_URL ?? process.env.DATABASE_URL` and `migrations.seed`. Do not use `migrate.adapter`
+- shadcn `init` / `add` MUST be non-interactive (`--yes` and a pre-generated `components.json` with aliases that do not produce `src/src` or `import ... from "cn"`). A post-step (`scripts/check-shadcn.mjs`) MUST fail the task if shadcn asked a question or generated those paths
+- The global `JwtAuthGuard` MUST skip non-HTTP contexts (`context.getType() !== "http"`) so it does not intercept MCP. Tool `inputSchema` MUST be a Zod object the MCP SDK accepts so validation does not throw before the handler. Insufficient scope MUST be the MCP `insufficient_scope` error
+- `@casl/ability` 7.1.3 does not export `PureAbility`. `createPrismaAbility` is overloaded, so the compiling type is `ReturnType<typeof createAppAbility>` where `createAppAbility` calls `createPrismaAbility<[string, string]>([])`
+- `QueryClient` is imported from `@tanstack/query-core` (the `.d.ts` of `@tanstack/react-query` re-exports hooks, not the class). `stockFeatures` and `createCoreRowModel` are imported from `@tanstack/table-core`
+- The CASL checker accepts `permissions.ts` and `*.permissions.ts`
+- Playwright `webServer.url` MUST be a GET that returns 2xx. The API pattern includes `GET /api/v1/health`. E2E global setup truncates the e2e database and the servers bind free ports
+- `/speckit.analyze` does not commit. When the repo is born empty, specify and clarify commits are the first commits and they live on the feature branch
+
+### Compilable reference snippets
+
+These fences are extracted and typechecked against the skeleton lockfile. Keep them complete.
+
+```typescript
+import { defineConfig } from "prisma/config";
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  datasource: {
+    url: process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+  },
+  migrations: {
+    seed: "node --import tsx prisma/seed.ts",
+  },
+});
+```
+
+```typescript
+import { Injectable, type CanActivate, type ExecutionContext } from "@nestjs/common";
+
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    if (context.getType() !== "http") {
+      return true;
+    }
+    return false;
+  }
+}
+```
+
+```typescript
+import { createPrismaAbility } from "@casl/prisma";
+
+export function createAppAbility() {
+  return createPrismaAbility<[string, string]>([]);
+}
+
+export type AppAbility = ReturnType<typeof createAppAbility>;
+```
+
+```typescript
+import { QueryClient } from "@tanstack/query-core";
+import { stockFeatures } from "@tanstack/table-core";
+
+export const queryClient = new QueryClient();
+export const features = { ...stockFeatures };
+```
 
 ### Node.js Active LTS
 
@@ -34,7 +96,7 @@ Node MUST be the current Active LTS, resolved at generation and analysis time. T
 - `engines.node` MUST be `>=<that major>`; `@types/node`, CI, Docker, and the README MUST use the same major
 - Example only, as of 2026-11-13: exact `26.13.1` (Lithium), `engines` `>=26`. Node 22 is Maintenance. The rule is the index, not a hardcoded `26`
 - Resolve with: `curl -s https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const hit=JSON.parse(s).find(e=>e.lts!==false);if(!hit){console.error("no Active LTS");process.exit(1)}const exact=hit.version.replace(/^v/,"");console.log(exact);console.log(exact.split(".")[0])})'`
-- Node 25+ does not bundle Corepack. Setup MUST be `npm i -g corepack@latest && corepack enable` (or install the exact `pnpm@X.Y.Z` globally). `packageManager: pnpm@X.Y.Z` stays an exact pin
+- Node 25+ does not bundle Corepack. Do not install it under `/usr`. Linux and macOS: `npm config set prefix ~/.local` and prepend `~/.local/bin` to `PATH`, or use nvm. Windows: nvm-windows, or `npm config set prefix %USERPROFILE%\\.local` and add that directory to the user PATH. Then `npm i -g corepack@latest && corepack enable` (or install the exact `pnpm@X.Y.Z` globally with that prefix). `packageManager: pnpm@X.Y.Z` stays an exact pin
 - `/speckit.analyze` runs before implement and is read-only. A missing `.nvmrc` is **not** by itself CRITICAL. Analyze MUST mark **CRITICAL** when `tasks.md` has no setup task that creates `.nvmrc` with the exact index-resolved Active LTS version. When `.nvmrc` already exists, a major that differs from that Active LTS is **CRITICAL**
 - Prisma 7.x stable `engines.node` is `^20.19 || ^22.12 || >=24.0` (verified on the latest 7.x stable, not a Prisma 8 prerelease). The Active LTS major is inside that range. The CLI still prints a warning for majors above 24 (including Node 26) and does not exit. That warning is a known exception and MUST NOT block install, verify, or CI. Do not pin an older LTS to hide it
 

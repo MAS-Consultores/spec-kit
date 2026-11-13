@@ -304,14 +304,6 @@ def test_create_new_feature_creates_branch_files_and_failure_writes_nothing(tmp_
     assert branch.endswith("user-login")
     assert (repo / "specs" / branch / "spec.md").is_file()
     assert specify_may_continue(script_exit_code=ok.returncode)
-    checkout = subprocess.run(
-        ["git", "checkout", "-b", branch],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert checkout.returncode == 0, checkout.stderr
     head = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo,

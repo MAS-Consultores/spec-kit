@@ -3,6 +3,20 @@ description: NestJS + React analysis checks on top of core analyze.
 strategy: wrap
 ---
 
+## Read-only phase
+
+`/speckit.analyze` is read-only. It does not create a commit, does not amend,
+and does not change the branch. A repository that was born empty keeps the
+specify/clarify commits on the feature branch; analyze does not add another
+commit and does not create `main`.
+
+## Copy the reference skeleton
+
+Plan, tasks, and implement copy patterns from `.specify/reference/` (installed
+by `specify init --stack nestjs-react`) and adapt them. Do not reinvent Prisma
+config, auth, CASL, MCP, shadcn, or Playwright setup when that tree already
+shows a working version.
+
 ## NestJS + React Analysis Requirements
 
 After the core analysis, read `.specify/memory/stack-context.md` and `tasks.md`.

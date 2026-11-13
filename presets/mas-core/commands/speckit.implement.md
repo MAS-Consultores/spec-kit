@@ -5,11 +5,15 @@ strategy: wrap
 
 ## MAS Feature Branch Check
 
-Before implementing, verify the git branch. Read `.specify/feature.json` and require
-`feature_directory`. `git rev-parse --abbrev-ref HEAD` must equal the basename of
-that directory. If the directory is missing, HEAD is `main` or `master`, or the
-names differ, return `HARD_FAIL` and stop. Do not create a branch here and do not
-implement on `main`.
+Before implementing, run the branch gate and stop when it exits 1. Do not
+implement on `main` or `master`, and do not create a branch here.
+
+- Bash: `.specify/scripts/bash/ensure-feature-branch.sh`
+- PowerShell: `.specify/scripts/powershell/ensure-feature-branch.ps1`
+
+The script exits 1 when HEAD is `main`, `master`, detached, or not a
+`NNN-short-name` feature branch, and when `.specify/feature.json` names a
+directory whose basename is not HEAD. That exit is `HARD_FAIL`.
 
 ## MAS Local Merge To Main
 

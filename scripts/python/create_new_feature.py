@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -440,6 +441,35 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"# To persist: {feature_assignment}", file=sys.stderr)
         print(f"#              {directory_assignment}", file=sys.stderr)
+
+        exists = subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+            cwd=repo_root,
+            check=False,
+        )
+        checkout = subprocess.run(
+            ["git", "checkout", "--quiet", branch_name]
+            if exists.returncode == 0
+            else ["git", "checkout", "--quiet", "-b", branch_name],
+            cwd=repo_root,
+            check=False,
+        )
+        if checkout.returncode != 0:
+            return checkout.returncode
+        head = subprocess.run(
+            ["git", "symbolic-ref", "--quiet", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        head_ref = head.stdout.strip()
+        if head_ref != f"refs/heads/{branch_name}":
+            print(
+                f"ERROR: HEAD is '{head_ref}', expected refs/heads/{branch_name}",
+                file=sys.stderr,
+            )
+            return 1
 
     if args.json_mode:
         payload: dict[str, object] = {

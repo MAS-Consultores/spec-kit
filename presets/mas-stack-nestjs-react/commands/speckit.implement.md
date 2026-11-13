@@ -3,6 +3,12 @@ description: NestJS + React completion gate on top of MAS implement.
 strategy: wrap
 ---
 
+## Reference skeleton
+
+Implement by copying `.specify/reference/` and adapting it to the feature.
+Do not recreate auth, Prisma, MCP, shadcn, or the Playwright health check
+from memory when that tree is present.
+
 ## NestJS + React completion gate
 
 Do not declare the feature finished, and do not merge, until these suites have been executed and their output is in the report:

@@ -470,6 +470,20 @@ if [ "$DRY_RUN" != true ]; then
     # Inform the user how to set feature state in their own shell
     printf '# To persist: export SPECIFY_FEATURE=%s\n' "$(shell_quote "$BRANCH_NAME")" >&2
     printf '#              export SPECIFY_FEATURE_DIRECTORY=%s\n' "$(shell_quote "$FEATURE_DIR")" >&2
+
+    # Leave HEAD on the feature branch. `git checkout -b` also works when the
+    # repository has no commits yet (HEAD is a symbolic ref and no branch
+    # object exists). An empty initial commit is unnecessary.
+    if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+        git checkout --quiet "$BRANCH_NAME"
+    else
+        git checkout --quiet -b "$BRANCH_NAME"
+    fi
+    head_ref="$(git symbolic-ref --quiet HEAD || true)"
+    if [ "$head_ref" != "refs/heads/$BRANCH_NAME" ]; then
+        echo "ERROR: HEAD is '$head_ref', expected refs/heads/$BRANCH_NAME" >&2
+        exit 1
+    fi
 fi
 
 if $JSON_MODE; then

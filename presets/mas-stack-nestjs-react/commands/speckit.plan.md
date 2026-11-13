@@ -3,6 +3,26 @@ description: NestJS + React planning requirements on top of MAS planning.
 strategy: wrap
 ---
 
+## Reference skeleton
+
+Copy and adapt `.specify/reference/` (the canonical NestJS + React monorepo),
+including its `package.json` files and `pnpm-lock.yaml`. Do not invent a second
+Prisma, auth, MCP, or shadcn layout and do not resolve new versions.
+
+```typescript
+import { defineConfig } from "prisma/config";
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  datasource: {
+    url: process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+  },
+  migrations: {
+    seed: "node --import tsx prisma/seed.ts",
+  },
+});
+```
+
 ## NestJS + React Planning Requirements
 
 Resolve contradictions between `spec.md` and `.specify/memory/stack-context.md` inside `MAS Stack Validation` before writing design artifacts.

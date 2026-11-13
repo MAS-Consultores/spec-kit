@@ -3,6 +3,12 @@ description: NestJS + React task requirements on top of MAS task generation.
 strategy: wrap
 ---
 
+## Reference skeleton
+
+Tasks that create the monorepo MUST start from `.specify/reference/` and adapt
+it. Do not schedule a from-scratch rewrite of patterns that directory already
+contains.
+
 ## NestJS + React Task Requirements
 
 Read `.specify/memory/stack-context.md` and apply every item under "Mandatory Auth Phase", "pnpm verify tasks", and "Mandatory Setup Tasks".

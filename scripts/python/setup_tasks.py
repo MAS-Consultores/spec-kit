@@ -148,6 +148,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
+    tasks_file = paths.feature_dir / "tasks.md"
+    if not tasks_file.is_file():
+        tasks_file.write_text(
+            tasks_template_content
+            if tasks_template_content.endswith("\n")
+            else tasks_template_content + "\n",
+            encoding="utf-8",
+        )
+
     if json_mode:
         tasks_template = resolve_template("tasks-template", paths.repo_root)
         sys.stdout.write(

@@ -421,9 +421,22 @@ def install_mas_stack_presets(project_path: Path, mas_stack: MasStack) -> None:
         bundled_path = _locate_bundled_preset(preset_id)
         if bundled_path is None:
             raise RuntimeError(f"Bundled MAS preset '{preset_id}' was not found")
-        if manager.registry.is_installed(preset_id):
-            continue
-        manager.install_from_directory(bundled_path, speckit_ver, priority=priority)
+        if not manager.registry.is_installed(preset_id):
+            manager.install_from_directory(bundled_path, speckit_ver, priority=priority)
+        reference = bundled_path / "reference"
+        if not reference.is_dir():
+            from ._assets import _repo_root
+
+            alt = _repo_root() / "presets" / preset_id / "reference"
+            if alt.is_dir():
+                reference = alt
+        if reference.is_dir():
+            import shutil
+
+            dest = project_path / ".specify" / "reference"
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(reference, dest)
 
 
 def ensure_constitution_from_template(project_path: Path, tracker: StepTracker | None = None) -> None:

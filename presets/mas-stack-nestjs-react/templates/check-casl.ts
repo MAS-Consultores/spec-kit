@@ -163,7 +163,8 @@ if (!existsSync(ROOT)) {
 for (const file of filesUnder(ROOT)) {
   const text = readFileSync(file, "utf8");
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  if (file.endsWith(".permissions.ts")) {
+  const baseName = file.split(/[/\\]/).pop() ?? "";
+  if (baseName === "permissions.ts" || baseName.endsWith(".permissions.ts")) {
     for (const action of manifestActions(file, source)) {
       const permission = `${action.category}:${action.code}`;
       declared.add(permission);

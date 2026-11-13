@@ -22,4 +22,11 @@ Apply these rules throughout:
 If `.specify/memory/language-policy.md` is missing, default to `artifact_language: en`
 and `product_locale: es-ES`.
 
+## Empty repository commits
+
+`/speckit.clarify` commits spec updates on the current feature branch. When the
+repository was born empty, that branch (created by `create-new-feature`) holds
+the only commits. `main` may still not exist. Do not move those commits onto
+`main` during clarify. `/speckit.analyze` is read-only and does not commit.
+
 {CORE_TEMPLATE}

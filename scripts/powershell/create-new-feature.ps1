@@ -334,6 +334,20 @@ if (-not $DryRun) {
     $directoryAssignment = '$env:SPECIFY_FEATURE_DIRECTORY = ' + $quotedFeatureDir
     [Console]::Error.WriteLine("# To persist: $featureAssignment")
     [Console]::Error.WriteLine("#              $directoryAssignment")
+
+    # Leave HEAD on the feature branch, including a repo with no commits.
+    git show-ref --verify --quiet "refs/heads/$branchName"
+    if ($LASTEXITCODE -eq 0) {
+        git checkout --quiet $branchName
+    } else {
+        git checkout --quiet -b $branchName
+    }
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $headRef = git symbolic-ref --quiet HEAD
+    if ($headRef -ne "refs/heads/$branchName") {
+        [Console]::Error.WriteLine("ERROR: HEAD is '$headRef', expected refs/heads/$branchName")
+        exit 1
+    }
 }
 
 if ($Json) {
