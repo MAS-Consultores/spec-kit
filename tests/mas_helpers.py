@@ -1,7 +1,6 @@
 """Explicit inventory added by offline NestJS MAS initialization."""
 
 MAS_INIT_FILES = (
-    '.gitignore',
     '.specify/memory/language-policy.md',
     '.specify/memory/security-guidelines.md',
     '.specify/memory/stack-context.md',

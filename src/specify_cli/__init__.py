@@ -478,40 +478,21 @@ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker |
 
 
 def ensure_specify_gitignored(project_path: Path, tracker: StepTracker | None = None) -> None:
-    """Ensure generated Spec Kit state is ignored by git."""
-    from .integrations._file_changes import before_file_change, after_file_change
+    """Ensure machine-local Spec Kit state is ignored by git.
 
-    gitignore = project_path / ".gitignore"
-    entry = ".specify/"
+    Rather than ignoring all of ``.specify/``, we rely on the nested
+    ``.specify/.gitignore`` (written by ``install_shared_infra``) to
+    selectively ignore machine-local state while allowing versioned
+    files like ``memory/``, ``templates/``, and ``feature.json`` to be
+    tracked.
 
-    try:
-        if gitignore.exists():
-            content = gitignore.read_text(encoding="utf-8")
-            lines = content.splitlines()
-            if any(line.strip() == entry for line in lines):
-                if tracker:
-                    tracker.complete("gitignore", "already ignored")
-                return
-
-            separator = "" if content == "" or content.endswith(("\n", "\r")) else "\n"
-            before_file_change(gitignore)
-            gitignore.write_text(f"{content}{separator}{entry}\n", encoding="utf-8")
-            detail = "updated"
-        else:
-            before_file_change(gitignore)
-            gitignore.write_text(f"{entry}\n", encoding="utf-8")
-            detail = "created"
-
-        after_file_change(gitignore)
-        if tracker:
-            tracker.complete("gitignore", detail)
-        else:
-            console.print(f"[cyan]{detail.capitalize()} .gitignore with .specify/[/cyan]")
-    except Exception as e:
-        if tracker:
-            tracker.error("gitignore", str(e))
-        else:
-            console.print(f"[yellow]Warning: Could not update .gitignore: {e}[/yellow]")
+    This function is now a no-op but kept for API compatibility. The
+    actual gitignore rules live in ``SPECIFY_GITIGNORE_CONTENT`` and are
+    written to ``.specify/.gitignore`` during init.
+    """
+    if tracker:
+        tracker.complete("gitignore", "handled by .specify/.gitignore")
+    return
 
 
 # ===== Root Commands =====

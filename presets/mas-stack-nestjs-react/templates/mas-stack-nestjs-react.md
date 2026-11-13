@@ -5,6 +5,45 @@ monorepo projects. The stack produces a decoupled architecture with `apps/api`
 (NestJS + Prisma + PostgreSQL) and `apps/web` (React + Vite + TypeScript)
 communicating over HTTP.
 
+## Getting Started
+
+Initialize a new project with the NestJS + React stack. You MUST specify the
+`--integration` flag — without it, your coding tool is not configured.
+
+### Cursor
+
+```bash
+specify init . --stack nestjs-react --integration cursor-agent
+```
+
+- **Key**: `cursor-agent` (not `cursor`)
+- **Skills location**: `.cursor/skills/speckit-*/SKILL.md`
+- **Invocation**: `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, etc.
+- Run commands from Cursor's chat panel, not the terminal.
+
+### Codex CLI
+
+```bash
+specify init . --stack nestjs-react --integration codex
+```
+
+- **Key**: `codex`
+- **Skills location**: `.agents/skills/speckit-*/SKILL.md`
+- **Invocation**: `$speckit-specify`, `$speckit-plan`, `$speckit-tasks`, etc.
+  (dollar prefix)
+- Run commands from Codex's chat interface.
+
+### Claude Code
+
+```bash
+specify init . --stack nestjs-react --integration claude
+```
+
+- **Key**: `claude`
+- **Skills location**: `.claude/skills/speckit-*/SKILL.md`
+- **Invocation**: `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, etc.
+- Run commands from Claude Code's chat panel.
+
 ## Architecture Overview
 
 - **`apps/api`**: NestJS backend with Prisma ORM, PostgreSQL database, REST API
