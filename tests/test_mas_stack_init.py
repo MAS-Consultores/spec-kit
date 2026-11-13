@@ -967,3 +967,33 @@ def test_nestjs_react_requires_tailwind_source_directive(tmp_path):
     # Check Playwright style verification is documented
     assert "computed" in stack_context.lower() or "getComputedStyle" in stack_context, \
         "stack-context.md must require Playwright style verification"
+
+
+def test_nestjs_react_prisma_esm_config_and_no_import_fixing_scripts(tmp_path):
+    """Test that nestjs-react stack requires correct Prisma ESM config and prohibits import-fixing scripts."""
+    project = tmp_path / "prisma-esm"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    stack_context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+
+    # Check Prisma generator config requirements
+    assert "importFileExtension" in stack_context, "stack-context.md must require importFileExtension in Prisma generator"
+    assert 'moduleFormat = "esm"' in stack_context or "moduleFormat" in stack_context, \
+        "stack-context.md must require moduleFormat esm"
+    assert 'provider = "prisma-client"' in stack_context or "prisma-client" in stack_context, \
+        "stack-context.md must require prisma-client provider"
+
+    # Check prohibition of import-fixing scripts
+    assert "fix" in stack_context.lower() and "import" in stack_context.lower(), \
+        "stack-context.md must mention prohibition of import-fixing scripts"
+    assert "PROHIBITED" in stack_context or "prohibited" in stack_context.lower(), \
+        "stack-context.md must explicitly prohibit import-fixing scripts"
+
+    # Check dev script requirements
+    assert "nest start --watch" in stack_context, "stack-context.md must require nest start --watch for dev"
+    assert "nest build" in stack_context, "stack-context.md must document nest build"
