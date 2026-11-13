@@ -1,4 +1,5 @@
 node_modules
+.cursor
 .snippet-check
 apps/*/.snippet-check
 dist
