@@ -79,7 +79,7 @@ proyecto/
 
 | Componente | Decisión | Justificación |
 |------------|----------|---------------|
-| **Runtime** | Node.js LTS vigente | `engines` + `.nvmrc`; Docker `node:<LTS>-alpine@sha256:…` (nunca `lts` flotante) |
+| **Runtime** | Node.js Active LTS resuelto en el momento | Única fuente: `https://nodejs.org/dist/index.json` (primera entrada con `lts` distinto de `false`). `.nvmrc` = versión exacta; `engines`/`@types/node`/CI/Docker/README = ese major. Ejemplo al 2026-11-13: `26.13.1` / `>=26` (Lithium); Node 22 es Maintenance. Nunca Current/impar/alpha ni una versión de memoria. Docker `node:<major>-alpine@sha256:…` |
 | **Package Manager** | pnpm (versión exacta en `packageManager`) | Workspaces, frozen-lockfile, workspace protocol |
 | **Framework Backend** | NestJS 12.x (última estable) | Requerido por `@nestjs/mcp` (peer `^12`); ESM-only |
 | **ORM** | Prisma 7.x estable | `prisma` y `@prisma/client` misma versión exacta |
@@ -434,7 +434,7 @@ packages:
 // package.json (root)
 {
   "packageManager": "pnpm@<versión estable exacta, p.ej. 12.18.0>",
-  "engines": { "node": ">=<Node LTS vigente, p.ej. 26>" },
+  "engines": { "node": ">=<major Active LTS del index, p.ej. al 2026-11-13: >=26>" },
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
@@ -498,7 +498,12 @@ Paquetes internos se referencian con protocolo workspace:
 - Al crear el proyecto se instala la **última versión ESTABLE** de cada paquete; nunca beta/rc/canary/next/dev.
 - El dist-tag `latest` de npm **puede apuntar a una prerelease** (p.ej. `prisma` → `8.0.0-rc.33`): verificar
   siempre que la versión no tenga sufijo `-rc`/`-beta`/`-alpha`/`-dev`/`-canary` antes de instalarla.
-- Versiones exactas fijadas por `pnpm-lock.yaml`, `packageManager` (pnpm exacto) y `engines`/`.nvmrc` (Node LTS vigente).
+- Versiones exactas fijadas por `pnpm-lock.yaml`, `packageManager` (pnpm exacto) y Node Active LTS.
+- Node: única fuente `https://nodejs.org/dist/index.json`. Algoritmo: entradas con `lts` distinto de `false`; la de mayor semver (el archivo va de más nuevo a más viejo, así que es la primera). Esa `version` (sin `v`) va a `.nvmrc`; su major va a `engines.node` (`>=<major>`), `@types/node`, CI, Docker y el README. No usar memoria, páginas en prosa de nodejs.org, Current, impares ni alpha/beta/rc. Ejemplo al 2026-11-13: `26.13.1` y `>=26`; Node 22 es Maintenance. La regla es el índice, no un `26` fijo.
+- One-liner: `curl -s https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const hit=JSON.parse(s).find(e=>e.lts!==false);if(!hit){console.error("no Active LTS");process.exit(1)}const exact=hit.version.replace(/^v/,"");console.log(exact);console.log(exact.split(".")[0])})'`
+- Equivalente jq: `curl -s https://nodejs.org/dist/index.json | jq -r 'first(.[] | select(.lts != false)) | .version | ltrimstr("v")'`
+- Node 25+ no incluye Corepack (el tarball `node-v26.13.1` no tiene `bin/corepack`; el de v24 sí). Setup: `npm i -g corepack@latest && corepack enable` (alternativa: instalar globalmente el `pnpm@X.Y.Z` exacto). `packageManager` sigue fijado.
+- `/speckit.analyze` marca **CRITICAL** (no warning) si falta `.nvmrc` o si el major de Node no es el Active LTS resuelto con ese índice.
 - Renovate mantiene todo en la última estable, sin prereleases; los saltos de major llegan como PR con revisión.
 - Conflictos de peers: elegir el conjunto estable más nuevo mutuamente compatible y documentar la excepción en
   `pnpm.peerDependencyRules.allowedVersions`, cubierta por un smoke test en CI (`ZodValidationPipe`,

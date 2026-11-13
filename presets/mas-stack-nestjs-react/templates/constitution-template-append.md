@@ -21,6 +21,17 @@ Always use the latest stable release, never prereleases:
 - TypeScript MAY be pinned below absolute latest when `typescript-eslint`'s peer range requires it: use the highest stable TypeScript that satisfies that peer, and document the exception
 - `prisma` and `@prisma/client` MUST be the same exact Prisma 7.x stable version
 
+### Node.js Active LTS
+
+Node MUST be the current Active LTS, resolved at generation and analysis time. The single source of truth is `https://nodejs.org/dist/index.json`:
+- Algorithm: entries whose `lts` is not `false`, then the highest semver. The file is newest-first, so that is the first such entry. Not from memory, not from nodejs.org prose pages, never odd/Current/alpha/beta/rc
+- `.nvmrc` MUST exist and MUST contain that exact version (strip the leading `v`)
+- `engines.node` MUST be `>=<that major>`; `@types/node`, CI, Docker, and the README MUST use the same major
+- Example only, as of 2026-11-13: exact `26.13.1` (Lithium), `engines` `>=26`. Node 22 is Maintenance. The rule is the index, not a hardcoded `26`
+- Resolve with: `curl -s https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const hit=JSON.parse(s).find(e=>e.lts!==false);if(!hit){console.error("no Active LTS");process.exit(1)}const exact=hit.version.replace(/^v/,"");console.log(exact);console.log(exact.split(".")[0])})'`
+- Node 25+ does not bundle Corepack. Setup MUST be `npm i -g corepack@latest && corepack enable` (or install the exact `pnpm@X.Y.Z` globally). `packageManager: pnpm@X.Y.Z` stays an exact pin
+- `/speckit.analyze` MUST mark a missing `.nvmrc`, or a Node major different from that index-resolved Active LTS, as **CRITICAL**
+
 ### Real Tests and Hard Gates
 
 Tests MUST exercise real production code; gates MUST pass before merge:

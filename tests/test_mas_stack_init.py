@@ -1108,6 +1108,41 @@ def test_nestjs_react_closes_demo2_framework_gaps(tmp_path):
     assert "insufficient" not in analyze_skill or "routeTree" in analyze_skill
 
 
+def test_nestjs_react_pins_active_lts_from_nodejs_index(tmp_path):
+    """Node is the Active LTS from index.json; a missing .nvmrc is CRITICAL."""
+    project = tmp_path / "node-lts"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    analyze_skill = (project / ".agents" / "skills" / "speckit-analyze" / "SKILL.md").read_text(encoding="utf-8")
+    tasks_skill = (project / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "https://nodejs.org/dist/index.json" in context
+    assert "first" in context and "lts" in context
+    assert ".nvmrc" in context
+    assert "npm i -g corepack@latest && corepack enable" in context
+    assert "node:22" not in context
+    assert "26.13.1" in context
+    assert "not a hardcoded `26`" in context
+
+    assert "index.json" in constitution
+    assert ".nvmrc" in constitution
+    assert "corepack@latest" in constitution
+
+    assert "CRITICAL" in analyze_skill
+    assert ".nvmrc" in analyze_skill
+    assert "not a warning" in analyze_skill
+    assert "index.json" in analyze_skill
+    assert "26.13.1" in tasks_skill
+    assert "corepack@latest" in tasks_skill
+
+
 def test_init_force_explains_git_merge(tmp_path, monkeypatch):
     project = tmp_path / "with-git"
     project.mkdir()

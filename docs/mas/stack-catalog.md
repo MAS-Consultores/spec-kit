@@ -379,7 +379,8 @@ OpenAPI.
 - Monorepo structure: `apps/api` for NestJS backend, `apps/web` for React frontend.
 - `packages/contracts` for shared Zod schemas (the ONLY coupling between API and Web).
 - `packages/ui` for shared shadcn/ui components.
-- **pnpm** is the package manager: `pnpm-workspace.yaml` with `apps/*` and `packages/*`, `pnpm-lock.yaml` committed, `packageManager` field in root `package.json` + Corepack, `pnpm install --frozen-lockfile` in CI, workspace protocol (`workspace:*`) for internal packages. No npm or yarn lockfiles.
+- **pnpm** is the package manager: `pnpm-workspace.yaml` with `apps/*` and `packages/*`, `pnpm-lock.yaml` committed, exact `packageManager: 'pnpm@X.Y.Z'`, `pnpm install --frozen-lockfile` in CI, workspace protocol (`workspace:*`) for internal packages. Node 25+ does not bundle Corepack: `npm i -g corepack@latest && corepack enable` (or install that exact `pnpm@X.Y.Z` globally). No npm or yarn lockfiles.
+- **Node.js** is the current Active LTS from `https://nodejs.org/dist/index.json` only (first entry whose `lts` is not false). `.nvmrc` holds that exact version; `engines.node`, `@types/node`, CI, Docker, and the README use that major. As of 2026-11-13 the example is `26.13.1` / `>=26` (Lithium); Node 22 is Maintenance. Never odd/Current/alpha, and never a version from memory. `/speckit.analyze` flags a missing `.nvmrc` or a different major as CRITICAL.
 - NestJS with Express adapter is the API boundary; Prisma ORM is the exclusive data access layer.
 - PostgreSQL is the database; schema changes require `prisma migrate` with reviewed migration files.
 - Authentication uses HttpOnly cookies with CSRF protection; no JWT storage in localStorage.
@@ -520,7 +521,7 @@ OpenAPI.
 **Monorepo Root:**
 
 - `pnpm-workspace.yaml` with `apps/*` and `packages/*`; `pnpm-lock.yaml` committed.
-- Root `package.json` with exact `packageManager: 'pnpm@X.Y.Z'` (latest stable) and `engines`/`.nvmrc` on current Node LTS.
+- Root `package.json` with exact `packageManager: 'pnpm@X.Y.Z'` (latest stable) and `engines.node` `>=<Active LTS major>`. Mandatory `.nvmrc` with the exact version from `https://nodejs.org/dist/index.json` (first entry whose `lts` is not false). Same major in `@types/node`, CI, and Docker. Corepack: `npm i -g corepack@latest && corepack enable` (Node 25+ does not bundle it).
 - Shared TypeScript configuration and ESLint with boundary rules.
 - CI: `pnpm install --frozen-lockfile`, `madge --circular`, `openapi-diff`, `pnpm audit`.
 
