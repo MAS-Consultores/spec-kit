@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -400,7 +399,7 @@ def test_init_with_skip_external_skills_no_npx(tmp_path, monkeypatch):
             "moodle5-plugin",
             "--skip-external-skills",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -468,7 +467,7 @@ def test_init_external_skills_metadata_with_mock_npx(tmp_path, monkeypatch):
             "--stack",
             "laravel-inertia-react",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -524,7 +523,7 @@ def test_init_laravel_stack_external_skills_cursor_sync(tmp_path, monkeypatch):
             "--stack",
             "laravel-inertia-react",
             "--ignore-agent-tools",
-            "--no-git",
+            "--non-interactive",
             "--script",
             "sh",
         ],

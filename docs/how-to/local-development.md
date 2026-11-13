@@ -34,6 +34,26 @@ dependencies. The explicit editable install targets that same environment.
 Python source edits require no reinstall; rerun setup when dependency metadata
 changes.
 
+### Python used by generated PowerShell scripts
+
+The CLI runs in its installed Python environment, but generated PowerShell scripts
+resolve their own interpreter when composing preset templates. They need Python 3
+with PyYAML to read `preset.yml`. The resolver probes the configured override, then
+`python3`, `python`, and `py -3`; an unusable candidate is skipped.
+
+On Windows, a `python3` command may be a WindowsApps execution alias even when a
+working virtualenv provides `python.exe`. To select this checkout's interpreter
+explicitly, run this from the checkout root before entering the generated project:
+
+```powershell
+$env:SPECKIT_PYTHON_EXECUTABLE = (Resolve-Path .venv\Scripts\python.exe).Path
+```
+
+This setting lasts for the current shell session and does not replace a global CLI.
+The older `SPECKIT_PYTHON` variable remains a fallback name for the override.
+Manifest errors include the parser's diagnostic and exit code; a Python process
+failure is reported separately from an invalid manifest.
+
 ## 2. Run Focused Automated Checks
 
 Start with the tests covering your change, using actual test paths in place of

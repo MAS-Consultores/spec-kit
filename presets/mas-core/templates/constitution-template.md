@@ -7,11 +7,11 @@
 - Every feature MUST identify its actors, permissions, sensitive data, privacy
   obligations, and abuse or failure paths before implementation begins.
 
-# Security Standard (Stack-Agnostic)
+#### Security Standard (Stack-Agnostic)
 
 This document defines cross-stack security expectations aligned with OWASP ASVS Level 2 and the OWASP Top 10. Stack-specific constraints and security guidance are materialized in `.specify/memory/stack.md`, `.specify/memory/security-guidelines.md`, and `.specify/memory/stack-context.md` when a project stack is registered via `specify init --stack`.
 
-## 1. Authentication and Identity Lifecycle
+##### 1. Authentication and Identity Lifecycle
 
 **MUST**
 
@@ -28,7 +28,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - List of authentication flows touched, MFA policy for affected roles, and password-storage approach.
 
-## 2. Authorization and Access Control
+##### 2. Authorization and Access Control
 
 **MUST**
 
@@ -44,7 +44,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Capability or role matrix for the feature, denial-path QA notes.
 
-## 3. Session and Cookie Management
+##### 3. Session and Cookie Management
 
 **MUST**
 
@@ -59,7 +59,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Session and cookie configuration notes for each environment.
 
-## 4. Cryptography
+##### 4. Cryptography
 
 **MUST**
 
@@ -74,7 +74,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Algorithms, libraries, and key-handling summary for the change.
 
-## 5. Secrets and Configuration Management
+##### 5. Secrets and Configuration Management
 
 **MUST**
 
@@ -85,7 +85,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Confirmation that no secrets were added to tracked files or logs.
 
-## 6. Input Validation and Output Encoding
+##### 6. Input Validation and Output Encoding
 
 **MUST**
 
@@ -98,7 +98,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Validation rules, encoding approach, and CSRF strategy for new or changed surfaces.
 
-## 7. File Upload and File Handling
+##### 7. File Upload and File Handling
 
 **MUST**
 
@@ -109,7 +109,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Upload pipeline description and access checks for downloads.
 
-## 8. HTTP Security Headers and CORS
+##### 8. HTTP Security Headers and CORS
 
 **MUST**
 
@@ -120,7 +120,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Header configuration source (middleware, reverse proxy, or platform).
 
-## 9. API Security and Rate Limiting
+##### 9. API Security and Rate Limiting
 
 **MUST**
 
@@ -131,7 +131,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Throttle or limiter configuration and test notes.
 
-## 10. Logging, Monitoring, and Audit
+##### 10. Logging, Monitoring, and Audit
 
 **MUST**
 
@@ -142,7 +142,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Log and audit event list for the feature.
 
-## 11. Dependency and Supply Chain
+##### 11. Dependency and Supply Chain
 
 **MUST**
 
@@ -153,7 +153,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Audit tool output or ticket references for dependency updates.
 
-## 12. Privacy and Data Protection
+##### 12. Privacy and Data Protection
 
 **MUST**
 
@@ -164,7 +164,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Data classes touched, retention, and sanitization approach.
 
-## 13. Error Handling and Information Disclosure
+##### 13. Error Handling and Information Disclosure
 
 **MUST**
 
@@ -174,7 +174,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Production error-handling configuration for the change.
 
-## 14. Secure SDLC
+##### 14. Secure SDLC
 
 **MUST**
 
@@ -189,7 +189,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Threat notes or checklist, review record.
 
-## 15. Environment Hardening
+##### 15. Environment Hardening
 
 **MUST**
 
@@ -200,7 +200,7 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 
 - Environment-specific configuration checklist.
 
-## 16. Incident Response and Recovery
+##### 16. Incident Response and Recovery
 
 **MUST**
 

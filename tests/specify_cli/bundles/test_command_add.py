@@ -35,6 +35,8 @@ def test_add_forwards_refresh_default_without_refreshing(project: Path):
         offline=False,
         refresh=False,
         version=None,
+        mas_stack=None,
+        skip_external_skills=False,
     )
 
 
@@ -49,6 +51,8 @@ def test_add_forwards_version(project: Path):
         offline=False,
         refresh=False,
         version="1.1.0",
+        mas_stack=None,
+        skip_external_skills=False,
     )
 
 

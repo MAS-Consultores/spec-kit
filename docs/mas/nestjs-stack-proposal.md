@@ -29,7 +29,7 @@ Se eligió `nestjs-react` sobre alternativas como `nestjs-prisma-react` o
 
 ### Estructura de Monorepo Modular
 
-```
+```text
 proyecto/
 ├── apps/
 │   ├── api/                    # NestJS + TypeScript + Prisma + PostgreSQL
@@ -201,6 +201,7 @@ pnpm permissions:sync
 ```
 
 El script:
+
 - Upserta categorías y acciones sin modificar asignaciones de roles existentes
 - Marca permisos removidos como `deprecated` para revisión (no elimina)
 - Se ejecuta en deploy/seed
@@ -700,7 +701,6 @@ export const usuariosSearchSchema = z.object({
 - ❌ Ignorar errores RFC 9457 en frontend — mapear a form fields
 - ❌ Request schemas no-strict — usar `z.strictObject()`; los response schemas usan `z.object()` (strip)
 - ❌ Responses con `z.iso.datetime()` directo sobre un `Date` de Prisma — usar el codec `isoDateTime` + `createZodDto(..., { codec: true })`
-```
 
 ## REST API con OpenAPI Obligatorio
 
@@ -1715,7 +1715,18 @@ const rowVirtualizer = useVirtualizer({
 El stack incluye skills externos de:
 
 - **vercel-labs/agent-skills**: `vercel-react-best-practices` (React)
-- **HoangNguyen0403/agent-skills-standard**: `nestjs-architecture`, `nestjs-security` (NestJS)
+
+El manifiesto `presets/mas-stack-nestjs-react/stack-skills.yml` declara únicamente esa
+skill de React. Las skills internas MAS de NestJS siguen en desarrollo; no se instalan
+`nestjs-architecture` ni `nestjs-security`. El preset base `mas-core` añade por separado
+`find-skills` y `playwright-cli`.
+
+Los manifiestos actuales identifican repositorios y nombres, sin fijar commits, y el
+instalador invoca `npx skills` sin una versión fija. Por tanto, esta instalación externa
+no es reproducible de forma hermética. Para evaluar solo los recursos incluidos en la
+rama, usar `--skip-external-skills`; esto no valida la instalación de skills externas.
+Fijar revisiones requiere revisar los contenidos y comprobar la sintaxis de instalación
+contra una versión concreta del instalador; no sustituir fuentes por hashes no verificados.
 
 ## Reglas de Seguridad Implementadas
 
@@ -1750,6 +1761,7 @@ Al ejecutar `specify init --stack nestjs-react`, se generan:
 ### `.specify/memory/stack.md`
 
 Contiene:
+
 - ID canónico y display name
 - Propósito del stack
 - Fronteras fijas (monorepo, NestJS, Prisma, PostgreSQL, React)
@@ -1760,6 +1772,7 @@ Contiene:
 ### `.specify/memory/security-guidelines.md`
 
 Contiene:
+
 - Perfil de seguridad del stack
 - Controles de seguridad para API (14 controles)
 - Controles de seguridad para Frontend (5 controles)
@@ -1770,6 +1783,7 @@ Contiene:
 ### `.specify/memory/stack-context.md`
 
 Contiene:
+
 - Restricciones core (monorepo, TypeScript strict, etc.)
 - Riesgos típicos
 - Anti-patrones

@@ -54,10 +54,10 @@ descriptions stay out of its context.
   Claude: commands that install, remove or update presets (including `specify
   bundle` commands that carry presets), `specify integration use claude`, and
   `specify integration switch claude` when Claude is installed but not the
-  default. To reapply the option, run `specify integration upgrade claude
-  --force` while Claude is the default integration (`--force` is needed because
-  those commands modify installed skill files, and it overwrites local edits to
-  Spec Kit-managed files).
+  default. To reapply the option, run `specify integration upgrade claude`
+  while it is the default integration. Preset installation and removal refresh
+  hashes for previously unmodified managed files. Use `--force` only when you
+  intend to overwrite local edits to Spec Kit-managed files.
 
 ## Runtime Events and Workflow Dispatch
 

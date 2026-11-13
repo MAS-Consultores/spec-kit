@@ -22,3 +22,27 @@ def project_registration(handler):
             return handler(*args, **kwargs)
 
     return invoke
+
+
+def refresh_manifest_hashes(handler):
+    """Track successful preset writes without adopting pre-existing user edits."""
+    @wraps(handler)
+    def invoke(self, *args, **kwargs):
+        from ..integration_state import installed_integration_keys, try_read_integration_json
+        from ._helpers import _snapshot_manifest_before_registration, _resync_manifest_after_registration
+
+        state, _ = try_read_integration_json(self.project_root)
+        snapshots = {
+            key: _snapshot_manifest_before_registration(self.project_root, key)
+            for key in installed_integration_keys(state or {})
+        }
+        result = handler(self, *args, **kwargs)
+        for key, (manifest, unmodified) in snapshots.items():
+            if manifest is not None:
+                _resync_manifest_after_registration(
+                    manifest, key, unmodified_files=unmodified,
+                    continuing="Preset operation completed; manifest hashes may need manual refresh.",
+                )
+        return result
+
+    return invoke

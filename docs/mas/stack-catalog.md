@@ -479,6 +479,7 @@ OpenAPI.
 ### Modular Architecture
 
 **API (`apps/api`):**
+
 - One NestJS module per bounded context under `src/modules/<domain>/`
 - Each module: controller, service, Zod DTOs, MCP tools (optional), repository, tests, `index.ts` barrel
 - Modules export only their public API via `@Module({ exports })` and `index.ts` barrels
@@ -488,6 +489,7 @@ OpenAPI.
 - No module queries another domain's Prisma tables directly
 
 **Frontend (`apps/web`):**
+
 - Feature-based structure under `src/features/<domain>/`
 - **Router**: TanStack Router (type-safe routes, file-based, lazy-loaded)
 - **Server State**: TanStack Query (cache, mutations; query hooks per feature)
@@ -500,6 +502,7 @@ OpenAPI.
 - Each feature exposes public `index.ts`; no cross-feature deep imports
 
 **Enforcement:**
+
 - `eslint-plugin-boundaries` or `@nx/enforce-module-boundaries` for import rules
 - `madge --circular` in CI for cycles; `openapi-diff` for API changes
 
@@ -515,29 +518,34 @@ OpenAPI.
 ### Expected Artifacts
 
 **Monorepo Root:**
+
 - `pnpm-workspace.yaml` with `apps/*` and `packages/*`; `pnpm-lock.yaml` committed.
 - Root `package.json` with exact `packageManager: 'pnpm@X.Y.Z'` (latest stable) and `engines`/`.nvmrc` on current Node LTS.
 - Shared TypeScript configuration and ESLint with boundary rules.
 - CI: `pnpm install --frozen-lockfile`, `madge --circular`, `openapi-diff`, `pnpm audit`.
 
 **API (`apps/api`):**
+
 - Each domain as module under `src/modules/<domain>/` with controller, service, DTOs, repository, tests, and `index.ts` barrel.
 - Thin infrastructure modules: `PrismaModule`, `ConfigModule`, `AuthModule`.
 - Prisma schema (optionally multi-file per domain) and migrations; OpenAPI spec from `@nestjs/swagger`.
 - Vitest unit tests per module (NestJS 12 is ESM-only); e2e tests for cross-module flows; MCP via `connectMcpClient()` from `@nestjs/mcp/testing`.
 
 **Frontend (`apps/web`):**
+
 - Each domain as feature under `src/features/<domain>/` with components, hooks, api, routes, tests, and `index.ts` barrel.
 - shadcn/ui primitives in `packages/ui`; `src/shared/` holds only the app shell/layout; routes code-split via TanStack Router `autoCodeSplitting`.
 - Generated typed API client from OpenAPI spec.
 - Vitest + React Testing Library + MSW; Playwright E2E in `apps/web/e2e/`.
 
 **Contracts (`packages/contracts`):**
+
 - Shared TypeScript types and API contracts—the only coupling between API and Web.
 
 ### Preferred Practices
 
 **Architecture & DI:**
+
 - Organize by feature modules, not technical layers; each module: controller, service, DTOs, repository, tests together.
 - Avoid circular dependencies; use events (`@nestjs/event-emitter`) or shared modules instead of `forwardRef()`.
 - Single responsibility for services; avoid god services handling multiple concerns.
@@ -546,12 +554,14 @@ OpenAPI.
 - Never provide the same service in multiple modules; create a dedicated module that exports it.
 
 **Error Handling:**
+
 - Global exception filter for consistent RFC 9457 responses.
 - Throw NestJS HTTP exceptions from services; filter converts them.
 - Handle async errors properly: always `await` async operations.
 - Never swallow errors silently; log with context before converting to user-safe messages.
 
 **Performance & Database:**
+
 - Use caching strategically when needed; invalidate on writes. MAS manages caching strategies separately.
 - Lazy-load large feature modules using `LazyModuleLoader`.
 - Avoid N+1 queries: use Prisma's `include`/`select` with nested relations.
@@ -560,28 +570,33 @@ OpenAPI.
 - Index frequently queried columns.
 
 **REST API:**
+
 - Use `nestjs-zod` for all DTOs: `createZodDto(schema)` + global `ZodValidationPipe`.
 - OpenAPI from Zod schemas automatically; add `@ApiTags`, `@ApiOperation`, `@ApiResponse`.
 - URI versioning (`/api/v1`); `openapi-diff` in CI for breaking changes.
 - Use interceptors for cross-cutting concerns (logging, timing, transformation).
 
 **MCP:**
+
 - MCP tools in domain modules calling domain services, not Prisma directly.
 - `/mcp` authenticated as OAuth 2.1 resource server; same guards as REST.
 - Test with in-memory MCP client.
 
 **Testing:**
+
 - `Test.createTestingModule()` for unit tests; mock dependencies.
 - E2E tests with `supertest`; use separate test database.
 - Mock external services; never call real APIs in tests.
 
 **Frontend:**
+
 - TanStack Query for API state; query hooks per feature.
 - Zustand only for UI state; never server data.
 - React Hook Form + `zodResolver` with schemas from `packages/contracts`.
 - Feature routes lazy-loaded; no cross-feature deep imports.
 
 **Monorepo:**
+
 - `packages/contracts` for shared Zod schemas (only coupling API ↔ Web).
 - `madge --circular` in CI; `openapi-diff` for API contract changes.
 - `eslint-plugin-boundaries` or equivalent for import enforcement.
@@ -605,6 +620,7 @@ for UI visibility only—API always enforces authorization.
 ### `speckit-plan` Validation
 
 **General:**
+
 - Confirm monorepo structure with `apps/api` and `apps/web`.
 - Verify authentication uses HttpOnly cookies with CSRF protection.
 - Verify global `AuthGuard` and `@Public()` route marking.
@@ -614,6 +630,7 @@ for UI visibility only—API always enforces authorization.
 - Require test coverage for guards, services, and critical flows.
 
 **Validation:**
+
 - Confirm Zod v4.2+ as the ONLY validation library.
 - For each input (body, query, params, headers, MCP): confirm shared schema in `packages/contracts`.
 - Confirm backend validates with `nestjs-zod` + `ZodValidationPipe`; never skip validation.
@@ -625,12 +642,14 @@ for UI visibility only—API always enforces authorization.
 - Require validation tests: valid passes, invalid rejects with correct errors.
 
 **OpenAPI:**
+
 - Confirm `@nestjs/swagger` enabled with Zod integration.
 - Verify new endpoints have `@ApiTags`, `@ApiOperation`, documented responses (400/401/403/404/422).
 - Confirm `openapi.json` versioned in repo; require `openapi-diff` in CI.
 - Confirm typed frontend client generated from OpenAPI.
 
 **Pagination:**
+
 - For each list endpoint: confirm server-side pagination; no unbounded lists.
 - Confirm standard pagination Zod schema used and documented in OpenAPI.
 - Confirm default and max page size enforced.
@@ -639,12 +658,14 @@ for UI visibility only—API always enforces authorization.
 - For MCP list tools: confirm pagination with metadata in output.
 
 **MCP:**
+
 - If MCP tools added, confirm using `@nestjs/mcp` (official), NOT `@rekog/mcp-nest`.
 - Verify MCP tools call domain services, not Prisma directly.
 - Confirm `/mcp` has same auth as REST endpoints.
 - Verify MCP tools tested with in-memory client.
 
 **Authorization:**
+
 - For each endpoint and MCP tool: confirm required `category:action` permission declared via `@Can()`.
 - For each endpoint and MCP tool: document record-level conditions (tenant, owner, status) if applicable.
 - For each endpoint and MCP tool: document field-level read/write restrictions if applicable.
@@ -660,6 +681,7 @@ for UI visibility only—API always enforces authorization.
 - Confirm audit logging for all permission changes.
 
 **Soft Delete:**
+
 - Confirm models include `deletedAt DateTime?` (optionally `deletedBy String?` for audit).
 - Confirm Prisma Client extension intercepts `delete()` → soft delete, filters `deletedAt: null` by default.
 - Confirm explicit opt-in (`includeDeleted: true`) required to see deleted records.
@@ -669,6 +691,7 @@ for UI visibility only—API always enforces authorization.
 - Confirm cascades handled consistently (parent soft-delete → children soft-deleted or detached).
 
 **Auditing (Constitution-Level):**
+
 - Confirm `AuditModule` exists with append-only `AuditLog` table (no update/delete).
 - Confirm audit captures: userId, action, timestamp, entity, recordId, before/after (masked), origin, context.
 - Confirm audited actions: create, update, soft delete, restore, hard delete, permission changes, auth events, exports, MCP calls.
@@ -680,6 +703,7 @@ for UI visibility only—API always enforces authorization.
 - Reject features without audit trail—auditing is a constitution-level requirement.
 
 **Performance (Constitution-Level):**
+
 - For each query: confirm no N+1 patterns; relations loaded with `include`/`select` or batched.
 - For each query: confirm explicit `select`; reject loading full entities unnecessarily.
 - For each column in `WHERE`, `ORDER BY`, or relations: confirm index exists in migrations.
@@ -694,10 +718,12 @@ for UI visibility only—API always enforces authorization.
 - Note: stack does NOT mandate Redis/backend caching; MAS manages caching strategies.
 
 **General Authorization:**
+
 - Require tests for BOTH allowed and denied authorization cases.
 - Reject role-name checks in code; require `category:action` permission checks only.
 
 **Frontend Pagination and Lazy Loading:**
+
 - For each table: confirm server-side pagination/sorting/filtering with TanStack Table + Query.
 - Confirm page/sort/filter state in TanStack Router typed search params.
 - For infinite lists: confirm `useInfiniteQuery` with cursor-based pagination.
@@ -707,6 +733,7 @@ for UI visibility only—API always enforces authorization.
 - Confirm images use lazy loading.
 
 **Modularity Validation:**
+
 - Each new API feature must be a dedicated module under `src/modules/<domain>/` with documented public exports and dependencies.
 - Reject direct imports of another module's internals; require barrel imports only.
 - Reject `forwardRef()` usage; require events or refactoring.

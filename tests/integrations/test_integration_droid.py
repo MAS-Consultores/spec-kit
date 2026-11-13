@@ -485,12 +485,11 @@ class TestDroidNoModelInvocationOption:
         # preset commands start honouring the option.
         assert fm["disable-model-invocation"] is False
 
-        # The docs say ``--force`` is needed here: preset add modified
-        # installed skill files, so a plain upgrade refuses.
+        # Preset writes refresh managed hashes; a plain upgrade can reapply
+        # the option without treating generated content as a user edit.
         result = _run_in_project(project, ["integration", "upgrade", "droid"])
-        assert result.exit_code != 0
-        assert "modified since installation" in result.output
-        assert _skill_frontmatter(skill_file)["disable-model-invocation"] is False
+        assert result.exit_code == 0, result.output
+        assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("droid")._disable_model_invocation = False
         result = _run_in_project(project, ["integration", "upgrade", "droid", "--force"])

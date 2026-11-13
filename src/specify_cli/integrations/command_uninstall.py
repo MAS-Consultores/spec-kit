@@ -136,6 +136,7 @@ def integration_uninstall(
         project_root,
         key,
         continuing="Continuing with integration uninstall; preset artifacts may need manual cleanup.",
+        preserve_paths=frozenset(path.absolute() for path in skipped),
     )
 
     remaining = [installed for installed in installed_keys if installed != key]

@@ -135,14 +135,16 @@ class TestIntegrationUninstall:
         # integration.json removed
         assert not (project / ".specify" / "integration.json").exists()
 
-    def test_uninstall_preserves_modified_files(self, tmp_path):
+    @pytest.mark.parametrize("retain_frontmatter", [False, True])
+    def test_uninstall_preserves_modified_files(self, tmp_path, retain_frontmatter):
         """Full lifecycle: install → modify → uninstall → modified file kept."""
         project = _init_project(tmp_path, "claude")
         plan_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
         assert plan_file.exists()
 
         # Modify a file
-        plan_file.write_text("# My custom plan command\n", encoding="utf-8")
+        custom = (plan_file.read_text(encoding="utf-8") if retain_frontmatter else "") + "# My custom plan command\n"
+        plan_file.write_text(custom, encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -156,7 +158,7 @@ class TestIntegrationUninstall:
 
         # Modified file kept
         assert plan_file.exists()
-        assert plan_file.read_text(encoding="utf-8") == "# My custom plan command\n"
+        assert plan_file.read_text(encoding="utf-8") == custom
 
     def test_uninstall_wrong_key(self, tmp_path):
         project = _init_project(tmp_path, "copilot")
@@ -446,3 +448,29 @@ class TestUninstallNoManifestClearsInitOptions:
         assert "ai_skills" not in opts
         # Non-integration keys preserved
         assert opts.get("script") == "sh"
+
+
+def test_preset_changes_refresh_only_previously_managed_hashes(tmp_path):
+    from specify_cli.integrations.manifest import IntegrationManifest
+    from specify_cli.presets import PresetManager
+
+    project = tmp_path / "mas-project"
+    initialized = runner.invoke(app, [
+        "init", str(project), "--stack", "nestjs-react", "--skip-external-skills",
+        "--integration", "claude", "--script", "sh", "--ignore-agent-tools",
+        "--non-interactive",
+    ])
+    assert initialized.exit_code == 0, initialized.output
+    plan = project / ".claude/skills/speckit-plan/SKILL.md"
+    plan.write_text(plan.read_text(encoding="utf-8") + "\nUser notes\n", encoding="utf-8")
+    original = IntegrationManifest.load("claude", project).files.copy()
+    _add_sample_preset(project, tmp_path)
+    manifest = IntegrationManifest.load("claude", project)
+    assert manifest.files[".claude/skills/speckit-plan/SKILL.md"] == original[".claude/skills/speckit-plan/SKILL.md"]
+    assert manifest.files[".claude/skills/speckit-specify/SKILL.md"] != original[".claude/skills/speckit-specify/SKILL.md"]
+    assert PresetManager(project).remove("sample-preset")
+    restored = IntegrationManifest.load("claude", project)
+    assert restored.files[".claude/skills/speckit-plan/SKILL.md"] == original[".claude/skills/speckit-plan/SKILL.md"]
+    specify_file = project / ".claude/skills/speckit-specify/SKILL.md"
+    assert restored.files[".claude/skills/speckit-specify/SKILL.md"] == hashlib.sha256(specify_file.read_bytes()).hexdigest()
+    assert plan.read_text(encoding="utf-8").endswith("User notes\n")

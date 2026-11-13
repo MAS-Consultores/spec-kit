@@ -17,6 +17,8 @@ def bundle_add(
     ),
     integration: str = typer.Option(None, "--integration", help="Override integration"),
     offline: bool = typer.Option(False, "--offline", help="Do not access the network"),
+    mas_stack: str | None = typer.Option(None, "--stack", help="Approved MAS stack for a new project"),
+    skip_external_skills: bool = typer.Option(False, "--skip-external-skills", help="Skip external skill downloads during init"),
     refresh: bool = typer.Option(
         False,
         "--refresh",
@@ -35,4 +37,6 @@ def bundle_add(
         offline=offline,
         refresh=refresh,
         version=version,
+        mas_stack=mas_stack,
+        skip_external_skills=skip_external_skills,
     )

@@ -1237,12 +1237,11 @@ class TestCopilotNoModelInvocationOption:
         # preset commands start honouring the option.
         assert "disable-model-invocation" not in fm
 
-        # The docs say ``--force`` is needed here: preset add modified
-        # installed skill files, so a plain upgrade refuses.
+        # Preset writes refresh managed hashes; a plain upgrade can reapply
+        # the option without treating generated content as a user edit.
         result = _run_in_project(project, ["integration", "upgrade", "copilot"])
-        assert result.exit_code != 0
-        assert "modified since installation" in result.output
-        assert "disable-model-invocation" not in _skill_frontmatter(skill_file)
+        assert result.exit_code == 0, result.output
+        assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("copilot")._disable_model_invocation = False
         result = _run_in_project(project, ["integration", "upgrade", "copilot", "--force"])

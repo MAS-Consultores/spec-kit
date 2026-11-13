@@ -96,7 +96,10 @@ def _default_script_type() -> str:
     return "ps" if os.name == "nt" else "sh"
 
 
-def _run_init(integration: str, *, script_type: str, offline: bool = False) -> None:
+def _run_init(
+    integration: str, *, script_type: str, offline: bool = False,
+    stack: str | None = None, skip_external_skills: bool = False,
+) -> None:
     """Idempotently scaffold a Spec Kit project here via the existing ``init`` machinery.
 
     Reuses the real ``specify init`` command callback in-process (Principle I)
@@ -104,6 +107,14 @@ def _run_init(integration: str, *, script_type: str, offline: bool = False) -> N
     directory.
     """
     from .. import app
+    from ..mas import get_mas_stack, format_valid_stack_ids
+    from ..stack_skills import DEFAULT_INSTALL_TIMEOUT
+
+    if not stack or get_mas_stack(stack) is None:
+        raise BundlerError(
+            "A new MAS project requires --stack with an approved ID. "
+            f"Valid stack IDs: {format_valid_stack_ids()}"
+        )
 
     init_cb = next(
         c.callback
@@ -113,6 +124,12 @@ def _run_init(integration: str, *, script_type: str, offline: bool = False) -> N
     try:
         init_cb(
             project_name=None,
+            stack=stack,
+            skip_external_skills=skip_external_skills or offline,
+            non_interactive=True,
+            trust_integration=False,
+            strict_external_skills=False,
+            external_skills_timeout=DEFAULT_INSTALL_TIMEOUT,
             script_type=script_type,
             ignore_agent_tools=True,
             here=True,
