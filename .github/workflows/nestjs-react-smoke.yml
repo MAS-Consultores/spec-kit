@@ -59,7 +59,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm i -g corepack@latest
+          # Windows runners already have shim files (yarn.cmd). --force replaces
+          # them so corepack@latest can install; Linux and macOS do not need it.
+          if [ "${RUNNER_OS:-}" = "Windows" ]; then
+            npm i -g corepack@latest --force
+          else
+            npm i -g corepack@latest
+          fi
           corepack enable
           node -p "process.versions.node"
 
