@@ -76,7 +76,7 @@ jobs:
         run: uv sync --extra test
 
       - name: Policy and scenario tests
-        run: uv run pytest tests/test_mas_nestjs_scenarios.py -q --tb=short
+        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py -q --tb=short
 
       - name: Feature script on Bash
         if: runner.os != 'Windows'
@@ -163,3 +163,161 @@ jobs:
           assert not is_prerelease(nest)
           print("stable", prisma, nest)
           PY
+
+      - name: Spec Kit scripts without an LLM
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          git -C "$work" commit --allow-empty -m base
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          cd "$work"
+          bash .specify/scripts/bash/create-new-feature.sh --json --short-name user-login "Add user login" > out.json
+          python3 -c 'import json,subprocess; p=json.load(open("out.json")); head=subprocess.check_output(["git","symbolic-ref","HEAD"],text=True).strip(); assert head=="refs/heads/"+p["BRANCH_NAME"]'
+          bash .specify/scripts/bash/ensure-feature-branch.sh
+          bash .specify/scripts/bash/setup-plan.sh
+          bash .specify/scripts/bash/setup-tasks.sh
+          python3 -c 'import json,pathlib; p=json.load(open("out.json")); text=pathlib.Path("specs",p["BRANCH_NAME"],"tasks.md").read_text(); assert text.startswith("#")'
+          git checkout main
+          if bash .specify/scripts/bash/ensure-feature-branch.sh; then
+            echo "main must be rejected" >&2
+            exit 1
+          fi
+
+      - name: Spec Kit scripts on PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:TEMP "speckit-flow"
+          if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          git init -b main $work
+          git -C $work config user.email smoke@example.com
+          git -C $work config user.name smoke
+          git -C $work commit --allow-empty -m base
+          uv run specify init $work --integration cursor-agent --stack nestjs-react --ignore-agent-tools --script ps --skip-external-skills --non-interactive --force
+          Set-Location $work
+          $json = & .\.specify\scripts\powershell\create-new-feature.ps1 -Json -ShortName "user-login" "Add user login"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $branch = ($json | ConvertFrom-Json).BRANCH_NAME
+          $head = git symbolic-ref HEAD
+          if ($head -ne "refs/heads/$branch") { Write-Error "HEAD is $head"; exit 1 }
+          & .\.specify\scripts\powershell\ensure-feature-branch.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\.specify\scripts\powershell\setup-plan.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\.specify\scripts\powershell\setup-tasks.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "specs\$branch\tasks.md")) { Write-Error "tasks.md missing"; exit 1 }
+          git checkout main
+          & .\.specify\scripts\powershell\ensure-feature-branch.ps1
+          if ($LASTEXITCODE -eq 0) { Write-Error "main must be rejected"; exit 1 }
+
+  reference:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Active LTS from index.json
+        id: node
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request, os
+          url = "https://nodejs.org/dist/index.json"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              payload = json.load(response)
+          hit = next(entry for entry in payload if isinstance(entry, dict) and entry.get("lts") is not False)
+          exact = hit["version"][1:]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"version={exact}\n")
+          print(exact)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: Enable Corepack without writing to /usr
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -c 'CREATE DATABASE app'
+          psql -h localhost -U postgres -c 'CREATE DATABASE e2e'
+
+      - name: Init, install the tested lockfile, and run the skeleton
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+          SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+          JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret
+          JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
+          LOGIN_THROTTLE_LIMIT: "1000"
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          cp -a "$work/.specify/reference/." "$work/"
+          cd "$work"
+          pnpm install --frozen-lockfile
+          bash scripts/ensure-postgres.sh
+          env -u SEED_DATABASE_URL pnpm --filter @demo/api exec prisma migrate deploy
+          pnpm --filter @demo/api exec prisma migrate deploy
+          pnpm db:seed
+          pnpm db:seed
+          pnpm verify
+          pnpm build
+          pnpm test:e2e:api
+          pnpm test:e2e:mcp
+          pnpm --filter @demo/web exec playwright install chromium
+          pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
+          pnpm test:e2e:web
+          pnpm audit --audit-level=high
+          node scripts/check-prerelease.mjs
+          node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
