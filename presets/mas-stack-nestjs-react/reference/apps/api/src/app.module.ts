@@ -23,6 +23,7 @@ import { requiredEnv } from "./env.js";
   imports: [
     PassportModule,
     JwtModule.register({
+      global: true,
       secret: requiredEnv("JWT_ACCESS_SECRET"),
     }),
     ThrottlerModule.forRoot({

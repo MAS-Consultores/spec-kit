@@ -20,7 +20,7 @@ function cookie(res: request.Response, name: string): string {
 }
 
 function server(app: INestApplication): Parameters<typeof request>[0] {
-  const value: unknown = server(app);
+  const value: unknown = app.getHttpServer();
   if (typeof value !== "object" || value === null) {
     throw new Error("HTTP server missing");
   }
