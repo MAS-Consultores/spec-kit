@@ -48,7 +48,7 @@ class TestGrokInitFlow:
         result = runner.invoke(
             app,
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills",
+                "init",
                 str(target),
                 "--integration",
                 "grok",
@@ -103,7 +103,7 @@ class TestGrokNextSteps:
         result = runner.invoke(
             app,
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills",
+                "init",
                 str(target),
                 "--integration",
                 "grok",
@@ -149,7 +149,7 @@ class TestGrokInitOptions:
         result = runner.invoke(
             app,
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills",
+                "init",
                 "--here",
                 "--integration",
                 "grok",

@@ -50,7 +50,7 @@ class TestInitIntegrationFlag:
         from specify_cli import app
         runner = CliRunner()
         result = runner.invoke(app, [
-            "init", "--stack", "nestjs-react", "--skip-external-skills", str(tmp_path / "test-project"), "--integration", "nonexistent",
+            "init", str(tmp_path / "test-project"), "--integration", "nonexistent",
         ])
         assert result.exit_code != 0
         assert "Unknown integration" in result.output
@@ -413,7 +413,7 @@ class TestInitIntegrationFlag:
         result = CliRunner().invoke(
             app,
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills",
+                "init",
                 str(project),
                 "--integration",
                 "copilot",

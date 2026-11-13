@@ -67,7 +67,7 @@ class TestDevinInitFlow:
         target = tmp_path / "test-proj"
         result = runner.invoke(
             app,
-            ["init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "devin", "--ignore-agent-tools", "--script", "sh"],
+            ["init", str(target), "--integration", "devin", "--ignore-agent-tools", "--script", "sh"],
         )
 
         assert result.exit_code == 0, f"init --integration devin failed: {result.output}"

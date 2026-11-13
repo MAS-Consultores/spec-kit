@@ -312,16 +312,14 @@ class TestCopilotCommandsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
+                "init", "--here", "--integration", "copilot",
                 "--integration-options", "--commands", "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        from tests.mas_helpers import MAS_INIT_FILES
-
-        expected = sorted([*MAS_INIT_FILES,
+        expected = sorted([
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
@@ -377,16 +375,14 @@ class TestCopilotCommandsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
+                "init", "--here", "--integration", "copilot",
                 "--integration-options", "--commands", "--script", "ps",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        from tests.mas_helpers import MAS_INIT_FILES
-
-        expected = sorted([*MAS_INIT_FILES,
+        expected = sorted([
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
@@ -571,7 +567,7 @@ class TestCopilotSkillsMode:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     "copilot",
@@ -882,7 +878,7 @@ class TestCopilotSkillsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
+                "init", "--here", "--integration", "copilot",
                 "--script", "sh",
             ], catch_exceptions=False)
         finally:
@@ -907,16 +903,14 @@ class TestCopilotSkillsMode:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "copilot",
+                "init", "--here", "--integration", "copilot",
                 "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
-        from tests.mas_helpers import MAS_INIT_FILES
-
-        expected = sorted([*MAS_INIT_FILES,
+        expected = sorted([
             # Skill files (core commands)
             *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
             # Integration metadata
@@ -1169,7 +1163,7 @@ class TestCopilotNoModelInvocationOption:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     "copilot",

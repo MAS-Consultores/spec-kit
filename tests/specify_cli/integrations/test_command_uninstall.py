@@ -454,7 +454,13 @@ def test_preset_changes_refresh_only_previously_managed_hashes(tmp_path):
     from specify_cli.integrations.manifest import IntegrationManifest
     from specify_cli.presets import PresetManager
 
-    project = _init_project(tmp_path, "claude")
+    project = tmp_path / "mas-project"
+    initialized = runner.invoke(app, [
+        "init", str(project), "--stack", "nestjs-react", "--skip-external-skills",
+        "--integration", "claude", "--script", "sh", "--ignore-agent-tools",
+        "--non-interactive",
+    ])
+    assert initialized.exit_code == 0, initialized.output
     plan = project / ".claude/skills/speckit-plan/SKILL.md"
     plan.write_text(plan.read_text(encoding="utf-8") + "\nUser notes\n", encoding="utf-8")
     original = IntegrationManifest.load("claude", project).files.copy()

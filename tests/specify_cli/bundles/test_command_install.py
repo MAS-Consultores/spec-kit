@@ -1090,7 +1090,7 @@ def test_install_initializes_uninitialized_project(tmp_path: Path):
     previous = Path.cwd()
     os.chdir(project)
     try:
-        result = runner.invoke(app, ["bundle", "install", str(artifact), "--offline", "--stack", "nestjs-react"])
+        result = runner.invoke(app, ["bundle", "install", str(artifact), "--offline"])
         assert result.exit_code == 0, result.output
     finally:
         os.chdir(previous)

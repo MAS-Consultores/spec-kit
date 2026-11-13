@@ -320,7 +320,7 @@ class YamlIntegrationTests:
             result = runner.invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     self.KEY,
@@ -350,7 +350,7 @@ class YamlIntegrationTests:
             result = runner.invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     self.KEY,
@@ -441,9 +441,7 @@ class YamlIntegrationTests:
 
 
 
-        from tests.mas_helpers import MAS_INIT_FILES
-
-        return sorted([*files, *MAS_INIT_FILES])
+        return sorted(files)
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""
@@ -458,7 +456,7 @@ class YamlIntegrationTests:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     self.KEY,
@@ -493,7 +491,7 @@ class YamlIntegrationTests:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     self.KEY,

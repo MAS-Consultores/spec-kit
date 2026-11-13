@@ -82,7 +82,7 @@ class TestZcodeInvocation:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "zcode",
+                "init", "--here", "--integration", "zcode",
                 "--ignore-agent-tools", "--script", "sh",
             ], catch_exceptions=False)
         finally:

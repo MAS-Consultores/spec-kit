@@ -193,7 +193,7 @@ class TestIntegrationUpgradeDetailed:
     def test_upgrade_default_refreshes_shared_script_refs_for_option_separator_change(self, tmp_path):
         project = _init_project(
             tmp_path, "copilot", integration_options="--commands"
-        , legacy_without_presets=True)
+        )
         template = project / ".specify" / "templates" / "plan-template.md"
         managed_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         customized_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
@@ -336,7 +336,7 @@ class TestIntegrationUpgradeDetailed:
 
     def test_upgrade_migrates_kilocode_legacy_dir(self, tmp_path):
         """Upgrade moves Kilo commands from .kilocode/workflows/ to .kilo/commands/."""
-        project = _init_project(tmp_path, "kilocode", legacy_without_presets=True)
+        project = _init_project(tmp_path, "kilocode")
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         old_commands = sorted(legacy.glob("speckit.*.md"))
@@ -364,7 +364,7 @@ class TestIntegrationUpgradeDetailed:
 
     def test_upgrade_migrates_qodercli_extension_commands_to_skills(self, tmp_path):
         """Qoder upgrade retires old extension commands after skills exist."""
-        project = _init_project(tmp_path, "qodercli", legacy_without_presets=True)
+        project = _init_project(tmp_path, "qodercli")
         result = _run_in_project(project, ["extension", "add", "git"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
@@ -467,7 +467,7 @@ class TestIntegrationUpgradeDetailed:
 
     def test_upgrade_reconciles_kilocode_legacy_extension_artifacts(self, tmp_path):
         """Kilo upgrade moves enabled extension commands to the canonical dir."""
-        project = _init_project(tmp_path, "kilocode", legacy_without_presets=True)
+        project = _init_project(tmp_path, "kilocode")
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         result = _run_in_project(project, ["extension", "add", "git"])
@@ -501,7 +501,7 @@ class TestIntegrationUpgradeDetailed:
         self, tmp_path
     ):
         """Legacy reconciliation must not clean disabled or user-owned files."""
-        project = _init_project(tmp_path, "kilocode", legacy_without_presets=True)
+        project = _init_project(tmp_path, "kilocode")
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         result = _run_in_project(project, ["extension", "add", "git"])
@@ -611,7 +611,7 @@ class TestIntegrationUpgradeDetailed:
         """
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
-        , legacy_without_presets=True)
+        )
 
         commands = project / ".bob" / "commands"
         skills = project / ".bob" / "skills"
@@ -665,7 +665,7 @@ class TestIntegrationUpgradeDetailed:
         """
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
-        , legacy_without_presets=True)
+        )
 
         result = _run_in_project(project, ["extension", "add", "git"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
@@ -745,7 +745,7 @@ class TestIntegrationUpgradeDetailed:
         """
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
-        , legacy_without_presets=True)
+        )
         result = _run_in_project(project, ["extension", "add", "git"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
@@ -1808,7 +1808,7 @@ class TestIntegrationUpgradeBasic:
         try:
             os.chdir(project)
             result = runner.invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here",
+                "init", "--here",
                 "--integration", integration,
                 "--script", "sh",
                 "--ignore-agent-tools",

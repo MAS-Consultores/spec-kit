@@ -104,7 +104,7 @@ class TestDroidInitFlow:
         result = runner.invoke(
             app,
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills",
+                "init",
                 str(target),
                 "--integration",
                 "droid",
@@ -411,7 +411,7 @@ class TestDroidNoModelInvocationOption:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     "droid",

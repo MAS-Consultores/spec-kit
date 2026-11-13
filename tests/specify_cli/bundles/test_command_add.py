@@ -90,8 +90,7 @@ def test_bundle_add_by_id_initializes_empty_project_from_firstparty_catalog(
 
     with patch("specify_cli.authentication.http.open_url", side_effect=fake_open_url):
         result = runner.invoke(
-            app, ["bundle", "add", bundle_id, "--integration", "copilot",
-                  "--stack", "nestjs-react", "--skip-external-skills"]
+            app, ["bundle", "add", bundle_id, "--integration", "copilot"]
         )
 
     assert result.exit_code == 0, result.output

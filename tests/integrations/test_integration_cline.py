@@ -387,7 +387,7 @@ class TestClineIntegration(MarkdownIntegrationTests):
             result = runner.invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     self.KEY,
@@ -463,6 +463,4 @@ class TestClineIntegration(MarkdownIntegrationTests):
         files.append(".specify/workflows/speckit/workflow.yml")
         files.append(".specify/workflows/workflow-registry.json")
 
-        from tests.mas_helpers import MAS_INIT_FILES
-
-        return sorted([*files, *MAS_INIT_FILES])
+        return sorted(files)

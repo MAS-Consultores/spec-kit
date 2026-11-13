@@ -68,7 +68,7 @@ class TestMuseMetadata:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "muse",
+                "init", "--here", "--integration", "muse",
                 "--ignore-agent-tools", "--script", "sh",
             ], catch_exceptions=False)
         finally:

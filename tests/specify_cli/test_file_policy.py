@@ -140,7 +140,7 @@ def test_init_persists_policy_and_preserves_unrelated_options(tmp_path, monkeypa
     config = tmp_path / ".specify/init-options.json"
     config.parent.mkdir()
     config.write_text('{"custom": "retained", "allow_symlinks": true}')
-    args = ["init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", "--non-interactive", "--integration", "generic",
+    args = ["init", "--here", "--force", "--non-interactive", "--integration", "generic",
             "--integration-options=--commands-dir .agent/commands", "--ignore-agent-tools"]
     if allowed:
         args.append("--allow-symlinks")
@@ -164,7 +164,7 @@ def test_init_rejects_policy_before_scaffolding(tmp_path, monkeypatch):
     config.parent.mkdir()
     config.write_text("{")
     before = set(tmp_path.iterdir())
-    result = CliRunner().invoke(app, ["init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", "--allow-symlinks", "--non-interactive"])
+    result = CliRunner().invoke(app, ["init", "--here", "--force", "--allow-symlinks", "--non-interactive"])
     assert result.exit_code == 1
     assert "init-options.json" in result.output
     assert set(tmp_path.iterdir()) == before
@@ -225,7 +225,7 @@ def test_init_explicit_target_ignores_override_and_cwd_policy(tmp_path, monkeypa
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SPECIFY_INIT_DIR", str(tmp_path / "nonexistent"))
     result = CliRunner().invoke(app, [
-        "init", "--stack", "nestjs-react", "--skip-external-skills", "nested/project", "--allow-symlinks", "--non-interactive",
+        "init", "nested/project", "--allow-symlinks", "--non-interactive",
         "--integration", "generic", "--integration-options=--commands-dir .agent/commands",
         "--ignore-agent-tools",
     ])
@@ -313,7 +313,7 @@ def test_init_flag_cannot_authorize_bootstrap_links(tmp_path, monkeypatch, symli
     else:
         (tmp_path / ".specify").symlink_to(tmp_path / "missing", target_is_directory=True)
     result = CliRunner().invoke(app, [
-        "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--force", "--allow-symlinks", "--non-interactive",
+        "init", "--here", "--force", "--allow-symlinks", "--non-interactive",
         "--integration", "copilot", "--ignore-agent-tools",
     ])
     assert result.exit_code == 1

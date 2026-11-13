@@ -162,7 +162,7 @@ def test_init_completion_guidance_matches_installed_integration(
     result = CliRunner().invoke(
         app,
         [
-            "init", "--stack", "nestjs-react", "--skip-external-skills",
+            "init",
             str(project),
             "--integration",
             integration_key,

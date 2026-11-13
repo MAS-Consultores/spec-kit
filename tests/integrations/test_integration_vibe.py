@@ -1101,7 +1101,7 @@ class TestVibeNoModelInvocationOption:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     "vibe",

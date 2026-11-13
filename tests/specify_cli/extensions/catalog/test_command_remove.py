@@ -79,7 +79,7 @@ class TestExtensionCatalogRemoveCLI:
         project.mkdir()
         initialized = self._invoke(
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "codex",
+                "init", "--here", "--integration", "codex",
                 "--ignore-agent-tools", "--non-interactive", "--script", "py",
             ],
             project,

@@ -80,7 +80,7 @@ class TestZedHookInvocations:
         result = runner.invoke(
             app,
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills",
+                "init",
                 "--here",
                 "--integration",
                 "zed",

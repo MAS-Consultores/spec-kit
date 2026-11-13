@@ -97,7 +97,7 @@ class TestDshInitFlow:
         target = tmp_path / "test-proj"
         result = runner.invoke(
             app,
-            ["init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "dsh", "--ignore-agent-tools", "--script", "sh"],
+            ["init", str(target), "--integration", "dsh", "--ignore-agent-tools", "--script", "sh"],
         )
 
         assert result.exit_code == 0, f"init --integration dsh failed: {result.output}"
@@ -237,7 +237,7 @@ class TestDshHookInvocations:
         result = runner.invoke(
             app,
             [
-                "init", "--stack", "nestjs-react", "--skip-external-skills",
+                "init",
                 "--here",
                 "--integration",
                 "dsh",

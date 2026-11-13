@@ -469,7 +469,7 @@ def test_generic_extension_after_cli_init(tmp_path, generic_extension, skills):
     try:
         os.chdir(project)
         result = CliRunner().invoke(app, [
-            "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "generic",
+            "init", "--here", "--integration", "generic",
             "--integration-options=--commands-dir .myagent/commands" + (
                 " --skills" if skills else ""
             ),
@@ -516,7 +516,7 @@ def test_generic_extension_remove_after_directory_upgrade(
     try:
         os.chdir(project)
         init = runner.invoke(app, [
-            "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "generic",
+            "init", "--here", "--integration", "generic",
             f"--integration-options=--commands-dir .old/output{suffix}",
             "--script", "sh",
         ], catch_exceptions=False)
@@ -559,7 +559,7 @@ def test_generic_skills_upgrade_preserves_replaced_or_modified_skill(
         os.chdir(project)
         runner = CliRunner()
         initialized = runner.invoke(app, [
-            "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "generic",
+            "init", "--here", "--integration", "generic",
             "--integration-options=--commands-dir .custom/skills --skills",
             "--script", "sh",
         ], catch_exceptions=False)
@@ -2565,7 +2565,7 @@ class TestGenericIntegration:
         from specify_cli import app
         runner = CliRunner()
         result = runner.invoke(app, [
-            "init", "--stack", "nestjs-react", "--skip-external-skills", str(tmp_path / "test-generic"), "--integration", "generic",
+            "init", str(tmp_path / "test-generic"), "--integration", "generic",
         ])
         # Generic requires --commands-dir via --integration-options
         assert result.exit_code != 0
@@ -2582,7 +2582,7 @@ class TestGenericIntegration:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "generic",
+                "init", "--here", "--integration", "generic",
                 "--integration-options=--commands-dir .myagent/commands",
                 "--script", "sh",
             ], catch_exceptions=False)
@@ -2593,10 +2593,7 @@ class TestGenericIntegration:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
-        from tests.mas_helpers import MAS_INIT_FILES
-
         expected = sorted([
-            *MAS_INIT_FILES,
             ".myagent/commands/speckit.analyze.md",
             ".myagent/commands/speckit.checklist.md",
             ".myagent/commands/speckit.clarify.md",
@@ -2655,7 +2652,7 @@ class TestGenericIntegration:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "generic",
+                "init", "--here", "--integration", "generic",
                 "--integration-options=--commands-dir .myagent/skills --skills",
                 "--script", "sh",
             ], catch_exceptions=False)
@@ -2686,7 +2683,7 @@ class TestGenericIntegration:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "generic",
+                "init", "--here", "--integration", "generic",
                 "--integration-options=--commands-dir .myagent/commands",
                 "--script", "sh",
             ], catch_exceptions=False)
@@ -2732,7 +2729,7 @@ class TestGenericIntegration:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--stack", "nestjs-react", "--skip-external-skills", "--here", "--integration", "generic",
+                "init", "--here", "--integration", "generic",
                 "--integration-options=--commands-dir .myagent/commands",
                 "--script", "ps",
             ], catch_exceptions=False)
@@ -2743,10 +2740,7 @@ class TestGenericIntegration:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
-        from tests.mas_helpers import MAS_INIT_FILES
-
         expected = sorted([
-            *MAS_INIT_FILES,
             ".myagent/commands/speckit.analyze.md",
             ".myagent/commands/speckit.checklist.md",
             ".myagent/commands/speckit.clarify.md",

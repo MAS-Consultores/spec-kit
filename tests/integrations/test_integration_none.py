@@ -36,7 +36,7 @@ def test_none_lifecycle(tmp_path, monkeypatch, integration_args):
     def state():
         return json.loads((project / ".specify/integration.json").read_text())
 
-    run("init", str(project), "--stack", "nestjs-react", "--skip-external-skills", "--non-interactive", *integration_args)
+    run("init", str(project), "--non-interactive", *integration_args)
     monkeypatch.chdir(project)
     assert state()["integration"] == "none"
     assert state()["installed_integrations"] == ["none"]
@@ -89,7 +89,7 @@ def test_none_coexists_with_a_safe_agent_without_force(tmp_path, monkeypatch):
     runner = CliRunner()
     project = tmp_path / "project"
     result = runner.invoke(app, [
-        "init", "--stack", "nestjs-react", "--skip-external-skills", str(project), "--integration", "none", "--non-interactive",
+        "init", str(project), "--integration", "none", "--non-interactive",
     ])
     assert result.exit_code == 0, result.output
     monkeypatch.chdir(project)

@@ -17,7 +17,7 @@ class TestBranchNumberingFlagRemoved:
 
         runner = CliRunner()
         result = runner.invoke(app, [
-            "init", "--stack", "nestjs-react", "--skip-external-skills", str(tmp_path / "proj"), "--integration", "claude",
+            "init", str(tmp_path / "proj"), "--integration", "claude",
             "--branch-numbering", "sequential", "--ignore-agent-tools",
         ])
         assert result.exit_code != 0, "--branch-numbering should be rejected"

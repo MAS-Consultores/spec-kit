@@ -69,7 +69,7 @@ class TestIntegrationSwitch:
         from specify_cli.integrations.codex import CodexIntegration
         from specify_cli.integrations.manifest import IntegrationManifest
 
-        rel = ".agents/skills/speckit-analyze/SKILL.md"
+        rel = ".agents/skills/speckit-plan/SKILL.md"
         original_setup = CodexIntegration.setup
 
         def setup_with_recovered_file(self, project_root, manifest, *args, **kwargs):

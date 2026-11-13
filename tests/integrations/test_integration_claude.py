@@ -142,7 +142,7 @@ class TestClaudeIntegration:
             result = runner.invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     "claude",
@@ -179,7 +179,7 @@ class TestClaudeIntegration:
             result = runner.invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     "claude",
@@ -213,7 +213,7 @@ class TestClaudeIntegration:
                 result = runner.invoke(
                     app,
                     [
-                        "init", "--stack", "nestjs-react", "--skip-external-skills",
+                        "init",
                         "--here",
                         "--script",
                         "sh",
@@ -251,7 +251,7 @@ class TestClaudeIntegration:
 
         result = runner.invoke(
             app,
-            ["init", "--stack", "nestjs-react", "--skip-external-skills", str(target), "--integration", "claude", "--script", "sh", "--ignore-agent-tools"],
+            ["init", str(target), "--integration", "claude", "--script", "sh", "--ignore-agent-tools"],
         )
 
         assert result.exit_code == 0
@@ -737,7 +737,7 @@ class TestClaudeNoModelInvocationOption:
             result = CliRunner().invoke(
                 app,
                 [
-                    "init", "--stack", "nestjs-react", "--skip-external-skills",
+                    "init",
                     "--here",
                     "--integration",
                     "claude",
