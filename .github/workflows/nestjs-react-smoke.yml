@@ -176,6 +176,9 @@ jobs:
           git -C "$work" commit --allow-empty -m base
           uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
             --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          # setup-plan resolves preset templates with the Python that is on PATH.
+          # shellcheck disable=SC1091
+          source .venv/bin/activate
           cd "$work"
           bash .specify/scripts/bash/create-new-feature.sh --json --short-name user-login "Add user login" > out.json
           python3 -c 'import json,subprocess; p=json.load(open("out.json")); head=subprocess.check_output(["git","symbolic-ref","HEAD"],text=True).strip(); assert head=="refs/heads/"+p["BRANCH_NAME"]'
@@ -201,6 +204,7 @@ jobs:
           git -C $work config user.name smoke
           git -C $work commit --allow-empty -m base
           uv run specify init $work --integration cursor-agent --stack nestjs-react --ignore-agent-tools --script ps --skip-external-skills --non-interactive --force
+          . .\.venv\Scripts\Activate.ps1
           Set-Location $work
           $json = & .\.specify\scripts\powershell\create-new-feature.ps1 -Json -ShortName "user-login" "Add user login"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
