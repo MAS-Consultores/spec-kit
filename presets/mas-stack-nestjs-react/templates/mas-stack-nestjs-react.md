@@ -78,6 +78,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] Node version resolved only from `https://nodejs.org/dist/index.json`: first entry whose `lts` is not `false` (the file is newest-first; that entry is the highest Active LTS semver). Never Current, odd, or alpha/beta/rc, and never a version from memory or from nodejs.org prose pages. Same major in `@types/node`, CI, Docker (`node:<major>-alpine@sha256:<digest>`), and the README.
 - [ ] One-liner (prints exact version, then major): `curl -s https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const hit=JSON.parse(s).find(e=>e.lts!==false);if(!hit){console.error("no Active LTS");process.exit(1)}const exact=hit.version.replace(/^v/,"");console.log(exact);console.log(exact.split(".")[0])})'`
 - [ ] Corepack is not bundled on Node 25+ (the `node-v26.13.1` tarball has no `bin/corepack`; Node 24 still does). Enable pnpm with `npm i -g corepack@latest && corepack enable`, or install the exact `pnpm@X.Y.Z` globally.
+- [ ] Prisma 7.x stable `engines.node` includes the Active LTS major (`>=24.0` on 7.10.1). The CLI warning for majors above 24 is expected and must not fail the build. Do not install Prisma 8 prereleases.
 - [ ] `tsconfig.base.json` (shared TypeScript config)
 - [ ] `.eslintrc.cjs` with `eslint-plugin-boundaries` rules
 - [ ] `.swcrc` with `legacyDecorator: true` and `decoratorMetadata: true`

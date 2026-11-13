@@ -31,6 +31,7 @@ Node MUST be the current Active LTS, resolved at generation and analysis time. T
 - Resolve with: `curl -s https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const hit=JSON.parse(s).find(e=>e.lts!==false);if(!hit){console.error("no Active LTS");process.exit(1)}const exact=hit.version.replace(/^v/,"");console.log(exact);console.log(exact.split(".")[0])})'`
 - Node 25+ does not bundle Corepack. Setup MUST be `npm i -g corepack@latest && corepack enable` (or install the exact `pnpm@X.Y.Z` globally). `packageManager: pnpm@X.Y.Z` stays an exact pin
 - `/speckit.analyze` runs before implement and is read-only. A missing `.nvmrc` is **not** by itself CRITICAL. Analyze MUST mark **CRITICAL** when `tasks.md` has no setup task that creates `.nvmrc` with the exact index-resolved Active LTS version. When `.nvmrc` already exists, a major that differs from that Active LTS is **CRITICAL**
+- Prisma 7.x stable `engines.node` is `^20.19 || ^22.12 || >=24.0` (verified on the latest 7.x stable, not a Prisma 8 prerelease). The Active LTS major is inside that range. The CLI still prints a warning for majors above 24 (including Node 26) and does not exit. That warning is a known exception and MUST NOT block install, verify, or CI. Do not pin an older LTS to hide it
 
 ### Cursor Agent command files
 
