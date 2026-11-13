@@ -47,6 +47,8 @@ Tests MUST exercise real production code; gates MUST pass before merge:
 - MUST NOT write tautological tests that only exercise helpers defined in the same test file
 - MUST NOT close a gate with skipped tests (`.skip`, `.todo`, `.only`, `xit`, `xdescribe`)—skipped count MUST be 0
 - ALL gates MUST pass with real output as evidence: typecheck, lint, unit tests, API e2e, MCP e2e, Playwright + axe-core, build, `pnpm audit` (no high/critical), `madge --circular`
+- Minimums, all required: at least one supertest e2e per REST endpoint against real Postgres, covering 401, CASL 403, refresh-token rotation, and throttling 429; at least one MCP e2e per tool with Bearer and scopes against that Postgres; at least one Playwright spec with axe-core per user story (`screenshot`, `video`, and `trace` `'off'`); at least one unit test per domain service, guard, and CASL policy
+- `/speckit.analyze` MUST mark **CRITICAL** when `tasks.md` omits any of those tasks. `/speckit.implement` MUST NOT declare the work finished without running them
 
 ### No Screenshots in Tests
 

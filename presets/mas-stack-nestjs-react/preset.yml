@@ -38,6 +38,11 @@ provides:
       file: "commands/speckit.analyze.md"
       description: "NestJS + React analyze rules"
       strategy: "wrap"
+    - type: "command"
+      name: "speckit.implement"
+      file: "commands/speckit.implement.md"
+      description: "NestJS + React test completion gate"
+      strategy: "wrap"
 
 tags:
   - "mas"

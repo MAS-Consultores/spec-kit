@@ -88,7 +88,8 @@ When the selected stack is `nestjs-react`, replace the generic sample paths and 
 - Direct `shadcn` dependency, then non-interactive `shadcn add button input label card badge dialog select dropdown-menu table skeleton form --yes --overwrite` (`shadcn init` does not add primitives).
 - `apps/web/src/index.css`: `@theme inline`, `tw-animate-css`, `shadcn/tailwind.css`, and `@source`.
 - Commit `apps/web/src/routeTree.gen.ts`. Exclude it from ESLint only.
-- Playwright: `playwright install --with-deps chromium`, `globalSetup` with a dedicated e2e database (`migrate deploy` + truncate + seed), setup project `storageState` per role, dedicated `webServer` ports. Axe waits for `document.getAnimations()`.
+- Playwright: `playwright install --with-deps chromium`, `globalSetup` with a dedicated e2e database (`migrate deploy` + truncate + seed), setup project `storageState` per role, dedicated `webServer` ports. Axe waits for `document.getAnimations()`. `screenshot`, `video`, and `trace` are `'off'`.
+- Test gate (analyze marks CRITICAL if a bullet is missing from `tasks.md`; implement runs them before done): at least one API e2e per REST endpoint on real Postgres (401, CASL 403, refresh rotation, throttling 429); at least one MCP e2e per tool (Bearer and scopes) on that Postgres; at least one Playwright + axe spec per user story; unit tests for each service, guard, and CASL policy.
 - Loaders use `queryClient.query(options)`.
 - `pnpm-workspace.yaml` `allowBuilds`: `true` for prisma, `@prisma/engines`, argon2, esbuild, `@swc/core`, and msw; `false` for `@scarf/scarf`. New install-script packages get an explicit entry (`true` only when required). Do not use `pnpm approve-builds --all`.
 
