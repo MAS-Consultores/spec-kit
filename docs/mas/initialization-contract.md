@@ -136,7 +136,12 @@ When `--stack` is valid, init should execute this conceptual flow:
 14. Print next steps that show the selected stack and remind the user that
     `speckit-plan` will validate against it. Do not recommend running
     `speckit.constitution` or `speckit-constitution`: the constitution is
-    already written from the stack during init.
+    already written from the stack during init. The follow-up list for a
+    caller without a stack still starts with `constitution`. This fork
+    rejects `specify init` without `--stack` before that panel, so upstream
+    tests that omit `--stack` fail at validation and do not exercise the
+    panel. That rejection is intentional; those inherited tests are not
+    rewritten.
 
 ## Invalid Stack Flow
 
