@@ -40,7 +40,7 @@ describe("mcp", () => {
 
   it("rejects a bearer token whose scope is insufficient", async () => {
     const jwt = new JwtService({ secret: process.env["JWT_ACCESS_SECRET"] });
-    const token = jwt.sign({ sub: "reader", scopes: ["notes:crear"] });
+    const token = jwt.sign({ sub: "reader", scopes: ["notes:crear"], csrf: "mcp" });
     const res = await request(server(app))
       .post("/api/v1/mcp")
       .set("Authorization", `Bearer ${token}`)
