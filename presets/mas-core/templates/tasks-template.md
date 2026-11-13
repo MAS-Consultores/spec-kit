@@ -89,7 +89,7 @@ When the selected stack is `nestjs-react`, replace the generic sample paths and 
 - Commit `apps/web/src/routeTree.gen.ts`. Exclude it from ESLint only.
 - Playwright: `playwright install --with-deps chromium`, `globalSetup` with a dedicated e2e database (`migrate deploy` + truncate + seed), setup project `storageState` per role, dedicated `webServer` ports. Axe waits for `document.getAnimations()`.
 - Loaders use `queryClient.query(options)`.
-- `pnpm-workspace.yaml` `allowBuilds` true for prisma, `@prisma/engines`, argon2, esbuild, `@swc/core`, msw.
+- `pnpm-workspace.yaml` `allowBuilds`: `true` for prisma, `@prisma/engines`, argon2, esbuild, `@swc/core`, and msw; `false` for `@scarf/scarf`. New install-script packages get an explicit entry (`true` only when required). Do not use `pnpm approve-builds --all`.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 

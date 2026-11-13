@@ -20,7 +20,7 @@ Also require tasks for:
 - committed `routeTree.gen.ts` (ESLint-ignored, not gitignored)
 - Playwright chromium install, dedicated e2e database via `migrate deploy` + truncate + seed, `storageState` per role, and private webServer ports
 - loaders that call `queryClient.query(options)`
-- `allowBuilds: true` for prisma, `@prisma/engines`, argon2, esbuild, `@swc/core`, and msw
+- `allowBuilds` in `pnpm-workspace.yaml`: `true` for prisma, `@prisma/engines`, argon2, esbuild, `@swc/core`, and msw; `false` for `@scarf/scarf`. A package with an install script that is missing from the map fails pnpm 12; add it explicitly (`true` only when the script is required) instead of `pnpm approve-builds --all`
 - mandatory `.nvmrc` with the exact Active LTS from `https://nodejs.org/dist/index.json` (first entry whose `lts` is not false), the same major in `engines.node` (`>=<major>`), `@types/node`, CI, Docker, and the README, and Corepack setup `npm i -g corepack@latest && corepack enable` (Node 25+ does not bundle Corepack; exact global `pnpm@X.Y.Z` is the alternative). Do not copy a Node version from memory. Example as of 2026-11-13: `26.13.1` / `>=26`
 
 {CORE_TEMPLATE}

@@ -20,6 +20,7 @@ Always use the latest stable release, never prereleases:
 - MUST resolve versions at implementation time with `npm view <pkg> version` and reject prereleases; MUST NOT copy version numbers from templates or claim a version is missing without that output
 - TypeScript MAY be pinned below absolute latest when `typescript-eslint`'s peer range requires it: use the highest stable TypeScript that satisfies that peer, and document the exception
 - `prisma` and `@prisma/client` MUST be the same exact Prisma 7.x stable version
+- `pnpm-workspace.yaml` MUST list `allowBuilds` explicitly (`true` for `prisma`, `@prisma/engines`, `argon2`, `esbuild`, `@swc/core`, `msw`; `false` for `@scarf/scarf`). A later package whose install script is not listed fails pnpm 12: add that name in the same change, `true` only when the script is required, never via `pnpm approve-builds --all`
 
 ### Node.js Active LTS
 
