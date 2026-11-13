@@ -153,7 +153,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 
 - [ ] `scripts/permissions-sync.ts` — `pnpm permissions:sync`
 - [ ] `scripts/openapi-generate.ts` — `pnpm openapi:generate`
-- [ ] `scripts/check-casl.ts` — TypeScript AST check wired into `pnpm verify` together with `openapi:generate` and `api-client:generate`
+- [ ] `scripts/check-casl.ts` — copy `templates/check-casl.ts` from this preset (TypeScript AST, not regex) and wire it into `pnpm verify` with `openapi:generate` and `api-client:generate`
 - [ ] `pnpm verify` and quickstart commands use `pnpm --filter` with the `name` from each `package.json` (for example `@demo/api`), not the directory name alone
 
 ### docker/ (Recommended)
