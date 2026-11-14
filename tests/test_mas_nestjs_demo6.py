@@ -108,6 +108,42 @@ def test_env_example_lists_every_name_the_app_reads() -> None:
     assert "replace-with" in example
 
 
+def test_e2e_ports_discards_a_dead_listener() -> None:
+    node, _npm = _node()
+    run = subprocess.run(
+        [node, str(REFERENCE / "scripts" / "e2e-ports.mjs"), "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "e2e-ports ok" in run.stdout
+
+
+def test_slice_replacement_uses_authenticated_list_and_can_create(tmp_path: Path) -> None:
+    node, _npm = _node()
+    dest = tmp_path / "reference"
+    shutil.copytree(
+        REFERENCE,
+        dest,
+        ignore=shutil.ignore_patterns("node_modules", "dist", ".e2e-ports.json"),
+    )
+    run = subprocess.run(
+        [node, str(dest / "scripts" / "replace-example-slice.mjs")],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stderr
+    controller = (dest / "apps/api/src/modules/widgets/widgets.controller.ts").read_text(encoding="utf-8")
+    listed = controller.split("create(", 1)[0]
+    assert "@Authenticated()" in listed
+    assert '@Can("widgets:ver")' not in listed
+    assert '@Can("widgets:crear")' in controller
+
+
 def test_dev_proxy_check_passes_on_the_reference() -> None:
     node, _npm = _node()
     run = subprocess.run(

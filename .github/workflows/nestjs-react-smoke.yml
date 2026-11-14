@@ -355,9 +355,13 @@ jobs:
           pnpm --filter @demo/web exec playwright install chromium
           pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
           pnpm test:e2e:web
+          pnpm test:e2e:web
           pnpm audit --audit-level=high
           node scripts/check-prerelease.mjs
           node scripts/check-no-note-in-infra.mjs
+          node scripts/check-env-example.mjs
+          node scripts/check-dev-proxy.mjs
+          node scripts/e2e-ports.mjs --self-test
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
           echo "SKELETON_WORK=$work" >> "$GITHUB_ENV"
 
@@ -375,6 +379,19 @@ jobs:
           rm -rf apps/api/.snippet-check apps/web/.snippet-check
           node scripts/replace-example-slice.mjs
           node scripts/check-no-note-in-infra.mjs
+          node scripts/check-env-example.mjs
+          node scripts/check-dev-proxy.mjs
+          node scripts/e2e-ports.mjs --self-test
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path("apps/api/src/modules/widgets/widgets.controller.ts").read_text()
+          list_at = text.split("create(", 1)[0]
+          if "@Authenticated()" not in list_at or '@Can("widgets:ver")' in list_at:
+              raise SystemExit("list must use @Authenticated")
+          if '@Can("widgets:crear")' not in text:
+              raise SystemExit("create must use @Can")
+          print("slice-authz ok")
+          PY
           psql -h localhost -U postgres -c 'DROP DATABASE IF EXISTS app WITH (FORCE)'
           psql -h localhost -U postgres -c 'DROP DATABASE IF EXISTS e2e WITH (FORCE)'
           psql -h localhost -U postgres -c 'CREATE DATABASE app'
@@ -388,4 +405,5 @@ jobs:
           pnpm build
           pnpm test:e2e:api
           pnpm test:e2e:mcp
+          pnpm test:e2e:web
           pnpm test:e2e:web

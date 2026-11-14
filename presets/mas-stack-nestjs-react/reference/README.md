@@ -48,7 +48,7 @@ pnpm db:seed
 
 Vite proxies `/api` to `API_PROXY_TARGET` for `dev` and `preview`. Playwright opens the web origin and calls the API through that proxy. Set `CORS_ORIGIN` only when a browser calls the API host directly; that switch enables credentialed CORS.
 
-Playwright does not download browsers during `pnpm install`. If chromium is missing, `node scripts/ensure-playwright.mjs` (from `apps/web`) exits 1 and tells you to run `pnpm exec playwright install chromium`. Dev servers do not assume ports 3000, 4173, or 5432 are free. Playwright binds a free port. If 5432 is busy, point `DATABASE_URL` and `SEED_DATABASE_URL` at the port that is listening.
+Playwright does not download browsers during `pnpm install`. If chromium is missing, `node scripts/ensure-playwright.mjs` (from `apps/web`) exits 1 and tells you to run `pnpm exec playwright install chromium`. Dev servers do not assume ports 3000, 4173, or 5432 are free. Playwright binds a free port and reuses a saved pair only when both ports are free or both servers still answer. A dead listener is discarded, so two Playwright runs in a row do not share it. If 5432 is busy, point `DATABASE_URL` and `SEED_DATABASE_URL` at the port that is listening.
 
 ## Known warnings that do not fail CI
 

@@ -1,51 +1,12 @@
-import fs from "node:fs";
-import net from "node:net";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type PlaywrightTestConfig } from "@playwright/test";
+import { choosePorts } from "../../scripts/e2e-ports.mjs";
 
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Could not bind a free port"));
-        return;
-      }
-      const port = address.port;
-      server.close(() => {
-        resolve(port);
-      });
-    });
-  });
-}
-
-const portFile = new URL("./.e2e-ports.json", import.meta.url);
-function readPorts(): { api: number; web: number } | undefined {
-  if (!fs.existsSync(portFile)) {
-    return undefined;
-  }
-  if (Date.now() - fs.statSync(portFile).mtimeMs > 60_000) {
-    return undefined;
-  }
-  const parsed: unknown = JSON.parse(fs.readFileSync(portFile, "utf8"));
-  if (
-    typeof parsed === "object" &&
-    parsed !== null &&
-    "api" in parsed &&
-    "web" in parsed &&
-    typeof parsed.api === "number" &&
-    typeof parsed.web === "number"
-  ) {
-    return { api: parsed.api, web: parsed.web };
-  }
-  return undefined;
-}
-const cached = readPorts();
-const apiPort = cached?.api ?? (await freePort());
-const webPort = cached?.web ?? (await freePort());
-if (!cached) {
-  fs.writeFileSync(portFile, JSON.stringify({ api: apiPort, web: webPort }));
-}
+const ports = await choosePorts({
+  file: fileURLToPath(new URL("./.e2e-ports.json", import.meta.url)),
+});
+const apiPort = ports.api;
+const webPort = ports.web;
 const databaseUrl = process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_URL"] ?? "";
 
 const config: PlaywrightTestConfig = {

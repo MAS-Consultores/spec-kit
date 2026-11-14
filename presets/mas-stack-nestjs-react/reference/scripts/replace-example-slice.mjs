@@ -92,6 +92,22 @@ const migrationDir = "apps/api/prisma/migrations/20261114000000_widget";
 mkdirSync(migrationDir, { recursive: true });
 writeFileSync(join(migrationDir, "migration.sql"), widgetSql);
 
+const controllerPath = "apps/api/src/modules/widgets/widgets.controller.ts";
+let controller = readFileSync(controllerPath, "utf8");
+controller = controller.replace(
+  'import { Can } from "../../auth/decorators.js";',
+  'import { Authenticated, Can } from "../../auth/decorators.js";',
+);
+controller = controller.replace(
+  '@Get()\n  @Can("widgets:ver")\n  list',
+  "@Get()\n  @Authenticated()\n  list",
+);
+if (!controller.includes("@Authenticated()") || !controller.includes('@Can("widgets:crear")')) {
+  console.error("slice replacement must keep list on @Authenticated and create on @Can");
+  process.exit(1);
+}
+writeFileSync(controllerPath, controller);
+
 const locale = JSON.parse(readFileSync("apps/web/src/locales/es-CL.json", "utf8"));
 locale.title = "Widgets";
 writeFileSync("apps/web/src/locales/es-CL.json", `${JSON.stringify(locale, null, 2)}\n`);
