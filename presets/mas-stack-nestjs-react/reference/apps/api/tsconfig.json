@@ -7,5 +7,5 @@
     "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["src", "test", "prisma/seed.ts", "prisma.config.ts", "vitest.config.ts", "vitest.e2e.ts"]
+  "include": ["src", "test", "prisma/seed.ts", "prisma/database-url.ts", "prisma.config.ts", "vitest.config.ts", "vitest.e2e.ts"]
 }

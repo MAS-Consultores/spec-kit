@@ -20,7 +20,7 @@ const ROOTS = [
   "apps/api/src/mcp/token-verifier.ts",
   "apps/api/prisma/seed.ts",
   "apps/api/prisma.config.ts",
-  "apps/api/prisma/database-url.mjs",
+  "apps/api/prisma/database-url.ts",
   "scripts/truncate-e2e.mjs",
   "scripts/ensure-postgres.sh",
 ];

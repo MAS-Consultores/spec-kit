@@ -69,7 +69,7 @@ def test_branch_skills_use_symbolic_ref() -> None:
 
 
 def test_migration_url_ignores_blank_and_seed() -> None:
-    helper = REFERENCE / "apps/api/prisma/database-url.mjs"
+    helper = REFERENCE / "apps/api/prisma/database-url.ts"
     config = (REFERENCE / "apps/api/prisma.config.ts").read_text(encoding="utf-8")
     assert "SEED_DATABASE_URL" not in config
     assert "migrationDatabaseUrl" in config
@@ -95,7 +95,7 @@ catch { same = true; }
 if (!same) process.exit(6);
 console.log("ok");
 """ % json.dumps(helper.as_uri())
-    result = _run(["node", "--input-type=module", "-e", probe])
+    result = _run(["node", "--experimental-strip-types", "--input-type=module", "-e", probe])
     assert result.returncode == 0, result.stdout + result.stderr
 
 

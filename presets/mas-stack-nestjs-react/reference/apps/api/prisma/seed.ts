@@ -2,7 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import argon2 from "argon2";
 import pg from "pg";
 import { PrismaClient } from "../src/generated/prisma/client.js";
-import { seedDatabaseUrl } from "./database-url.mjs";
+import { seedDatabaseUrl } from "./database-url.js";
 import { seedSlice } from "./slice-seed.js";
 
 let url: string;

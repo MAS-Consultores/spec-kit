@@ -1,5 +1,5 @@
 import { defineConfig } from "prisma/config";
-import { migrationDatabaseUrl } from "./prisma/database-url.mjs";
+import { migrationDatabaseUrl } from "./prisma/database-url.js";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
