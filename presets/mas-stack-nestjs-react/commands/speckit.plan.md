@@ -12,10 +12,18 @@ Prisma, auth, MCP, or shadcn layout and do not resolve new versions.
 ```typescript
 import { defineConfig } from "prisma/config";
 
+function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
+  const value = env["DATABASE_URL"];
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error("DATABASE_URL is required for prisma migrate");
+  }
+  return value;
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+    url: migrationDatabaseUrl(process.env),
   },
   migrations: {
     seed: "node --import tsx prisma/seed.ts",

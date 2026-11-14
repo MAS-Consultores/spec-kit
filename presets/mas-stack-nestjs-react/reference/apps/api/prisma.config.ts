@@ -1,9 +1,10 @@
 import { defineConfig } from "prisma/config";
+import { migrationDatabaseUrl } from "./prisma/database-url.mjs";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+    url: migrationDatabaseUrl(process.env),
   },
   migrations: {
     seed: "node --import tsx prisma/seed.ts",

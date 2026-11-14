@@ -33,7 +33,16 @@ export SEED_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/e2e
 bash scripts/ensure-postgres.sh
 ```
 
-`prisma db seed` would otherwise use `DATABASE_URL` from `.env`. The seed script refuses to run unless `SEED_DATABASE_URL` is set and different.
+`pnpm db:migrate` migrates `DATABASE_URL`. An empty `DATABASE_URL` or `SEED_DATABASE_URL` is unset and does not fall through to the other variable. Migrate both databases, then seed the e2e database twice:
+
+```bash
+pnpm db:migrate
+DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy
+pnpm db:seed
+pnpm db:seed
+```
+
+`prisma db seed` refuses to run unless `SEED_DATABASE_URL` is set and different from `DATABASE_URL`. The dev database is not seeded by that command.
 
 Playwright does not download browsers during `pnpm install`. If chromium is missing, `node scripts/ensure-playwright.mjs` (from `apps/web`) exits 1 and tells you to run `pnpm exec playwright install chromium`. Dev servers do not assume ports 3000, 4173, or 5432 are free. Playwright binds a free port. If 5432 is busy, point `DATABASE_URL` and `SEED_DATABASE_URL` at the port that is listening.
 

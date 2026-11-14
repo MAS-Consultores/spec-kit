@@ -29,7 +29,7 @@ Always use the latest stable release, never prereleases:
 - `pnpm-workspace.yaml` MUST list `allowBuilds` explicitly (`true` for `prisma`, `@prisma/engines`, `argon2`, `esbuild`, `@swc/core`, `msw`; `false` for `@scarf/scarf`). A later package whose install script is not listed fails pnpm 12: add that name in the same change, `true` only when the script is required, never via `pnpm approve-builds --all`
 - pnpm 12 ignores `package.json#pnpm.peerDependencyRules`. Peer exceptions live in `pnpm-workspace.yaml` under `peerDependencyRules.allowedVersions`
 - pnpm 12 writes `minimumReleaseAgeExclude` into `pnpm-workspace.yaml` for packages newer than the release-age gate and prints `Agent skills awaiting approval` for packages that ship skills (for example `@tanstack/react-table` and `@tanstack/table-core`). Approve those named packages only: `pnpm approve @tanstack/react-table @tanstack/table-core --yes`, which sets `permissions.<name>.skills: true`. Do not run `pnpm approve --all` or `pnpm approve-builds --all`
-- `prisma db seed` loads `DATABASE_URL` from the environment and from `.env`. E2E MUST set `SEED_DATABASE_URL` to the e2e database. `prisma.config.ts` uses `datasource.url: process.env.SEED_DATABASE_URL ?? process.env.DATABASE_URL` and `migrations.seed`. Do not use `migrate.adapter`
+- `pnpm db:migrate` and `prisma migrate deploy` MUST use `DATABASE_URL`. `prisma.config.ts` reads only that variable. A missing value and a string of spaces are unset: they do not fall through to `SEED_DATABASE_URL`. The seed (`pnpm db:seed`) MUST use `SEED_DATABASE_URL`, which MUST differ from `DATABASE_URL`, and a blank `SEED_DATABASE_URL` is unset. Migrate the dev database with `DATABASE_URL` set, then migrate the e2e database with `DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy`, then `pnpm db:seed`
 - shadcn `init` / `add` MUST be non-interactive (`--yes` and a pre-generated `components.json` with aliases that do not produce `src/src` or `import ... from "cn"`). A post-step (`scripts/check-shadcn.mjs`) MUST fail the task if shadcn asked a question or generated those paths
 - The global `JwtAuthGuard` MUST skip non-HTTP contexts (`context.getType() !== "http"`) so it does not intercept MCP. Tool `inputSchema` MUST be a Zod object the MCP SDK accepts so validation does not throw before the handler. Insufficient scope MUST be the MCP `insufficient_scope` error
 - `@casl/ability` 7.1.3 does not export `PureAbility`. `createPrismaAbility` is overloaded, so the compiling type is `ReturnType<typeof createAppAbility>` where `createAppAbility` calls `createPrismaAbility<[string, string]>([])`
@@ -45,10 +45,18 @@ These fences are extracted and typechecked against the skeleton lockfile. Keep t
 ```typescript
 import { defineConfig } from "prisma/config";
 
+function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
+  const value = env["DATABASE_URL"];
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error("DATABASE_URL is required for prisma migrate");
+  }
+  return value;
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+    url: migrationDatabaseUrl(process.env),
   },
   migrations: {
     seed: "node --import tsx prisma/seed.ts",
@@ -128,6 +136,7 @@ AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.i
 Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
 - If the project has no AuthModule, tasks MUST add a blocking auth phase (login, HttpOnly cookies, CSRF, rotating refresh with reuse detection, roles, user seed) and analyze MUST mark its absence CRITICAL
 - Access tokens MUST be short-lived (~15 min); refresh tokens MUST rotate and be stored in HttpOnly + Secure + SameSite cookies with CSRF protection
+- Session routes MUST NOT require a permission from the example slice. `login` and `refresh` use `@Public()` because they create the session. `logout` and `me` use `@Authenticated()` from `decorators.ts`, which requires a valid access token and no CASL permission. `@Can(...)` is only for feature endpoints
 - MCP registration MUST use `McpModule.forRootAsync({ decorators: [Public(), SkipCsrf()] })` so a missing Bearer token is 401, not a CSRF 403
 - Passwords MUST be hashed with Argon2id; login endpoints MUST have throttling
 - MCP endpoints MUST require Bearer token: missing or invalid token MUST return exactly 401 with `WWW-Authenticate: Bearer` header
