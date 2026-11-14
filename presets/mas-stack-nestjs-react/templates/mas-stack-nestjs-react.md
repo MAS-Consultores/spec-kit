@@ -114,7 +114,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `prisma/migrations/` — Migration files (run `prisma migrate deploy` pre-deploy)
 - [ ] `src/generated/prisma/` — Generated Prisma client (gitignored, SWC compiles to dist)
 - [ ] `vitest.config.ts` (Vitest for NestJS 12 ESM)
-- [ ] `.env.example` documenting all required variables
+- [ ] `.env.example` at the repo root (copied by `specify init` from the reference) documenting every variable the app reads (`DATABASE_URL`, `SEED_DATABASE_URL`, JWT secrets, `PORT`, `API_PROXY_TARGET`, `CORS_ORIGIN`, and any later `process.env` name). Placeholders only. `scripts/check-env-example.mjs` fails when a read name is missing
 
 ### apps/web (Required)
 

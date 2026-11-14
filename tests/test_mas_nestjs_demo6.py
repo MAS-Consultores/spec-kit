@@ -84,6 +84,74 @@ def test_check_casl_accepts_authenticated_http_and_rejects_a_bare_handler(tmp_pa
     assert "lacks @Can, @Public, or @Authenticated" in bare.stderr
 
 
+def test_env_example_lists_every_name_the_app_reads() -> None:
+    node, _npm = _node()
+    run = subprocess.run(
+        [node, str(REFERENCE / "scripts" / "check-env-example.mjs")],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "env-example ok" in run.stdout
+    example = (REFERENCE / ".env.example").read_text(encoding="utf-8")
+    for name in (
+        "DATABASE_URL",
+        "SEED_DATABASE_URL",
+        "JWT_ACCESS_SECRET",
+        "JWT_REFRESH_SECRET",
+        "PORT",
+        "API_PROXY_TARGET",
+    ):
+        assert f"{name}=" in example
+    assert "replace-with" in example
+
+
+def test_specify_init_copies_env_example(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+    from specify_cli import app
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True, capture_output=True)
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "cursor-agent",
+            "--stack",
+            "nestjs-react",
+            "--ignore-agent-tools",
+            "--script",
+            "sh",
+            "--skip-external-skills",
+            "--non-interactive",
+            "--force",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    copied = project / ".specify" / "reference" / ".env.example"
+    assert copied.is_file()
+    assert copied.read_bytes() == (REFERENCE / ".env.example").read_bytes()
+
+
+def test_check_env_example_fails_when_a_read_is_undocumented(tmp_path: Path) -> None:
+    node, _npm = _node()
+    app = tmp_path / "apps" / "api" / "src"
+    app.mkdir(parents=True)
+    (app / "main.ts").write_text('const port = process.env["PORT"];\n', encoding="utf-8")
+    (tmp_path / ".env.example").write_text("DATABASE_URL=postgresql://USER:PASSWORD@localhost/app\n", encoding="utf-8")
+    script = tmp_path / "check-env-example.mjs"
+    script.write_bytes((REFERENCE / "scripts" / "check-env-example.mjs").read_bytes())
+    run = subprocess.run([node, str(script)], cwd=tmp_path, capture_output=True, text=True, check=False)
+    assert run.returncode == 1
+    assert "PORT" in run.stderr
+
+
 def test_check_casl_rejects_mcp_tool_without_can(tmp_path: Path) -> None:
     node, npm = _node()
     _install_typescript(tmp_path, npm)

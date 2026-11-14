@@ -25,6 +25,8 @@ nvm use
 
 Windows: nvm-windows, or `npm config set prefix %USERPROFILE%\.local` and add that directory to the user PATH. Then the same `npm i -g corepack@latest` and `corepack enable`.
 
+Copy `.env.example` to `.env` and replace the placeholders. `node scripts/check-env-example.mjs` fails when the app reads an environment name that the example does not list.
+
 Postgres on a new machine often has no cluster and no `postgresql.conf`. `scripts/ensure-postgres.sh` exits 1 and prints `initdb -D "$PGDATA"` when `PGDATA` has no config, or when the server is down. Create two databases and keep the URLs different:
 
 ```bash

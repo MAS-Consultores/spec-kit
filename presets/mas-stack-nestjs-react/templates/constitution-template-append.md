@@ -145,7 +145,7 @@ Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
 - Passwords MUST be hashed with Argon2id; login endpoints MUST have throttling
 - MCP endpoints MUST require Bearer token: missing or invalid token MUST return exactly 401 with `WWW-Authenticate: Bearer` header
 - `apps/api` MUST declare `@modelcontextprotocol/client` as a devDependency (latest stable). `@nestjs/mcp/testing` imports it and does not declare the dependency
-- Secrets MUST be read at runtime from Zod-validated config; MUST NOT use hardcoded fallbacks
+- Secrets MUST be read at runtime from the environment; MUST NOT use hardcoded fallbacks. `.env.example` MUST list every name the app reads (`process.env.NAME`, `process.env["NAME"]`, `requiredEnv("NAME")`, `env["NAME"]`) with placeholders and no real secrets. `specify init` copies that file from the reference skeleton. `scripts/check-env-example.mjs` MUST fail when a read name is absent
 
 ### Frontend Stack
 

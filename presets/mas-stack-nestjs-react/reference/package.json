@@ -7,7 +7,8 @@
     "node": ">=26"
   },
   "scripts": {
-    "verify": "pnpm --filter @demo/contracts build && pnpm lint && pnpm typecheck && pnpm madge && pnpm casl && pnpm shadcn:check && pnpm i18n:check && pnpm openapi:check && pnpm test && pnpm skips:check",
+    "verify": "pnpm --filter @demo/contracts build && pnpm lint && pnpm typecheck && pnpm madge && pnpm casl && pnpm shadcn:check && pnpm i18n:check && pnpm openapi:check && pnpm env:check && pnpm test && pnpm skips:check",
+    "env:check": "node scripts/check-env-example.mjs",
     "lint": "eslint .",
     "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
     "routes:gen": "node scripts/generate-route-tree.mjs",
