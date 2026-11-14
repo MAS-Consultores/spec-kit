@@ -17,7 +17,10 @@ function context(type: string, token?: string): ExecutionContext {
     switchToRpc: () => ({}),
     switchToWs: () => ({}),
     switchToHttp: () => ({
-      getRequest: () => ({ cookies: token ? { access_token: token } : {} }),
+      getRequest: () => ({
+        originalUrl: "/api/v1/notes",
+        cookies: token ? { access_token: token } : {},
+      }),
       getResponse: () => ({}),
       getNext: () => undefined,
     }),
