@@ -39,13 +39,14 @@ describe("mcp", () => {
   });
 
   it("rejects a bearer token whose scope is insufficient", async () => {
-    const jwt = new JwtService({ secret: process.env["JWT_ACCESS_SECRET"] });
+    const jwt = app.get(JwtService);
     const token = jwt.sign({ sub: "reader", scopes: ["notes:crear"], csrf: "mcp" });
     const res = await request(server(app))
       .post("/api/v1/mcp")
       .set("Authorization", `Bearer ${token}`)
+      .set("Accept", "application/json, text/event-stream")
       .send({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "list-notes", arguments: {} } });
-    expect(res.status).toBe(403);
+    expect(res.status, JSON.stringify(res.body)).toBe(403);
     expect(JSON.stringify(res.body)).toMatch(/insufficient_scope/);
   });
 });

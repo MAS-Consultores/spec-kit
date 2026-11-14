@@ -16,6 +16,7 @@ export class BearerVerifier implements McpTokenVerifier {
         clientId: payload.sub,
         scopes: payload.scopes,
         expiresAt: Math.floor(Date.now() / 1000) + 15 * 60,
+        resource: new URL("http://127.0.0.1/api/v1/mcp"),
       };
     } catch {
       return null;
