@@ -1,4 +1,7 @@
-import { chromium } from "@playwright/test";
+import { createRequire } from "node:module";
+
+const require = createRequire(new URL("../apps/web/package.json", import.meta.url));
+const { chromium } = require("@playwright/test");
 
 try {
   const browser = await chromium.launch();
