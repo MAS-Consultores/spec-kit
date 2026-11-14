@@ -361,7 +361,7 @@ jobs:
           node scripts/check-no-note-in-infra.mjs
           node scripts/check-env-example.mjs
           node scripts/check-dev-proxy.mjs
-          node scripts/e2e-ports.mjs --self-test
+          node --experimental-strip-types apps/web/e2e/ports.ts --self-test
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
           echo "SKELETON_WORK=$work" >> "$GITHUB_ENV"
 
@@ -381,7 +381,7 @@ jobs:
           node scripts/check-no-note-in-infra.mjs
           node scripts/check-env-example.mjs
           node scripts/check-dev-proxy.mjs
-          node scripts/e2e-ports.mjs --self-test
+          node --experimental-strip-types apps/web/e2e/ports.ts --self-test
           python3 - <<'PY'
           from pathlib import Path
           text = Path("apps/api/src/modules/widgets/widgets.controller.ts").read_text()

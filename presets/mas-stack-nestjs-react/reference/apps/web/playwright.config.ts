@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig, type PlaywrightTestConfig } from "@playwright/test";
-import { choosePorts } from "../../scripts/e2e-ports.mjs";
+import { choosePorts } from "./e2e/ports";
 
 const ports = await choosePorts({
   file: fileURLToPath(new URL("./.e2e-ports.json", import.meta.url)),

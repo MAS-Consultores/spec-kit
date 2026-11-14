@@ -4,29 +4,38 @@
  * ports are free or both servers still answer. A port that is taken and does
  * not answer is discarded so the next run does not attach to a dead listener.
  */
-import { writeFileSync, readFileSync, existsSync, statSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import net from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import net from "node:net";
 
-function listen(server, port) {
+export interface E2ePorts {
+  api: number;
+  web: number;
+}
+
+function listen(server: net.Server, port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve(undefined));
+    server.listen(port, "127.0.0.1", () => {
+      resolve();
+    });
   });
 }
 
-function closeServer(server) {
+function closeServer(server: net.Server): Promise<void> {
   return new Promise((resolve) => {
     if (!server.listening) {
-      resolve(undefined);
+      resolve();
       return;
     }
-    server.close(() => resolve(undefined));
+    server.close(() => {
+      resolve();
+    });
   });
 }
 
-export async function freePort() {
+export async function freePort(): Promise<number> {
   const server = net.createServer();
   await listen(server, 0);
   const address = server.address();
@@ -39,25 +48,29 @@ export async function freePort() {
   return port;
 }
 
-function canBind(port) {
+function canBind(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
     let settled = false;
-    const finish = (value) => {
+    const finish = (value: boolean): void => {
       if (settled) return;
       settled = true;
       resolve(value);
     };
-    server.once("error", () => finish(false));
+    server.once("error", () => {
+      finish(false);
+    });
     server.listen(port, "127.0.0.1", () => {
       setImmediate(() => {
-        server.close(() => finish(true));
+        server.close(() => {
+          finish(true);
+        });
       });
     });
   });
 }
 
-async function httpOk(url) {
+async function httpOk(url: string): Promise<boolean> {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(500) });
     return response.ok;
@@ -66,7 +79,7 @@ async function httpOk(url) {
   }
 }
 
-export async function portsUsable(ports) {
+export async function portsUsable(ports: E2ePorts): Promise<boolean> {
   const apiUp = await httpOk(`http://127.0.0.1:${String(ports.api)}/api/v1/health`);
   const webUp = await httpOk(`http://127.0.0.1:${String(ports.web)}/`);
   if (apiUp && webUp) return true;
@@ -74,14 +87,16 @@ export async function portsUsable(ports) {
   return (await canBind(ports.api)) && (await canBind(ports.web));
 }
 
-function readCached(file, freshMs, now) {
+function readCached(file: string, freshMs: number, now: number): E2ePorts | undefined {
   if (!existsSync(file)) return undefined;
   const stat = statSync(file);
   if (now - stat.mtimeMs > freshMs) return undefined;
-  const parsed = JSON.parse(readFileSync(file, "utf8"));
+  const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
   if (
     typeof parsed === "object" &&
     parsed !== null &&
+    "api" in parsed &&
+    "web" in parsed &&
     typeof parsed.api === "number" &&
     typeof parsed.web === "number"
   ) {
@@ -90,26 +105,23 @@ function readCached(file, freshMs, now) {
   return undefined;
 }
 
-export async function choosePorts({ file, freshMs = 60_000, now = Date.now() }) {
-  const cached = readCached(file, freshMs, now);
+export async function choosePorts(options: {
+  file: string;
+  freshMs?: number;
+  now?: number;
+}): Promise<E2ePorts> {
+  const freshMs = options.freshMs ?? 60_000;
+  const now = options.now ?? Date.now();
+  const cached = readCached(options.file, freshMs, now);
   if (cached && (await portsUsable(cached))) {
     return cached;
   }
   const ports = { api: await freePort(), web: await freePort() };
-  writeFileSync(file, JSON.stringify(ports));
+  writeFileSync(options.file, JSON.stringify(ports));
   return ports;
 }
 
-async function selfTest() {
-  const keepalive = setInterval(() => undefined, 1_000);
-  try {
-    await runSelfTest();
-  } finally {
-    clearInterval(keepalive);
-  }
-}
-
-async function runSelfTest() {
+async function runSelfTest(): Promise<void> {
   const dead = await freePort();
   const holder = net.createServer((socket) => {
     socket.destroy();
@@ -122,31 +134,29 @@ async function runSelfTest() {
   const chosen = await choosePorts({ file, freshMs: 60_000 });
   await closeServer(holder);
   if (chosen.api === dead) {
-    console.error("reused a dead port");
-    process.exit(1);
+    throw new Error("reused a dead port");
   }
-
   const again = await choosePorts({ file, freshMs: 60_000 });
   if (again.api !== chosen.api || again.web !== chosen.web) {
-    console.error("a fresh free cache was not reused");
-    process.exit(1);
+    throw new Error("a fresh free cache was not reused");
   }
   const stale = await choosePorts({ file, freshMs: 60_000, now: Date.now() + 120_000 });
   if (stale.api === chosen.api && stale.web === chosen.web) {
-    console.error("an expired cache was reused");
-    process.exit(1);
+    throw new Error("an expired cache was reused");
   }
   console.log("e2e-ports ok");
 }
 
 if (process.argv.includes("--self-test")) {
-  selfTest().then(
-    () => {
+  const keepalive = setInterval(() => undefined, 1_000);
+  runSelfTest()
+    .then(() => {
+      clearInterval(keepalive);
       process.exit(0);
-    },
-    (error) => {
+    })
+    .catch((error: unknown) => {
+      clearInterval(keepalive);
       console.error(error);
       process.exit(1);
-    },
-  );
+    });
 }

@@ -10,7 +10,7 @@
     "verify": "pnpm --filter @demo/contracts build && pnpm lint && pnpm typecheck && pnpm madge && pnpm casl && pnpm shadcn:check && pnpm i18n:check && pnpm openapi:check && pnpm env:check && pnpm proxy:check && pnpm ports:check && pnpm test && pnpm skips:check",
     "env:check": "node scripts/check-env-example.mjs",
     "proxy:check": "node scripts/check-dev-proxy.mjs",
-    "ports:check": "node scripts/e2e-ports.mjs --self-test",
+    "ports:check": "node --experimental-strip-types apps/web/e2e/ports.ts --self-test",
     "lint": "eslint .",
     "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
     "routes:gen": "node scripts/generate-route-tree.mjs",

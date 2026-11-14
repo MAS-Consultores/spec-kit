@@ -111,7 +111,7 @@ def test_env_example_lists_every_name_the_app_reads() -> None:
 def test_e2e_ports_discards_a_dead_listener() -> None:
     node, _npm = _node()
     run = subprocess.run(
-        [node, str(REFERENCE / "scripts" / "e2e-ports.mjs"), "--self-test"],
+        [node, "--experimental-strip-types", str(REFERENCE / "apps/web/e2e/ports.ts"), "--self-test"],
         cwd=REFERENCE,
         capture_output=True,
         text=True,
