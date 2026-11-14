@@ -156,6 +156,7 @@ React SPA with mandatory libraries and patterns:
 - MUST NOT reimplement shadcn/ui primitives by hand (Button, Input, Dialog, Table, Card, Badge, Select, Dropdown, etc.)
 - MUST use Tailwind CSS only for custom styling, layouts, and spacing—not to rebuild existing primitives
 - `apps/web/src/index.css` MUST include `@source` directive pointing to `packages/ui/src` for Tailwind 4 to generate classes used by shared primitives
+- The browser MUST call the API through the Vite `/api` proxy in `server` and `preview`, aimed at `API_PROXY_TARGET` (the API port). Playwright MUST use the web origin and request `/api` through that proxy so cookies and CSRF stay same-origin. Direct browser calls to the API host are the exception: set `CORS_ORIGIN` and enable CORS with `credentials: true`. Leave `CORS_ORIGIN` empty when the proxy is in use
 - MUST use TanStack Router with file-based routing
 - MUST use TanStack Query for all server state (no duplicating API data in Zustand)
 - Route loaders MUST call `queryClient.query(options)` (`ensureQueryData` and `prefetchQuery` are deprecated and fail `no-deprecated`)

@@ -73,7 +73,11 @@ const config: PlaywrightTestConfig = {
       command: `pnpm exec vite build && pnpm exec vite preview --host 127.0.0.1 --port ${String(webPort)} --strictPort`,
       url: `http://127.0.0.1:${String(webPort)}/`,
       timeout: 120_000,
-      env: { ...process.env, CI: "true" },
+      env: {
+        ...process.env,
+        CI: "true",
+        API_PROXY_TARGET: `http://127.0.0.1:${String(apiPort)}`,
+      },
     },
   ],
 };

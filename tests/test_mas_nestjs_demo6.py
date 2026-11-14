@@ -108,6 +108,19 @@ def test_env_example_lists_every_name_the_app_reads() -> None:
     assert "replace-with" in example
 
 
+def test_dev_proxy_check_passes_on_the_reference() -> None:
+    node, _npm = _node()
+    run = subprocess.run(
+        [node, str(REFERENCE / "scripts" / "check-dev-proxy.mjs")],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "dev-proxy ok" in run.stdout
+
+
 def test_specify_init_copies_env_example(tmp_path: Path) -> None:
     from typer.testing import CliRunner
     from specify_cli import app

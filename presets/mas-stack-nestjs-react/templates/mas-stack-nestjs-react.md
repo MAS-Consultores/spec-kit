@@ -126,6 +126,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `vite.config.ts` with TanStack Router plugin
 - [ ] `vitest.config.ts` for component tests
 - [ ] `e2e/` — Playwright E2E tests
+- [ ] `vite.config.ts` proxies `/api` for dev and preview to `API_PROXY_TARGET`. Playwright uses the web origin and calls `/api` through the proxy
 - [ ] `playwright.config.ts` with `screenshot: 'off'`, `video: 'off'`, and
   `trace: 'off'` (no screenshots in tests: no `page.screenshot()`, no
   `toHaveScreenshot()`)

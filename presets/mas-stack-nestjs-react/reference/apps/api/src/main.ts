@@ -9,6 +9,13 @@ async function main(): Promise<void> {
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
   app.use(cookieParser());
+  const corsOrigin = process.env["CORS_ORIGIN"];
+  if (corsOrigin) {
+    app.enableCors({
+      origin: corsOrigin.split(",").map((origin) => origin.trim()).filter((origin) => origin.length > 0),
+      credentials: true,
+    });
+  }
   const port = Number(process.env["PORT"] ?? "0");
   await app.listen(port);
 }
