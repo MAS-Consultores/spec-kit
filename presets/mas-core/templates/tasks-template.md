@@ -81,7 +81,7 @@ When the selected stack is `nestjs-react`, replace the generic sample paths and 
 
 - Auth phase when `AuthModule` is absent: login, HttpOnly cookies, CSRF, rotating refresh with reuse detection, roles, and user seed. `/speckit.analyze` marks a missing phase CRITICAL.
 - `apps/api/prisma.config.ts` with `schema: 'prisma/schema.prisma'` (not under `prisma/`).
-- Resolve dependency versions with `npm view <pkg> version` (latest stable, no prereleases). Do not copy version numbers from templates. TypeScript is the highest stable release allowed by the `typescript-eslint` peer.
+- Copy dependency versions from `.specify/reference/` (`package.json` and `pnpm-lock.yaml`). Do not run `npm view` and do not invent versions. TypeScript stays the lockfile pin (typescript-eslint peer exception).
 - `pnpm verify` tasks for `openapi:generate`, `api-client:generate`, and `scripts/check-casl.ts` (TypeScript AST).
 - CASL: `createPrismaAbility` / `PrismaQuery`, `accessibleBy(...).ofType('Model')`, import `accessibleBy` from `@casl/prisma/runtime` when the Prisma client has a custom output.
 - `packages/ui` source-only exports to `src`; `components.json` workspace aliases; verify `cn` imports and a `radix-ui` dependency.

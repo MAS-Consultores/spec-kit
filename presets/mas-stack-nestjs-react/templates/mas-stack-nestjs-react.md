@@ -68,7 +68,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 ### Monorepo Root (Required)
 
 - [ ] `pnpm-workspace.yaml` with `packages: [apps/*, packages/*]` and an explicit `allowBuilds` map: `true` for `prisma`, `@prisma/engines`, `argon2`, `esbuild`, `@swc/core`, and `msw`; `false` for `@scarf/scarf`. pnpm 12 fails when an install script is omitted. Add new packages by hand (`true` only if the script is required). `pnpm approve-builds --all` writes `false`; do not use it as the source of truth.
-- [ ] Do not commit version numbers copied from docs. Resolve each dependency with `npm view <pkg> version` and reject prereleases. TypeScript is the highest stable release allowed by the `typescript-eslint` peer range (documented exception).
+- [ ] Copy `package.json` and `pnpm-lock.yaml` from `.specify/reference/`. Do not run `npm view` to pick versions. TypeScript stays the lockfile pin (typescript-eslint peer exception).
 - [ ] `pnpm-lock.yaml` committed (NOT `package-lock.json` or `yarn.lock`)
 - [ ] Root `package.json` with:
   - `packageManager: 'pnpm@X.Y.Z'` (exact pnpm pin)
