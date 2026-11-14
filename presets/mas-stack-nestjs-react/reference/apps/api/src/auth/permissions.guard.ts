@@ -13,7 +13,7 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
     const request = context.switchToHttp().getRequest<Request & { user?: AccessPayload }>();
-    if ((request.originalUrl ?? request.url).includes("/mcp")) {
+    if (request.originalUrl.includes("/mcp")) {
       return true;
     }
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [

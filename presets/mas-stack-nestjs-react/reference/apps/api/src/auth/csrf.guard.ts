@@ -19,7 +19,7 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
     const early = context.switchToHttp().getRequest<Request>();
-    if ((early.originalUrl ?? early.url).includes("/mcp")) {
+    if (early.originalUrl.includes("/mcp")) {
       return true;
     }
     const skip = this.reflector.getAllAndOverride<boolean>(SKIP_CSRF, [
