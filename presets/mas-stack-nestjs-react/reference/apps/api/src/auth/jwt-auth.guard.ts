@@ -22,6 +22,11 @@ export class JwtAuthGuard implements CanActivate {
     if (context.getType<string>() !== "http") {
       return true;
     }
+    const request = context.switchToHttp().getRequest<Request & { user?: AccessPayload }>();
+    const url = request.originalUrl ?? request.url;
+    if (url.includes("/mcp")) {
+      return true;
+    }
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [
       context.getHandler(),
       context.getClass(),
@@ -29,7 +34,6 @@ export class JwtAuthGuard implements CanActivate {
     if (isPublic) {
       return true;
     }
-    const request = context.switchToHttp().getRequest<Request & { user?: AccessPayload }>();
     const token = readCookie(request, "access_token");
     if (!token) {
       throw new UnauthorizedException();
