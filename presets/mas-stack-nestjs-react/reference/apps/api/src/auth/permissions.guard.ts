@@ -1,7 +1,13 @@
-import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
+import {
+  type CanActivate,
+  type ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
-import { CAN_KEY, IS_PUBLIC } from "./decorators.js";
+import { AUTHENTICATED, CAN_KEY, IS_PUBLIC } from "./decorators.js";
 import type { AccessPayload } from "./jwt-auth.guard.js";
 
 @Injectable()
@@ -24,6 +30,10 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
     const required = this.reflector.get<string>(CAN_KEY, context.getHandler());
+    const authenticated = this.reflector.get<boolean>(AUTHENTICATED, context.getHandler());
+    if (authenticated && !request.user) {
+      throw new UnauthorizedException();
+    }
     if (!required) {
       return true;
     }

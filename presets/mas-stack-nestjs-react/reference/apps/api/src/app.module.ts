@@ -12,11 +12,9 @@ import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { JwtStrategy } from "./auth/jwt.strategy.js";
 import { PermissionsGuard } from "./auth/permissions.guard.js";
 import { HealthController } from "./health.controller.js";
-import { NotesTool } from "./mcp/notes.tool.js";
 import { BearerVerifier } from "./mcp/token-verifier.js";
-import { NotesController } from "./modules/notes/notes.controller.js";
-import { NotesService } from "./modules/notes/notes.service.js";
 import { PrismaService } from "./prisma.service.js";
+import { mcpScopesSupported, sliceControllers, sliceProviders } from "./slices.js";
 import { requiredEnv } from "./env.js";
 
 @Module({
@@ -46,17 +44,16 @@ import { requiredEnv } from "./env.js";
         verifier: BearerVerifier,
         resource: "http://127.0.0.1/api/v1/mcp",
         authorizationServers: ["http://127.0.0.1"],
-        scopesSupported: ["notes:ver"],
+        scopesSupported: mcpScopesSupported,
       },
     }),
   ],
-  controllers: [HealthController, AuthController, NotesController],
+  controllers: [HealthController, AuthController, ...sliceControllers],
   providers: [
     PrismaService,
     AuthService,
     JwtStrategy,
-    NotesService,
-    NotesTool,
+    ...sliceProviders,
     BearerVerifier,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },

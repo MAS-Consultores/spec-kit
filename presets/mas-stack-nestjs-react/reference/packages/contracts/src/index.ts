@@ -33,6 +33,7 @@ export const openApiDocument = {
     "/api/v1/auth/login": { post: { responses: { "201": { description: "login" } } } },
     "/api/v1/auth/refresh": { post: { responses: { "201": { description: "refresh" } } } },
     "/api/v1/auth/logout": { post: { responses: { "201": { description: "logout" } } } },
+    "/api/v1/auth/me": { get: { responses: { "200": { description: "session" } } } },
     "/api/v1/notes": {
       get: { responses: { "200": { description: "list" } } },
       post: { responses: { "201": { description: "create" } } },

@@ -49,4 +49,21 @@ describe("mcp", () => {
     expect(res.status, JSON.stringify(res.body)).toBe(403);
     expect(JSON.stringify(res.body)).toMatch(/insufficient_scope/);
   });
+
+  it("returns 200 when listing with a sufficient scope", async () => {
+    const jwt = app.get(JwtService);
+    const token = jwt.sign({ sub: "reader", scopes: ["notes:ver"], csrf: "mcp" });
+    const res = await request(server(app))
+      .post("/api/v1/mcp")
+      .set("Authorization", `Bearer ${token}`)
+      .set("Accept", "application/json, text/event-stream")
+      .send({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "list-notes", arguments: {} },
+      });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(JSON.stringify(res.body)).not.toMatch(/insufficient_scope/);
+  });
 });
