@@ -68,8 +68,12 @@ When the git repository has no commits, `main` is only a symbolic HEAD. After
 `create-new-feature`, HEAD is the feature branch and there is still no commit
 object. `/speckit.specify` and `/speckit.clarify` commit on that feature branch.
 Those commits are the first history of the repository. Do not try to create an
-initial commit on `main` first, and do not expect `main` to exist until a later
-local merge (`git branch main` from the feature branch, or the implement merge).
+initial commit on `main` first. Do not run `git branch main` from the feature
+tip: that makes a later `--no-ff` merge report "Already up to date". `main`
+becomes a real branch only when `/speckit.implement` runs `finish-feature`,
+which points `main` at the root commit (`git rev-list --max-parents=0 HEAD`)
+and then merges the feature with `--no-ff`. `/speckit.plan` and
+`/speckit.tasks` stay on the feature branch and do not create `main`.
 `/speckit.analyze` does not commit.
 
 {CORE_TEMPLATE}

@@ -263,11 +263,15 @@ def test_plan_and_tasks_skills_hard_fail_on_main(tmp_path: Path):
     for name in ("speckit-plan", "speckit-tasks", "speckit-implement", "speckit-specify"):
         text = (project / ".cursor" / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
         assert "HARD_FAIL" in text or "stop" in text.lower()
+        if name == "speckit-implement":
+            assert "finish-feature.sh" in text
+            assert "finish-feature.ps1" in text
         if name != "speckit-specify":
             assert "main" in text
         else:
             assert "create-new-feature.sh" in text
             assert "by hand as a fallback" in text
+            assert "finish-feature" in text
 
 
 def test_create_new_feature_creates_branch_files_and_failure_writes_nothing(tmp_path: Path):

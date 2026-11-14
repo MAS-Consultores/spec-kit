@@ -15,6 +15,9 @@ The script exits 1 when HEAD is `main`, `master`, detached, or not a
 `NNN-short-name` feature branch, and when `.specify/feature.json` names a
 directory whose basename is not HEAD. That exit is `HARD_FAIL`.
 
+Do not create `main` and do not merge. Planning commits stay on the feature
+branch. The local merge is `finish-feature` during `/speckit.implement`.
+
 ## MAS Stack-Aware Planning Requirements
 
 Before executing the core planning workflow, read these required project memory

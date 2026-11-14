@@ -76,7 +76,7 @@ jobs:
         run: uv sync --extra test
 
       - name: Policy and scenario tests
-        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py -q --tb=short
+        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py tests/test_mas_nestjs_demo7.py -q --tb=short
 
       - name: Feature script on Bash
         if: runner.os != 'Windows'
@@ -216,6 +216,74 @@ jobs:
             exit 1
           fi
 
+      - name: Finish feature on Bash
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin="$PWD"
+          finish_repo() {
+            local work="$1"
+            local mode="$2"
+            git init -b main "$work"
+            git -C "$work" config user.email smoke@example.com
+            git -C "$work" config user.name smoke
+            mkdir -p "$work/.specify/scripts/bash" "$work/.specify/templates"
+            cp "$origin/scripts/bash/common.sh" "$origin/scripts/bash/create-new-feature.sh" "$origin/scripts/bash/finish-feature.sh" "$work/.specify/scripts/bash/"
+            printf '# spec\n' > "$work/.specify/templates/spec-template.md"
+            cd "$work"
+            if [ "$mode" = "existing" ]; then
+              printf 'base\n' > README.md
+              git add README.md
+              git commit -m base
+            fi
+            bash .specify/scripts/bash/create-new-feature.sh --json --short-name user-login "Add user login" > out.json
+            python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); assert p["BRANCH_NAME"].endswith("user-login")' out.json
+            printf 'specify\n' > specify.txt
+            git add -A
+            git commit -m specify
+            printf 'plan\n' > plan.txt
+            git add plan.txt
+            git commit -m plan
+            printf 'implement\n' > implement.txt
+            git add implement.txt
+            git commit -m implement
+          }
+          assert_merge() {
+            local work="$1"
+            local feature_sha="$2"
+            local first="$3"
+            test "$(git -C "$work" symbolic-ref --short HEAD)" = "main"
+            set -- $(git -C "$work" rev-list --parents -n 1 HEAD)
+            test "$#" -eq 3
+            test "$2" = "$first"
+            test "$3" = "$feature_sha"
+            git -C "$work" merge-base --is-ancestor "$feature_sha" HEAD
+            test -z "$(git -C "$work" status --porcelain)"
+          }
+          empty="$(mktemp -d)"
+          finish_repo "$empty" empty
+          feature_sha="$(git rev-parse HEAD)"
+          root="$(git rev-list --max-parents=0 HEAD | head -n 1)"
+          bash .specify/scripts/bash/finish-feature.sh
+          assert_merge "$empty" "$feature_sha" "$root"
+          existing="$(mktemp -d)"
+          finish_repo "$existing" existing
+          feature_sha="$(git rev-parse HEAD)"
+          base="$(git rev-parse main)"
+          bash .specify/scripts/bash/finish-feature.sh
+          assert_merge "$existing" "$feature_sha" "$base"
+          dirty="$(mktemp -d)"
+          finish_repo "$dirty" empty
+          printf 'dirty\n' > dirty.txt
+          set +e
+          bash .specify/scripts/bash/finish-feature.sh >/tmp/finish-dirty.txt 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 1
+          grep -q dirty /tmp/finish-dirty.txt
+          test "$(git symbolic-ref --short HEAD)" != "main"
+
       - name: Spec Kit scripts on PowerShell
         if: runner.os == 'Windows'
         shell: pwsh
@@ -252,6 +320,75 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $false
           pwsh -NoProfile -File .\.specify\scripts\powershell\ensure-feature-branch.ps1 2>&1 | Out-Host
           if ($LASTEXITCODE -eq 0) { Write-Error "main must be rejected"; exit 1 }
+          exit 0
+
+      - name: Finish feature on PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $origin = (Get-Location).Path
+          function Finish-Repo([string]$Work, [string]$Mode) {
+            if (Test-Path $Work) { Remove-Item -Recurse -Force $Work }
+            New-Item -ItemType Directory -Path $Work | Out-Null
+            git init -b main $Work
+            git -C $Work config user.email smoke@example.com
+            git -C $Work config user.name smoke
+            New-Item -ItemType Directory -Force -Path "$Work/.specify/scripts/powershell","$Work/.specify/templates" | Out-Null
+            Copy-Item "$origin/scripts/powershell/common.ps1","$origin/scripts/powershell/create-new-feature.ps1","$origin/scripts/powershell/finish-feature.ps1" "$Work/.specify/scripts/powershell/"
+            Set-Content -Path "$Work/.specify/templates/spec-template.md" -Value "# spec"
+            Set-Location $Work
+            if ($Mode -eq 'existing') {
+              Set-Content -Path "README.md" -Value "base"
+              git add README.md
+              git commit -m base
+            }
+            & .\.specify\scripts\powershell\create-new-feature.ps1 -Json -ShortName "user-login" "Add user login"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Set-Content -Path "specify.txt" -Value "specify"
+            git add -A
+            git commit -m specify
+            Set-Content -Path "plan.txt" -Value "plan"
+            git add plan.txt
+            git commit -m plan
+            Set-Content -Path "implement.txt" -Value "implement"
+            git add implement.txt
+            git commit -m implement
+          }
+          function Assert-Merge([string]$Work, [string]$FeatureSha, [string]$First) {
+            $head = "$(git -C $Work symbolic-ref --short HEAD)".Trim()
+            if ($head -ne 'main') { Write-Error "HEAD is $head"; exit 1 }
+            $parts = @("$(git -C $Work rev-list --parents -n 1 HEAD)".Trim() -split '\s+' | Where-Object { $_ })
+            if ($parts.Count -ne 3) { Write-Error "parents $($parts.Count)"; exit 1 }
+            if ($parts[1] -ne $First) { Write-Error "first parent $($parts[1])"; exit 1 }
+            if ($parts[2] -ne $FeatureSha) { Write-Error "second parent $($parts[2])"; exit 1 }
+            git -C $Work merge-base --is-ancestor $FeatureSha HEAD
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $status = "$(git -C $Work status --porcelain)"
+            if ($status) { Write-Error "dirty after merge: $status"; exit 1 }
+          }
+          $empty = Join-Path $env:TEMP "speckit-finish-empty"
+          Finish-Repo $empty 'empty'
+          $featureSha = "$(git rev-parse HEAD)".Trim()
+          $root = "$(git rev-list --max-parents=0 HEAD)".Trim().Split("`n")[0].Trim()
+          & .\.specify\scripts\powershell\finish-feature.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Assert-Merge $empty $featureSha $root
+          $existing = Join-Path $env:TEMP "speckit-finish-existing"
+          Finish-Repo $existing 'existing'
+          $featureSha = "$(git rev-parse HEAD)".Trim()
+          $base = "$(git rev-parse main)".Trim()
+          & .\.specify\scripts\powershell\finish-feature.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Assert-Merge $existing $featureSha $base
+          $dirty = Join-Path $env:TEMP "speckit-finish-dirty"
+          Finish-Repo $dirty 'empty'
+          Set-Content -Path "dirty.txt" -Value "dirty"
+          $PSNativeCommandUseErrorActionPreference = $false
+          & .\.specify\scripts\powershell\finish-feature.ps1
+          if ($LASTEXITCODE -ne 1) { Write-Error "dirty tree must exit 1, got $LASTEXITCODE"; exit 1 }
+          $head = "$(git symbolic-ref --short HEAD)".Trim()
+          if ($head -eq 'main') { Write-Error "dirty run moved HEAD to main"; exit 1 }
           exit 0
 
   reference:

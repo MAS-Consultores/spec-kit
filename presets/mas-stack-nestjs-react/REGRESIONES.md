@@ -2,6 +2,12 @@
 
 Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitution no cuenta como cobertura. «Pendiente» significa que el historial no alcanza para un chequeo ejecutable o que el comportamiento no está en el esqueleto.
 
+## Demo 7 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D7-01 | en un repo nacido vacío, `finish-feature` deja `main` en el commit raíz y crea un merge `--no-ff`; si `main` ya existe, lo conserva; un árbol sucio sale 1 | `PENDING` | `tests/test_mas_nestjs_demo7.py` y los pasos de CI «Finish feature on Bash» (Ubuntu y macOS) y «Finish feature on PowerShell» (Windows) |
+
 ## Demo 6 (huecos de esta iteración)
 
 | ID | Descripción | Commit | Chequeo |
@@ -79,7 +85,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | PM-03 | PATH de nvm vacío | el README indica `source "$NVM_DIR/nvm.sh"` antes de `pnpm` |
 | PM-04 | Playwright sin navegadores | `scripts/ensure-playwright.mjs` sale 1 con el comando `pnpm exec playwright install chromium`. El job lo corre después de instalar solo chromium |
 | PM-05 | puertos 3000, 4173 o 5432 ocupados | Playwright reserva un puerto libre. La base se elige con las URLs, no asumiendo que 5432 esté libre para la app |
-| PM-06 | flujo de scripts sin LLM en un repo vacío | paso de CI en bash (Ubuntu y macOS) y PowerShell (Windows): init, create-new-feature, setup-plan, setup-tasks, ensure-feature-branch en la rama y en `main` |
+| PM-06 | flujo de scripts sin LLM en un repo vacío | paso de CI en bash (Ubuntu y macOS) y PowerShell (Windows): init, create-new-feature, setup-plan, setup-tasks, ensure-feature-branch en la rama y en `main`, y `finish-feature` (repo nacido vacío, `main` con commits, árbol sucio) |
 | PM-07 | migración desde cero, seed dos veces, URLs distintas, truncado | job `reference`: `migrate deploy` de las dos bases, `pnpm db:seed` dos veces, `scripts/truncate-e2e.mjs` en el global setup y en el e2e de API |
 | PM-14 | el slice de ejemplo queda acoplado a la infraestructura y el segundo módulo no pasa los gates | el mismo job, paso «Replace the example slice», borra Note, agrega Widget y repite verify, unit, e2e de API, e2e de MCP, Playwright y el build |
 | PM-08 | cookies HttpOnly, CSRF rotado en logout, refresh, 429 aislado, MCP con guard JWT | `pnpm test:e2e:api`, `test/throttle.e2e.ts` (instancia propia con límite 2) y `pnpm test:e2e:mcp` |
