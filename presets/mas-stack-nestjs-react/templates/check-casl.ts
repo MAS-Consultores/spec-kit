@@ -5,9 +5,13 @@
  * package root does not export createSourceFile, so this script must not
  * load `typescript@7`.
 
- * Negative fixtures must fail: a handler missing @Can and @Public, MCP scopes
- * that do not include the handler's @Can permission, and a manifest action
- * (other than reserved: true) that no @Can or @Tool scope uses.
+ * HTTP handlers must carry @Can, @Public, or @Authenticated. @Authenticated
+ * means a valid session and no CASL permission. MCP tools still require @Can
+ * and matching scopes; @Authenticated does not satisfy a tool.
+ * Negative fixtures must fail: an HTTP handler missing all three, an MCP tool
+ * without @Can, MCP scopes that do not include the handler's @Can permission,
+ * and a manifest action (other than reserved: true) that no @Can or @Tool
+ * scope uses.
  */
 import { createRequire } from "node:module";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -177,9 +181,19 @@ for (const file of filesUnder(ROOT)) {
   const visit = (node: ts.Node): void => {
     if (ts.isMethodDeclaration(node) && node.name) {
       const names = decoratorNames(node);
-      const exposed = names.some((name) => HTTP.has(name) || name === "Tool");
-      if (exposed && !names.includes("Can") && !names.includes("Public")) {
-        failures.push(`${file}: handler ${node.name.getText(source)} lacks @Can or @Public`);
+      const http = names.some((name) => HTTP.has(name));
+      const tool = names.includes("Tool");
+      const sessionMarked =
+        names.includes("Can") || names.includes("Public") || names.includes("Authenticated");
+      if (http && !sessionMarked) {
+        failures.push(
+          `${file}: handler ${node.name.getText(source)} lacks @Can, @Public, or @Authenticated`,
+        );
+      }
+      if (tool && !names.includes("Can")) {
+        failures.push(
+          `${file}: MCP tool ${node.name.getText(source)} lacks @Can (scopes are required)`,
+        );
       }
       const canExpr = callDecorator(node, "Can");
       const toolExpr = callDecorator(node, "Tool");

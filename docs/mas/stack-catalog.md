@@ -389,7 +389,7 @@ OpenAPI.
 
 ### Authorization: Custom AuthzModule + CASL
 
-- **Enforcement**: Custom `AuthzModule` with `@Can()` decorator on REST routes and MCP tools; deny-by-default. Do NOT use `@nestjs/authorization`.
+- **Enforcement**: Custom `AuthzModule`; deny-by-default. Do NOT use `@nestjs/authorization`. HTTP handlers use `@Public()` (no session), `@Authenticated()` (valid session, no CASL permission), or `@Can('category:action')` (permission-gated). MCP tools still require `@Can()` and matching scopes.
 - **Permission Engine**: CASL (`@casl/ability`) for defining and evaluating abilities per user.
 - **Permission Format**: `category:action` (e.g., `usuarios:listar`, `pedidos:aprobar`); code checks permissions, NEVER role names.
 - **Categories**: One per domain module (e.g., 'Usuarios', 'Pedidos'); standard actions: `listar`, `ver`, `crear`, `editar`, `eliminar`, `exportar`, plus custom.

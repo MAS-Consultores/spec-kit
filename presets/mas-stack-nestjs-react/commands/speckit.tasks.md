@@ -19,7 +19,7 @@ Also require tasks for:
 
 - `apps/api/prisma.config.ts` at the API package root with `schema: 'prisma/schema.prisma'`
 - dependency versions copied from the tested `.specify/reference/` `package.json` files and `pnpm-lock.yaml` (latest stable already proven in CI, no prereleases). Do not run `npm view` to choose them. TypeScript stays the pin in that lockfile (the typescript-eslint peer exception)
-- `openapi:generate`, `api-client:generate`, and an AST-based `scripts/check-casl.ts` inside `pnpm verify`
+- `openapi:generate`, `api-client:generate`, and an AST-based `scripts/check-casl.ts` inside `pnpm verify`. HTTP handlers use `@Public()` (no session: login, refresh, health), `@Authenticated()` (valid session, no CASL permission: logout, me, and session-only feature reads), or `@Can('category:action')` (permission-gated feature routes). A handler with none of the three fails the check. MCP tools still require `@Can` and matching `scopes`; `@Authenticated` does not replace a tool scope
 - `apps/api` devDependency `@modelcontextprotocol/client` at the latest stable (note: `@nestjs/mcp/testing` imports it and does not declare it)
 - `nest-cli.json` `builder: swc` plus `typeCheck: true`, scripts `start:e2e` (`nest build && node dist/main.js`) and `openapi:generate` that sets `OPENAPI_GENERATE=1` before importing compiled `main` (never `tsx src/main.ts`)
 - compiled `exports` for `packages/contracts` (`@demo/contracts`)

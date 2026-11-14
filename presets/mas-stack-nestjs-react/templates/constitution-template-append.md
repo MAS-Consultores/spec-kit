@@ -136,7 +136,11 @@ AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.i
 Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
 - If the project has no AuthModule, tasks MUST add a blocking auth phase (login, HttpOnly cookies, CSRF, rotating refresh with reuse detection, roles, user seed) and analyze MUST mark its absence CRITICAL
 - Access tokens MUST be short-lived (~15 min); refresh tokens MUST rotate and be stored in HttpOnly + Secure + SameSite cookies with CSRF protection
-- Session routes MUST NOT require a permission from the example slice. `login` and `refresh` use `@Public()` because they create the session. `logout` and `me` use `@Authenticated()` from `decorators.ts`, which requires a valid access token and no CASL permission. `@Can(...)` is only for feature endpoints
+- Every HTTP handler MUST carry exactly one of three markers. `scripts/check-casl.ts` fails a handler that has none of them:
+  - `@Public()` — no session. Use it for routes that create the session (`login`, `refresh`) and for unauthenticated probes such as health
+  - `@Authenticated()` from `decorators.ts` — a valid access token and no CASL permission. Use it for `logout`, `me`, and any feature route that only needs a signed-in user (for example listing the caller's own records when the spec does not grant a separate permission)
+  - `@Can('category:action')` — feature authorization. Use it for create, update, delete, and for reads that are permission-gated
+- Session routes MUST NOT require a permission from the example slice. MCP tools MUST NOT use `@Public()` or `@Authenticated()` in place of a scope: each `@Tool` still needs `@Can(...)` and `scopes` that include that permission
 - MCP registration MUST use `McpModule.forRootAsync({ decorators: [Public(), SkipCsrf()] })` so a missing Bearer token is 401, not a CSRF 403
 - Passwords MUST be hashed with Argon2id; login endpoints MUST have throttling
 - MCP endpoints MUST require Bearer token: missing or invalid token MUST return exactly 401 with `WWW-Authenticate: Bearer` header

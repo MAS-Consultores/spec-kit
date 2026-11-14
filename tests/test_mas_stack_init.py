@@ -1216,7 +1216,8 @@ def test_check_casl_reads_tool_options_and_manifests():
     assert "arguments[index]" in script or "arguments[0]" in script
     assert "scopes" in script
     assert "unused manifest action" in script
-    assert "lacks @Can or @Public" in script
+    assert "lacks @Can, @Public, or @Authenticated" in script
+    assert "MCP tool" in script
     assert "reserved" in script
     assert "@Tool scopes do not include" in script
 
