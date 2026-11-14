@@ -65,6 +65,6 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | PM-08 | cookies HttpOnly, CSRF rotado en logout, refresh, 429 aislado, MCP con guard JWT | `pnpm test:e2e:api`, `test/throttle.e2e.ts` (instancia propia con límite 2) y `pnpm test:e2e:mcp` |
 | PM-09 | es-CL, axe, `routeTree.gen` antes del typecheck, paths `@demo/ui` | `pnpm --filter @demo/web test`, Playwright + axe, `pnpm routes:gen` al inicio de `typecheck` |
 | PM-10 | drift de OpenAPI o del api-client, i18n, eslint strict, madge, CASL, tests skipped | `pnpm verify` |
-| PM-11 | una versión prerelease o un lockfile que no instala congelado | `pnpm install --frozen-lockfile` y `node scripts/check-prerelease.mjs` |
+| PM-11 | una dependencia directa prerelease o un lockfile que no instala congelado | `pnpm install --frozen-lockfile` y `node scripts/check-prerelease.mjs`. El checker mira los `package.json` del esqueleto. Rangos transitivos que pnpm anota (`@emnapi/*` beta, `@visx/*` alpha) no son dependencias directas y no rompen el install |
 | PM-12 | warnings de engines o peers rompen el install | están documentados en el README del esqueleto; el install de CI no usa `--strict-peer-dependencies` y el warning de Prisma en Node 26 no es un fallo |
 | PM-13 | un snippet de la constitution o de un skill no compila (el caso de `prisma.config.ts`) | `scripts/compile-preset-snippets.mjs` contra los `node_modules` del esqueleto |
