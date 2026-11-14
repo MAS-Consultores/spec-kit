@@ -2,6 +2,15 @@
 
 Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitution no cuenta como cobertura. «Pendiente» significa que el historial no alcanza para un chequeo ejecutable o que el comportamiento no está en el esqueleto.
 
+## Demo 6 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D6-01 | `check-casl.ts` acepta `@Authenticated()` en handlers HTTP; una tool MCP sin `@Can` sigue fallando; un handler sin `@Can`, `@Public` ni `@Authenticated` falla | `cbf536d6` | `tests/test_mas_nestjs_demo6.py` y `pnpm casl` del job `reference` |
+| D6-02 | `.env.example` lista las variables que la app lee y `specify init` lo copia | `19d2064d` | `tests/test_mas_nestjs_demo6.py` y `node scripts/check-env-example.mjs` en el esqueleto y tras el reemplazo del slice |
+| D6-03 | Vite hace proxy de `/api` en dev y preview; Playwright llama a la API por el origen de la web | `d8d05593` | `node scripts/check-dev-proxy.mjs` y `pnpm test:e2e:web` (health vía el origen web) en ambos tramos del job `reference` |
+| D6-04 | los puertos de `.e2e-ports.json` se reutilizan solo si están libres o los dos servidores responden; el reemplazo del slice deja listar en `@Authenticated` y crear en `@Can` | `5b56f0e0` | `node scripts/e2e-ports.mjs --self-test`, Playwright dos veces seguidas en ambos tramos, y el chequeo del controller de widgets tras `replace-example-slice.mjs` |
+
 ## Demo 5 (huecos de esta iteración)
 
 | ID | Descripción | Commit | Chequeo |
