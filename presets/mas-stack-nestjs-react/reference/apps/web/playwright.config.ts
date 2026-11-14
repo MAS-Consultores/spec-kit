@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import net from "node:net";
 import { defineConfig, type PlaywrightTestConfig } from "@playwright/test";
 
@@ -18,8 +19,33 @@ function freePort(): Promise<number> {
   });
 }
 
-const apiPort = await freePort();
-const webPort = await freePort();
+const portFile = new URL("./.e2e-ports.json", import.meta.url);
+function readPorts(): { api: number; web: number } | undefined {
+  if (!fs.existsSync(portFile)) {
+    return undefined;
+  }
+  if (Date.now() - fs.statSync(portFile).mtimeMs > 60_000) {
+    return undefined;
+  }
+  const parsed: unknown = JSON.parse(fs.readFileSync(portFile, "utf8"));
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "api" in parsed &&
+    "web" in parsed &&
+    typeof parsed.api === "number" &&
+    typeof parsed.web === "number"
+  ) {
+    return { api: parsed.api, web: parsed.web };
+  }
+  return undefined;
+}
+const cached = readPorts();
+const apiPort = cached?.api ?? (await freePort());
+const webPort = cached?.web ?? (await freePort());
+if (!cached) {
+  fs.writeFileSync(portFile, JSON.stringify({ api: apiPort, web: webPort }));
+}
 const databaseUrl = process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_URL"] ?? "";
 
 const config: PlaywrightTestConfig = {

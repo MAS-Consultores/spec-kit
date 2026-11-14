@@ -1,5 +1,6 @@
 node_modules
 .cursor
+apps/web/.e2e-ports.json
 .snippet-check
 apps/*/.snippet-check
 dist
