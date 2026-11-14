@@ -2,6 +2,16 @@
 
 Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitution no cuenta como cobertura. «Pendiente» significa que el historial no alcanza para un chequeo ejecutable o que el comportamiento no está en el esqueleto.
 
+## Demo 5 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D5-01 | `truncate-e2e.mjs` trunca las tablas de la app leídas de `information_schema`, sin nombres fijos, y omite `_prisma_migrations` | `bf51460a` | el e2e de API del job `reference` (antes y después del reemplazo del slice) ejecuta el script |
+| D5-02 | logout y `me` usan `@Authenticated()`; auth, CSRF, el verificador MCP, health y el seed base no nombran el slice de ejemplo | `dd35cd62` | `node scripts/check-no-note-in-infra.mjs` en el esqueleto y otra vez después de `scripts/replace-example-slice.mjs` |
+| D5-03 | la rama se lee con `git symbolic-ref --short HEAD` en bash y PowerShell | `15c5e53b` | `tests/test_mas_nestjs_demo5.py` (repo sin commits) y el paso de CI en bash y PowerShell, que exige salida 128 de `rev-parse --abbrev-ref` |
+| D5-04 | `db:migrate` usa `DATABASE_URL`; un string vacío no cae a `SEED_DATABASE_URL`; el seed sigue exigiendo la otra URL | `c969f542` | `tests/test_mas_nestjs_demo5.py` y `prisma migrate deploy` de las dos bases en el job `reference` |
+| D5-05 | `/speckit.tasks` copia versiones del lockfile del esqueleto y no pide `npm view` | `9576bfc4` | `tests/test_mas_nestjs_demo5.py` lee el skill, la plantilla de tasks y el checklist |
+
 ## Demo 4 (huecos de esta iteración)
 
 | ID | Descripción | Commit | Chequeo |
@@ -62,6 +72,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | PM-05 | puertos 3000, 4173 o 5432 ocupados | Playwright reserva un puerto libre. La base se elige con las URLs, no asumiendo que 5432 esté libre para la app |
 | PM-06 | flujo de scripts sin LLM en un repo vacío | paso de CI en bash (Ubuntu y macOS) y PowerShell (Windows): init, create-new-feature, setup-plan, setup-tasks, ensure-feature-branch en la rama y en `main` |
 | PM-07 | migración desde cero, seed dos veces, URLs distintas, truncado | job `reference`: `migrate deploy` de las dos bases, `pnpm db:seed` dos veces, `scripts/truncate-e2e.mjs` en el global setup y en el e2e de API |
+| PM-14 | el slice de ejemplo queda acoplado a la infraestructura y el segundo módulo no pasa los gates | el mismo job, paso «Replace the example slice», borra Note, agrega Widget y repite verify, unit, e2e de API, e2e de MCP, Playwright y el build |
 | PM-08 | cookies HttpOnly, CSRF rotado en logout, refresh, 429 aislado, MCP con guard JWT | `pnpm test:e2e:api`, `test/throttle.e2e.ts` (instancia propia con límite 2) y `pnpm test:e2e:mcp` |
 | PM-09 | es-CL, axe, `routeTree.gen` antes del typecheck, paths `@demo/ui` | `pnpm --filter @demo/web test`, Playwright + axe, `pnpm routes:gen` al inicio de `typecheck` |
 | PM-10 | drift de OpenAPI o del api-client, i18n, eslint strict, madge, CASL, tests skipped | `pnpm verify` |

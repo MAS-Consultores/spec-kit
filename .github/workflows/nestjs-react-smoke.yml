@@ -76,7 +76,7 @@ jobs:
         run: uv sync --extra test
 
       - name: Policy and scenario tests
-        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py -q --tb=short
+        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py -q --tb=short
 
       - name: Feature script on Bash
         if: runner.os != 'Windows'
@@ -97,6 +97,14 @@ jobs:
           code=$?
           set -e
           test "$code" -ne 0
+          empty="$(mktemp -d)"
+          git init -b main "$empty"
+          test "$(git -C "$empty" symbolic-ref --short HEAD)" = "main"
+          set +e
+          git -C "$empty" rev-parse --abbrev-ref HEAD >/dev/null 2>&1
+          rev=$?
+          set -e
+          test "$rev" -eq 128
 
       - name: Feature script on PowerShell
         if: runner.os == 'Windows'
@@ -113,6 +121,15 @@ jobs:
           Set-Content -Path "$work/.specify/templates/spec-template.md" -Value "# spec"
           & "$work/.specify/scripts/powershell/create-new-feature.ps1" -Json -ShortName "user-login" "Add user login"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $empty = Join-Path $env:TEMP "speckit-empty-branch"
+          if (Test-Path $empty) { Remove-Item -Recurse -Force $empty }
+          New-Item -ItemType Directory -Path $empty | Out-Null
+          git init -b main $empty
+          $name = git -C $empty symbolic-ref --short HEAD
+          if ($name -ne "main") { Write-Error "symbolic-ref returned $name"; exit 1 }
+          $PSNativeCommandUseErrorActionPreference = $false
+          git -C $empty rev-parse --abbrev-ref HEAD 2>$null | Out-Null
+          if ($LASTEXITCODE -ne 128) { Write-Error "rev-parse exit $LASTEXITCODE"; exit 1 }
 
       - name: Init scaffold smoke
         shell: bash
@@ -321,8 +338,8 @@ jobs:
           pnpm install --frozen-lockfile
           bash scripts/ensure-postgres.sh
           pnpm db:generate
-          env -u SEED_DATABASE_URL pnpm --filter @demo/api exec prisma migrate deploy
           pnpm --filter @demo/api exec prisma migrate deploy
+          DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy
           pnpm db:seed
           pnpm db:seed
           pnpm verify
@@ -334,4 +351,34 @@ jobs:
           pnpm test:e2e:web
           pnpm audit --audit-level=high
           node scripts/check-prerelease.mjs
+          node scripts/check-no-note-in-infra.mjs
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
+          echo "SKELETON_WORK=$work" >> "$GITHUB_ENV"
+
+      - name: Replace the example slice and re-run the gates
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+          SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+          JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret
+          JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
+          LOGIN_THROTTLE_LIMIT: "1000"
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          cd "$SKELETON_WORK"
+          node scripts/replace-example-slice.mjs
+          node scripts/check-no-note-in-infra.mjs
+          psql -h localhost -U postgres -c 'DROP DATABASE IF EXISTS app WITH (FORCE)'
+          psql -h localhost -U postgres -c 'DROP DATABASE IF EXISTS e2e WITH (FORCE)'
+          psql -h localhost -U postgres -c 'CREATE DATABASE app'
+          psql -h localhost -U postgres -c 'CREATE DATABASE e2e'
+          pnpm db:generate
+          pnpm --filter @demo/api exec prisma migrate deploy
+          DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy
+          pnpm db:seed
+          pnpm db:seed
+          pnpm verify
+          pnpm build
+          pnpm test:e2e:api
+          pnpm test:e2e:mcp
+          pnpm test:e2e:web
