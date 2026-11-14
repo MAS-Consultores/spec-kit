@@ -37,7 +37,7 @@ def test_symbolic_ref_reads_unborn_branch() -> None:
 @pytest.mark.skipif(not HAS_PWSH, reason="pwsh is not installed")
 def test_symbolic_ref_reads_unborn_branch_on_powershell() -> None:
     script = r"""
-$d = Join-Path $env:TEMP ("speckit-d5-" + [guid]::NewGuid().ToString("n"))
+$d = Join-Path ([System.IO.Path]::GetTempPath()) ("speckit-d5-" + [guid]::NewGuid().ToString("n"))
 New-Item -ItemType Directory -Path $d | Out-Null
 git init -b main $d | Out-Null
 $short = git -C $d symbolic-ref --short HEAD
