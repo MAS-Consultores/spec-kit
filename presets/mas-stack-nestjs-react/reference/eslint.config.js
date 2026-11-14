@@ -29,6 +29,7 @@ export default tseslint.config(
       "scripts/**",
       "eslint.config.js",
       ".specify/**",
+      "**/.snippet-check/**",
     ],
   },
 );

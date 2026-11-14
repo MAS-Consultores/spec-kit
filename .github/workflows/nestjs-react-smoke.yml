@@ -125,11 +125,17 @@ jobs:
           if (Test-Path $empty) { Remove-Item -Recurse -Force $empty }
           New-Item -ItemType Directory -Path $empty | Out-Null
           git init -b main $empty
-          $PSNativeCommandUseErrorActionPreference = $false
-          $name = "$(git -C $empty symbolic-ref --short HEAD)".Trim()
-          if ($LASTEXITCODE -ne 0 -or $name -ne "main") { Write-Error "symbolic-ref exit $LASTEXITCODE name [$name]"; exit 1 }
-          git -C $empty rev-parse --abbrev-ref HEAD 2>$null | Out-Null
-          if ($LASTEXITCODE -ne 128) { Write-Error "rev-parse exit $LASTEXITCODE"; exit 1 }
+          $symOut = Join-Path $empty "sym-out.txt"
+          $symErr = Join-Path $empty "sym-err.txt"
+          $sym = Start-Process -FilePath "git" -ArgumentList @("-C", $empty, "symbolic-ref", "--short", "HEAD") -Wait -PassThru -NoNewWindow -RedirectStandardOutput $symOut -RedirectStandardError $symErr
+          $name = "$(Get-Content -Raw $symOut)".Trim()
+          Write-Host "symbolic-ref exit=$($sym.ExitCode) name=[$name] err=[$(Get-Content -Raw $symErr)]"
+          if ($sym.ExitCode -ne 0 -or $name -ne "main") { exit 1 }
+          $revOut = Join-Path $empty "rev-out.txt"
+          $revErr = Join-Path $empty "rev-err.txt"
+          $rev = Start-Process -FilePath "git" -ArgumentList @("-C", $empty, "rev-parse", "--abbrev-ref", "HEAD") -Wait -PassThru -NoNewWindow -RedirectStandardOutput $revOut -RedirectStandardError $revErr
+          Write-Host "rev-parse exit=$($rev.ExitCode) out=[$(Get-Content -Raw $revOut)] err=[$(Get-Content -Raw $revErr)]"
+          if ($rev.ExitCode -ne 128) { exit 1 }
 
       - name: Init scaffold smoke
         shell: bash
@@ -366,6 +372,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$SKELETON_WORK"
+          rm -rf apps/api/.snippet-check apps/web/.snippet-check
           node scripts/replace-example-slice.mjs
           node scripts/check-no-note-in-infra.mjs
           psql -h localhost -U postgres -c 'DROP DATABASE IF EXISTS app WITH (FORCE)'
