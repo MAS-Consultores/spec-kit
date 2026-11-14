@@ -6,7 +6,7 @@ Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitutio
 
 | ID | Descripción | Commit | Chequeo |
 | --- | --- | --- | --- |
-| D7-01 | en un repo nacido vacío, `finish-feature` deja `main` en el commit raíz y crea un merge `--no-ff`; si `main` ya existe, lo conserva; un árbol sucio sale 1 | `PENDING` | `tests/test_mas_nestjs_demo7.py` y los pasos de CI «Finish feature on Bash» (Ubuntu y macOS) y «Finish feature on PowerShell» (Windows) |
+| D7-01 | en un repo nacido vacío, `finish-feature` deja `main` en el commit raíz y crea un merge `--no-ff`; si `main` ya existe, lo conserva; un árbol sucio sale 1 | `64fd9ade` | `tests/test_mas_nestjs_demo7.py` y los pasos de CI «Finish feature on Bash» (Ubuntu y macOS) y «Finish feature on PowerShell» (Windows) |
 
 ## Demo 6 (huecos de esta iteración)
 
