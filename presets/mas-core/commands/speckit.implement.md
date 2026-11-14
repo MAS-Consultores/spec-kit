@@ -21,7 +21,7 @@ After every task in `tasks.md` is done and the project's checks pass, finish on
 `main` with a local merge. Do not push, do not open a pull request, and do not
 create a tag.
 
-1. `FEATURE_BRANCH=$(git rev-parse --abbrev-ref HEAD)`.
+1. Read the branch with `git symbolic-ref --short HEAD` (Bash: `FEATURE_BRANCH=$(git symbolic-ref --short HEAD)`; PowerShell: `$FEATURE_BRANCH = git symbolic-ref --short HEAD`). Do not use `git rev-parse --abbrev-ref HEAD` (exit 128 when the repository has no commits).
 2. If `main` does not exist, `git branch main`.
 3. `git checkout main`.
 4. `git merge --no-ff "$FEATURE_BRANCH" -m "Merge $FEATURE_BRANCH"`.

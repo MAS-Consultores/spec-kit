@@ -601,7 +601,7 @@ def main(argv: list[str]) -> int:
             )
             if create.returncode != 0:
                 current_branch_lines = _git_lines(
-                    repo_root, "rev-parse", "--abbrev-ref", "HEAD"
+                    repo_root, "symbolic-ref", "--short", "HEAD"
                 )
                 current_branch = current_branch_lines[0] if current_branch_lines else ""
                 branch_exists = bool(

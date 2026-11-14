@@ -19,8 +19,16 @@ Validate that the current Git branch follows the expected feature branch naming 
 Get the current branch name:
 
 ```bash
-git rev-parse --abbrev-ref HEAD
+git symbolic-ref --short HEAD
 ```
+
+PowerShell:
+
+```powershell
+git symbolic-ref --short HEAD
+```
+
+Do not use `git rev-parse --abbrev-ref HEAD`. In a repository with no commits it exits 128.
 
 The branch name's final path segment must start with one of these feature markers:
 

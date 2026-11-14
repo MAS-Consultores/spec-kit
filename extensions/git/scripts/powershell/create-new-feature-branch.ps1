@@ -528,7 +528,7 @@ if (-not $DryRun) {
 
         if (-not $branchCreated) {
             $currentBranch = ''
-            try { $currentBranch = (git rev-parse --abbrev-ref HEAD 2>$null).Trim() } catch {}
+            try { $currentBranch = (git symbolic-ref --short HEAD 2>$null).Trim() } catch {}
             $existingBranch = git branch --list $branchName 2>$null
             if ($existingBranch) {
                 if ($AllowExistingBranch) {

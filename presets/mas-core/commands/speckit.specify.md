@@ -55,9 +55,10 @@ until the feature branch exists and is checked out.
    no commits yet (`git checkout -b` moves the symbolic HEAD off `main`). Do not
    run a second `git checkout -b` when that branch is already current. If HEAD is
    not `BRANCH_NAME`, stop and do not write the spec.
-7. Confirm `git rev-parse --abbrev-ref HEAD` equals `BRANCH_NAME` and that
-   `git symbolic-ref HEAD` is `refs/heads/<BRANCH_NAME>` (not a symbolic `main`
-   with only `BRANCH_NAME` printed). The script already created
+7. Confirm the branch with `git symbolic-ref --short HEAD` (Bash and PowerShell).
+   It must equal `BRANCH_NAME`, and `git symbolic-ref HEAD` must be
+   `refs/heads/<BRANCH_NAME>`. Do not use `git rev-parse --abbrev-ref HEAD`:
+   in a repository with no commits that command exits 128. The script already created
    `specs/<BRANCH_NAME>/spec.md` and `.specify/feature.json`. Fill that spec
    file. Do not create a second feature directory.
 
