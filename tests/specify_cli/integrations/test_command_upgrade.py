@@ -19,6 +19,7 @@ from tests.specify_cli.integrations._catalog_helpers import (
 from tests.specify_cli.integrations._helpers import (
     _copy_project_template,  # noqa: F401
     _init_project,  # noqa: F401
+    _remove_mas_presets,  # noqa: F401
     _integration_list_row_cells,  # noqa: F401
     _move_kilocode_install_to_legacy_layout,  # noqa: F401
     _run_in_project,  # noqa: F401
@@ -194,6 +195,17 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "copilot", integration_options="--commands"
         )
+        _remove_mas_presets(project)
+        from specify_cli.integrations._helpers import _resync_manifest_after_registration
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        manifest = IntegrationManifest.load("copilot", project)
+        _resync_manifest_after_registration(
+            manifest,
+            "copilot",
+            unmodified_files=set(manifest.files),
+            continuing="Resync after removing MAS presets in the test.",
+        )
         template = project / ".specify" / "templates" / "plan-template.md"
         managed_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         customized_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
@@ -337,6 +349,7 @@ class TestIntegrationUpgradeDetailed:
     def test_upgrade_migrates_kilocode_legacy_dir(self, tmp_path):
         """Upgrade moves Kilo commands from .kilocode/workflows/ to .kilo/commands/."""
         project = _init_project(tmp_path, "kilocode")
+        _remove_mas_presets(project)
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         old_commands = sorted(legacy.glob("speckit.*.md"))
@@ -365,6 +378,7 @@ class TestIntegrationUpgradeDetailed:
     def test_upgrade_migrates_qodercli_extension_commands_to_skills(self, tmp_path):
         """Qoder upgrade retires old extension commands after skills exist."""
         project = _init_project(tmp_path, "qodercli")
+        _remove_mas_presets(project)
         result = _run_in_project(project, ["extension", "add", "git"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
@@ -427,6 +441,7 @@ class TestIntegrationUpgradeDetailed:
     ):
         """Kilo legacy command-root migration must fail closed with presets."""
         project = _init_project(tmp_path, "kilocode")
+        _remove_mas_presets(project)
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         preset_file = legacy / "speckit.plan.md"
@@ -468,6 +483,7 @@ class TestIntegrationUpgradeDetailed:
     def test_upgrade_reconciles_kilocode_legacy_extension_artifacts(self, tmp_path):
         """Kilo upgrade moves enabled extension commands to the canonical dir."""
         project = _init_project(tmp_path, "kilocode")
+        _remove_mas_presets(project)
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         result = _run_in_project(project, ["extension", "add", "git"])
@@ -502,6 +518,7 @@ class TestIntegrationUpgradeDetailed:
     ):
         """Legacy reconciliation must not clean disabled or user-owned files."""
         project = _init_project(tmp_path, "kilocode")
+        _remove_mas_presets(project)
         canonical, legacy = _move_kilocode_install_to_legacy_layout(project)
 
         result = _run_in_project(project, ["extension", "add", "git"])
@@ -612,6 +629,7 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_mas_presets(project)
 
         commands = project / ".bob" / "commands"
         skills = project / ".bob" / "skills"
@@ -666,6 +684,7 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_mas_presets(project)
 
         result = _run_in_project(project, ["extension", "add", "git"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
@@ -746,6 +765,7 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_mas_presets(project)
         result = _run_in_project(project, ["extension", "add", "git"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
@@ -792,6 +812,7 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_mas_presets(project)
         commands = project / ".bob" / "commands"
         skills = project / ".bob" / "skills"
 
@@ -872,6 +893,7 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_mas_presets(project)
         commands = project / ".bob" / "commands"
         skills = project / ".bob" / "skills"
 
@@ -1018,6 +1040,7 @@ class TestIntegrationUpgradeDetailed:
         project = _init_project(
             tmp_path, "bob", integration_options="--legacy-commands"
         )
+        _remove_mas_presets(project)
         commands = project / ".bob" / "commands"
         skills = project / ".bob" / "skills"
         assert sorted(commands.glob("speckit.*.md"))

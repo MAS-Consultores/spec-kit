@@ -19,6 +19,7 @@ from tests.specify_cli.integrations._catalog_helpers import (
 from tests.specify_cli.integrations._helpers import (
     _copy_project_template,  # noqa: F401
     _init_project,  # noqa: F401
+    _remove_mas_presets,  # noqa: F401
     _integration_list_row_cells,  # noqa: F401
     _move_kilocode_install_to_legacy_layout,  # noqa: F401
     _run_in_project,  # noqa: F401
@@ -73,6 +74,7 @@ class TestIntegrationSwitch:
             project = _copy_project_template(tmp_path, switch_copilot_commands_template)
         else:
             project = _init_project(tmp_path, "claude")
+            _remove_mas_presets(project)
             if target_state == "installed":
                 result = _run_in_project(project, [
                     "integration", "install", "copilot", "--script", "sh",
@@ -195,6 +197,7 @@ class TestIntegrationSwitch:
             return created
 
         project = _init_project(tmp_path, "claude")
+        _remove_mas_presets(project)
         monkeypatch.setattr(CodexIntegration, "setup", setup_with_recovered_file)
 
         result = _run_in_project(project, ["integration", "switch", "codex", "--script", "sh"])
@@ -484,6 +487,7 @@ class TestIntegrationSwitch:
     def test_switch_refresh_uses_stored_script_runtime(self, tmp_path, target_state, script_type):
         """Installed refresh uses target settings rather than the outgoing runtime."""
         project = _init_codex_switch_project(tmp_path, target_state, script_type)
+        _remove_mas_presets(project)
         clean = tmp_path / "clean"
         clean.mkdir()
         result = _run_in_project(clean, [
@@ -491,6 +495,7 @@ class TestIntegrationSwitch:
             "--ignore-agent-tools",
         ])
         assert result.exit_code == 0, result.output
+        _remove_mas_presets(clean)
         selected = (["powershell"] if script_type == "ps" else [
             "python", "powershell" if os.name == "nt" else "bash",
         ])
