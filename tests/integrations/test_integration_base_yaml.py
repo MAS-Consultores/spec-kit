@@ -15,6 +15,7 @@ import yaml
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import YamlIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.conftest import MAS_INIT_EXTRA_FILES
 
 
 class YamlIntegrationTests:
@@ -441,7 +442,7 @@ class YamlIntegrationTests:
 
 
 
-        return sorted(files)
+        return sorted([*files, *MAS_INIT_EXTRA_FILES])
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""

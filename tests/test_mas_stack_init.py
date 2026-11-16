@@ -615,3 +615,46 @@ def test_init_rejects_stack_and_preset_conflict(tmp_path):
     assert "mas-core" in result.output
     assert "mas-stack-<stack-id>" in result.output
     assert not project.exists()
+
+
+def test_upstream_init_without_stack_receives_main_stack(tmp_path):
+    """Upstream-style init omits --stack; the suite supplies one from main."""
+    project = tmp_path / "upstream-style"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    stack_md = (project / ".specify" / "memory" / "stack.md").read_text(encoding="utf-8")
+    assert "**Canonical ID**: `cakephp2-mysql`" in stack_md
+
+
+def test_upstream_init_stack_helper_leaves_explicit_stack_logic_alone():
+    from tests.conftest import UPSTREAM_INIT_STACK, _with_upstream_init_stack
+
+    injected = _with_upstream_init_stack(["init", "proj", "--integration", "codex"])
+    assert injected[:3] == ["init", "--stack", UPSTREAM_INIT_STACK]
+    assert injected[-1] == "--skip-external-skills"
+    kept = _with_upstream_init_stack(
+        ["init", "--stack", "moodle3", "proj", "--skip-external-skills"]
+    )
+    assert kept == ["init", "--stack", "moodle3", "proj", "--skip-external-skills"]
+    assert _with_upstream_init_stack(["init", "--preset", "lean", "proj"]) == [
+        "init",
+        "--preset",
+        "lean",
+        "proj",
+    ]
+    assert _with_upstream_init_stack(["init", "--help"]) == ["init", "--help"]
+    assert _with_upstream_init_stack(("check",)) == ("check",)
+    assert _with_upstream_init_stack("init proj") == (
+        f"init --stack {UPSTREAM_INIT_STACK} proj --skip-external-skills"
+    )

@@ -11,6 +11,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 
+from tests.conftest import MAS_INIT_EXTRA_FILES
+
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.base import MarkdownIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
@@ -2624,6 +2626,7 @@ class TestGenericIntegration:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
+        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -2771,6 +2774,7 @@ class TestGenericIntegration:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
+        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"

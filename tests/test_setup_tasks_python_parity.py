@@ -108,9 +108,12 @@ def test_installed_python_json_preserves_stock_tasks_template(
     assert created.returncode == 0, created.stderr
     plan = run(py_cmd(project, "setup-plan", "--json"), project)
     assert plan.returncode == 0, plan.stderr
-    template = project / ".specify/templates/tasks-template.md"
-    expected = template.read_bytes().decode("utf-8")
-    assert "🎯" in expected
+    template = (
+        project
+        / ".specify/presets/mas-core/templates/tasks-template.md"
+    )
+    expected = template.read_text(encoding="utf-8")
+    assert "MAS stack-aware task list template" in expected
     env = clean_env()
     env["PYTHONIOENCODING"] = "cp1252"
 

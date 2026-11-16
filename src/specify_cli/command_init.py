@@ -21,7 +21,6 @@ from ._agent_config import (
     resolve_default_init_integration,
 )
 from ._assets import (
-    _locate_bundled_preset,
     _locate_bundled_workflow,
     get_speckit_version,
 )
@@ -383,7 +382,6 @@ def register(app: typer.Typer) -> None:
         # Lazy imports to avoid circular dependency — __init__.py imports this module
         from . import (
             _install_shared_infra_or_exit,
-            _print_cli_warning,
             ensure_executable_scripts,
             ensure_specify_gitignored,
             ensure_constitution_from_template,
@@ -838,6 +836,21 @@ def register(app: typer.Typer) -> None:
                 install_mas_stack_presets(project_path, mas_stack)
                 tracker.complete("mas-presets", " + ".join(mas_stack.preset_composition))
 
+                # Preset registration rewrites wrapped commands after the
+                # integration manifest snapshot. Re-hash only the files whose
+                # bytes changed so a fresh init is not reported as modified.
+                from .integrations._helpers import _resync_manifest_after_registration
+
+                _resync_manifest_after_registration(
+                    manifest,
+                    resolved_integration.key,
+                    unmodified_files=set(manifest.files),
+                    continuing=(
+                        "MAS presets were installed, but integration manifest"
+                        " hashes may be stale."
+                    ),
+                )
+
                 # Install external skills from stack
                 tracker.start("stack-skills")
                 ai_skills_enabled = bool(init_opts.get("ai_skills"))
@@ -1126,8 +1139,10 @@ def register(app: typer.Typer) -> None:
         )
 
         codex_skill_mode = selected_ai == "codex" and _is_skills_integration
+        zcode_skill_mode = selected_ai == "zcode" and _is_skills_integration
         claude_skill_mode = selected_ai == "claude" and _is_skills_integration
         kimi_skill_mode = selected_ai == "kimi"
+        mcode_skill_mode = selected_ai == "mcode" and _is_skills_integration
         agy_skill_mode = selected_ai == "agy" and _is_skills_integration
         trae_skill_mode = selected_ai == "trae"
         cursor_agent_skill_mode = (
@@ -1135,20 +1150,37 @@ def register(app: typer.Typer) -> None:
         )
         copilot_skill_mode = selected_ai == "copilot" and _is_skills_integration
         devin_skill_mode = selected_ai == "devin"
+        zed_skill_mode = selected_ai == "zed" and _is_skills_integration
+        muse_skill_mode = selected_ai == "muse" and _is_skills_integration
+        grok_skill_mode = selected_ai == "grok" and _is_skills_integration
+        dsh_skill_mode = selected_ai == "dsh" and _is_skills_integration
+        bob_skill_mode = selected_ai == "bob" and _is_skills_integration
         native_skill_mode = (
             codex_skill_mode
+            or zcode_skill_mode
             or claude_skill_mode
             or kimi_skill_mode
+            or mcode_skill_mode
             or agy_skill_mode
             or trae_skill_mode
             or cursor_agent_skill_mode
             or copilot_skill_mode
             or devin_skill_mode
+            or zed_skill_mode
+            or muse_skill_mode
+            or grok_skill_mode
+            or dsh_skill_mode
+            or bob_skill_mode
         )
 
         if codex_skill_mode:
             steps_lines.append(
                 f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
+            )
+            step_num += 1
+        if zcode_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start ZCode in this project directory; spec-kit skills were installed to [cyan].zcode/skills[/cyan]"
             )
             step_num += 1
         if claude_skill_mode:
@@ -1164,6 +1196,36 @@ def register(app: typer.Typer) -> None:
         if devin_skill_mode:
             steps_lines.append(
                 f"{step_num}. Start Devin in this project directory; spec-kit skills were installed to [cyan].devin/skills[/cyan]"
+            )
+            step_num += 1
+        if zed_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Zed in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
+            )
+            step_num += 1
+        if muse_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Muse Code in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
+            )
+            step_num += 1
+        if grok_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Grok Build in this project directory; spec-kit skills were installed to [cyan].grok/skills[/cyan]"
+            )
+            step_num += 1
+        if dsh_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start DSH ([cyan]dsh web[/cyan]) in this project directory; spec-kit skills were installed to [cyan].dsh/skills[/cyan]"
+            )
+            step_num += 1
+        if bob_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Bob in this project directory; spec-kit skills were installed to [cyan].bob/skills[/cyan]"
+            )
+            step_num += 1
+        if mcode_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start MiniMax Code in this project directory; spec-kit skills were installed to [cyan].minimax/skills[/cyan]"
             )
             step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
@@ -1199,6 +1261,9 @@ def register(app: typer.Typer) -> None:
         )
         steps_lines.append(
             f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
+        )
+        steps_lines.append(
+            f"   {step_num}.6 [cyan]{_display_cmd('converge')}[/] - Assess the codebase and append remaining work as tasks"
         )
 
         steps_panel = Panel(

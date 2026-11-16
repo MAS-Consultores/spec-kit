@@ -816,8 +816,10 @@ def write_stack_memory_files(project_root: Path, stack: MasStack) -> None:
         "stack-context.md": stack.render_stack_context_md(),
         "language-policy.md": render_language_policy_md(),
     }
+    from .integrations._file_changes import write_text
+
     for filename, content in files.items():
-        (memory_dir / filename).write_text(content, encoding="utf-8")
+        write_text(memory_dir / filename, content)
 
 
 def valid_stack_ids() -> tuple[str, ...]:

@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import pytest
 import typer
+
+from tests.conftest import MAS_INIT_EXTRA_FILES
 import yaml
 
 from specify_cli.integrations import get_integration
@@ -360,6 +362,7 @@ class TestCopilotCommandsMode:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
+        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -423,6 +426,7 @@ class TestCopilotCommandsMode:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
+        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -938,6 +942,7 @@ class TestCopilotSkillsMode:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
+        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
