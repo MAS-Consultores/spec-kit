@@ -207,6 +207,18 @@ def _install_extension_during_init(project_path: Path, ext_spec: str, speckit_ve
     return f"{manifest.name} v{manifest.version} installed"
 
 
+def ensure_constitution_from_template(project_path: Path, tracker: Any | None = None) -> None:
+    """Materialize the resolved constitution template into project memory.
+
+    The implementation lives on the package so init and other commands share
+    one resolver. This wrapper keeps the historical ``command_init`` import
+    path used by callers and tests.
+    """
+    from . import ensure_constitution_from_template as materialize
+
+    materialize(project_path, tracker)
+
+
 def _shell_quote_arg(value: str) -> str:
     """Quote *value* as one argument for the shells of the host OS.
 
