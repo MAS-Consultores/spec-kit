@@ -1,25 +1,22 @@
-import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
-import { readAppEnv, type AppEnv } from "./env.js";
+import { Global, Module } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { readAppEnv } from "./env.js";
 
-function asProcessEnv(value: unknown): NodeJS.ProcessEnv {
-  const source: NodeJS.ProcessEnv = {};
-  if (typeof value !== "object" || value === null) return source;
-  for (const [key, item] of Object.entries(value)) {
-    if (typeof item === "string") source[key] = item;
-  }
-  return source;
-}
-
+/**
+ * Zod validation runs when Nest creates this provider, which is
+ * NestFactory.create, not when the file is imported. `ConfigModule.forRoot`
+ * in @nestjs/config 12 starts reading the environment at the import, so a
+ * test that sets variables in `beforeAll` would validate the old values.
+ */
+@Global()
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      ignoreEnvFile: true,
-      cache: true,
-      validate: (env: Record<string, unknown>): AppEnv => readAppEnv(asProcessEnv(env)),
-    }),
+  providers: [
+    {
+      provide: ConfigService,
+      useFactory: (): ConfigService => new ConfigService(readAppEnv()),
+    },
   ],
+  exports: [ConfigService],
 })
 export class AppConfigModule {
   readonly label = "config";
