@@ -6,8 +6,8 @@ Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitutio
 
 | ID | Descripción | Commit | Chequeo |
 | --- | --- | --- | --- |
-| D8-01 | specify, clarify, plan y tasks commitean con `git add -A` y `git commit` en bash y PowerShell; en un repo nacido vacío `finish-feature` deja `main` con el commit `speckit.specify` como raíz y primer padre del merge | pendiente | `test_specify_and_clarify_skills_commit` y `test_specify_commit_is_main_root_after_finish` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
-| D8-02 | la constitution, el contexto de stack y el catálogo piden `McpModule.forRoot` con `decorators`, igual que el esqueleto; ningún artefacto generado nombra la variante async de ese registro | pendiente | `test_mcp_registration_uses_for_root` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
+| D8-01 | specify, clarify, plan y tasks commitean con `git add -A` y `git commit` en bash y PowerShell; en un repo nacido vacío `finish-feature` deja `main` con el commit `speckit.specify` como raíz y primer padre del merge | `d1c8800c` | `test_specify_and_clarify_skills_commit` y `test_specify_commit_is_main_root_after_finish` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
+| D8-02 | la constitution, el contexto de stack y el catálogo piden `McpModule.forRoot` con `decorators`, igual que el esqueleto; ningún artefacto generado nombra la variante async de ese registro | `d1c8800c` | `test_mcp_registration_uses_for_root` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
 
 ## Demo 7 (huecos de esta iteración)
 
