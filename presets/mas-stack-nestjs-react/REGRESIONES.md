@@ -63,14 +63,27 @@ El commit `e2ce8252` agrupó los huecos 2–27 de la demo 2 sin enumerarlos uno 
 | D3-04 | `allowBuilds` explícito | `72f0916d` | el install de CI construye `prisma`, `argon2` y `@swc/core` |
 | D3-05 | Nest corre con SWC y `ThrottlerGuard` va por DI | `b1a3af57` | `pnpm build` y el e2e de 429 |
 | D3-06 | cliente MCP declarado y `shadcn add` no interactivo | `67f2ac8b` | `@modelcontextprotocol/client` está en el lockfile; D4-08 |
-| D3-07 | no pedir `/speckit.constitution` después del init | `bee9aa95` | pendiente: el chequeo histórico solo mira el texto del comando |
+| D3-07 | no pedir `/speckit.constitution` después del init | `bee9aa95` | `test_init_layouts_omit_constitution_step` y `test_upstream_followups_still_list_constitution_when_no_stack` en `tests/test_mas_nestjs_scenarios.py`, job `smoke` |
 | D3-08 | mínimos de tests de API, MCP, Playwright y unit | `72aa784b` | el job `reference` los ejecuta |
 | D3-09 | escenarios de gates | `36537e24` | `tests/test_mas_nestjs_scenarios.py` en el job `smoke` |
-| D3-10 | init sin stack falla antes del panel | `4f812998` | pendiente: no hay un pytest que invoque init sin `--stack` y compruebe el código de salida |
+| D3-10 | init sin stack falla antes del panel | `4f812998` | `test_missing_stack_still_fails_before_writing` en `tests/test_mas_nestjs_scenarios.py`, job `smoke` (sale 1 y no escribe el proyecto) |
 | D3-11 | Corepack en el runner de Windows | `ba142825` | el job `smoke` de `windows-latest` instala Corepack |
 | D3-12 | ruta nativa en Windows y TypeScript 5.9.3 para check-casl | `e8f3b605` | job `smoke` de Windows; el paquete `@demo/casl-check` depende de `typescript@5.9.3` |
 
 Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (locale es-CL del plan, `escapeLike`, `getZodError`, `onUnhandledFrame`, `richColors`, `getAnimations`): el esqueleto cubre es-CL, contraste y axe. El resto no tiene un fallo ejecutable propio y sigue pendiente.
+
+## Lint determinista del esqueleto
+
+`pnpm verify` ejecuta `pnpm lint` (el esqueleto en verde) y `pnpm lint:fixtures` (cada fixture tiene que fallar con el mensaje de la corrección). El job `reference` corre `pnpm verify`.
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| L2-01 | `apps/api` no importa `apps/web` ni `@demo/ui`; la web no importa la API; `packages/contracts` no importa apps. Los tipos compartidos van a `packages/contracts`. Madge sigue cubriendo ciclos | `apps/api/lint-fixtures/imports-web.ts` (`boundaries/dependencies`) dentro de `pnpm lint:fixtures` |
+| L2-02 | un controller o una tool MCP no toca Prisma; la consulta va al servicio de dominio | `apps/api/lint-fixtures/uses-prisma.controller.ts` (`mas/no-prisma-at-edge`) |
+| L2-03 | `process.env` y `requiredEnv` solo en `apps/api/src/config` (ConfigModule + Zod), más `prisma.config.ts`, `prisma/database-url.ts`, scripts y configs de e2e (incluido `vite.config.ts`) | `apps/api/lint-fixtures/reads-env.service.ts` (`mas/no-process-env`). El mensaje pide agregar la variable al módulo de config y a `.env.example` |
+| L2-04 | `useEffect` solo en `apps/web/src/shared/hooks/**`. El estado de servidor va por TanStack Query | `apps/web/lint-fixtures/route-effect.tsx` (`mas/no-use-effect`). El hook `useWindowEvent` del esqueleto sigue en verde |
+| L2-05 | `@ts-ignore` y `@ts-expect-error` exigen descripción (`@typescript-eslint/ban-ts-comment`) | `apps/api/lint-fixtures/bare-ts-ignore.ts` |
+| L2-06 | `eslint-disable` exige justificación o ticket (`@eslint-community/eslint-plugin-eslint-comments` `require-description`). Desactivar `no-explicit-any` sigue prohibido aunque haya descripción | `apps/api/lint-fixtures/disable-without-reason.ts` y `disable-explicit-any.ts` |
 
 ## Versiones probadas
 

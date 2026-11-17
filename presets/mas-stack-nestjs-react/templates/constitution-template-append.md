@@ -8,7 +8,12 @@ The following stack-specific principles are constitution-level requirements for 
 TypeScript strict mode with ZERO `any` tolerance:
 - MUST NOT use `: any`, `as any`, or `<any>` anywhere in source code
 - ESLint MUST use `typescript-eslint/strictTypeChecked` with `@typescript-eslint/no-explicit-any: 'error'`
-- MUST NOT disable, set to warn, or use `eslint-disable` to bypass no-explicit-any
+- MUST NOT disable, set to warn, or use `eslint-disable` to bypass no-explicit-any, even with a justification
+- Flat config is `eslint.config.js` (not `.eslintrc.cjs`), with `eslint-plugin-boundaries`. `apps/api` and `apps/web` MUST NOT import each other. `apps/api` MUST NOT import `@demo/ui`. `packages/contracts` MUST NOT import an app. Shared types and schemas go in `packages/contracts`. Cycles stay on `madge`
+- Controllers (`*.controller.ts`) and MCP tools (`apps/api/src/mcp/**`) MUST NOT touch Prisma (`PrismaClient`, `@prisma/client`, the generated client, or `PrismaService`). The query belongs in the domain service
+- `process.env` and `requiredEnv` MUST be read only in `apps/api/src/config` (Nest `ConfigModule` validated with Zod). Add the variable there and in `.env.example`, then inject `ConfigService`. Also allowed: `prisma.config.ts`, `prisma/database-url.ts`, `scripts/**`, and e2e configs (`*.e2e.ts`, `e2e/**`, `playwright.config.ts`, `vitest.e2e.ts`, `vite.config.ts` for `API_PROXY_TARGET`)
+- `useEffect` is forbidden in product code. It is allowed only in `apps/web/src/shared/hooks/**`. Server state goes through TanStack Query
+- `eslint-disable` MUST include a justification or ticket after `--`. `@ts-ignore` and `@ts-expect-error` MUST include a description (`@typescript-eslint/ban-ts-comment`, `minimumDescriptionLength`). `@eslint-community/eslint-plugin-eslint-comments` enforces `require-description` and forbids disabling `no-explicit-any`
 - ESLint ignores generated files (`routeTree.gen.ts`, `generated/prisma/**`). `routeTree.gen.ts` MUST still be committed so `tsc --noEmit` works on a clean clone
 - `tsconfig.json` includes sources and tests for the editor and `projectService`; `tsconfig.build.json` includes only `src` for `nest build`
 - API dev, e2e, and OpenAPI MUST run on the SWC build: `nest-cli.json` `builder: "swc"` and `typeCheck: true`; `dev` is `nest start --watch`; `start:e2e` is `nest build && node dist/main.js`; `openapi:generate` sets `OPENAPI_GENERATE=1` before importing compiled `main`. `tsx src/main.ts` is forbidden for the Nest process

@@ -80,7 +80,11 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] Corepack is not bundled on Node 25+ (the `node-v26.13.1` tarball has no `bin/corepack`; Node 24 still does). Enable pnpm with `npm i -g corepack@latest && corepack enable`, or install the exact `pnpm@X.Y.Z` globally.
 - [ ] Prisma 7.x stable `engines.node` includes the Active LTS major (`>=24.0` on 7.10.1). The CLI warning for majors above 24 is expected and must not fail the build. Do not install Prisma 8 prereleases.
 - [ ] `tsconfig.base.json` (shared TypeScript config)
-- [ ] `.eslintrc.cjs` with `eslint-plugin-boundaries` rules
+- [ ] Flat `eslint.config.js` (not `.eslintrc.cjs`) with `eslint-plugin-boundaries`: `apps/api` and `apps/web` never import each other; `apps/api` does not import `@demo/ui`; `packages/contracts` imports no app. Shared types and schemas live in `packages/contracts`. `madge` still detects cycles
+- [ ] Controllers and MCP tools do not import `PrismaClient`, `@prisma/client`, the generated client, or `PrismaService`. Queries go through the domain service
+- [ ] Nest `ConfigModule` with Zod validation in `apps/api/src/config`. `process.env` and `requiredEnv` are read only there (plus `prisma.config.ts`, `prisma/database-url.ts`, scripts, and e2e configs, including `vite.config.ts` for `API_PROXY_TARGET`). The lint message says to add the variable to the config module and `.env.example`
+- [ ] No `useEffect` in product code. Allowed only in `apps/web/src/shared/hooks/**`. Server state goes through TanStack Query
+- [ ] No `eslint-disable` without a justification or ticket after `--`. No `@ts-ignore` or `@ts-expect-error` without a description. Disabling `no-explicit-any` is forbidden outright
 - [ ] `.swcrc` with `legacyDecorator: true` and `decoratorMetadata: true`
 - [ ] `apps/api/nest-cli.json` with `compilerOptions.builder: "swc"` and `compilerOptions.typeCheck: true`
 - [ ] API scripts: `dev` is `nest start --watch`; `build` is `nest build`; `start:e2e` is `nest build && node dist/main.js`; `openapi:generate` builds with SWC and sets `OPENAPI_GENERATE=1` before importing compiled `main`. Never `tsx src/main.ts` for the Nest process (`tsx` is only for `prisma.seed`)

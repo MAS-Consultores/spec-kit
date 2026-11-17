@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
 import { McpModule } from "@nestjs/mcp";
@@ -11,26 +12,32 @@ import { Public, SkipCsrf } from "./auth/decorators.js";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { JwtStrategy } from "./auth/jwt.strategy.js";
 import { PermissionsGuard } from "./auth/permissions.guard.js";
+import { AppConfigModule } from "./config/config.module.js";
+import { configNumber, configString } from "./config/read.js";
 import { HealthController } from "./health.controller.js";
 import { BearerVerifier } from "./mcp/token-verifier.js";
 import { PrismaService } from "./prisma.service.js";
 import { mcpScopesSupported, sliceControllers, sliceProviders } from "./slices.js";
-import { requiredEnv } from "./env.js";
 
 @Module({
   imports: [
+    AppConfigModule,
     PassportModule,
-    JwtModule.register({
+    JwtModule.registerAsync({
       global: true,
-      secret: requiredEnv("JWT_ACCESS_SECRET"),
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: configString(config, "JWT_ACCESS_SECRET"),
+      }),
     }),
     ThrottlerModule.forRootAsync({
-      useFactory: () => ({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
         throttlers: [
           {
             name: "default",
             ttl: 60_000,
-            limit: Number(process.env["LOGIN_THROTTLE_LIMIT"] ?? "1000"),
+            limit: configNumber(config, "LOGIN_THROTTLE_LIMIT"),
           },
         ],
       }),

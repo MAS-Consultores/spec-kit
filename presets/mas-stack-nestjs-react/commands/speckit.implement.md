@@ -20,4 +20,14 @@ Do not declare the feature finished, and do not merge, until these suites have b
 
 A run that only has a few unit tests and a single Playwright spec does not meet the gate.
 
+## Lint the agent must keep green
+
+`eslint.config.js` is flat config. Do not add `.eslintrc.cjs`.
+
+- `eslint-plugin-boundaries`: `apps/api` and `apps/web` never import each other; `apps/api` does not import `@demo/ui`; `packages/contracts` imports no app. Shared types and schemas go in `packages/contracts`. Keep `madge` for cycles.
+- Controllers and MCP tools never touch Prisma (`PrismaClient`, `@prisma/client`, the generated client, `PrismaService`). Queries go to the domain service.
+- Read `process.env` and `requiredEnv` only in `apps/api/src/config` (Nest `ConfigModule` with Zod). Add the variable to that module and `.env.example`, then inject `ConfigService`. `prisma.config.ts`, `prisma/database-url.ts`, scripts, and e2e configs (including `vite.config.ts` for `API_PROXY_TARGET`) may still read the environment.
+- Do not add `useEffect` outside `apps/web/src/shared/hooks/**`. Server state goes through TanStack Query.
+- Do not add `eslint-disable` without a justification or ticket after `--`. Do not add `@ts-ignore` or `@ts-expect-error` without a description. Disabling `no-explicit-any` is forbidden outright.
+
 {CORE_TEMPLATE}

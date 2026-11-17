@@ -23,6 +23,8 @@ After the core analysis, read `.specify/memory/stack-context.md` and `tasks.md`.
 
 Mark **CRITICAL** when the project has no `AuthModule` and `tasks.md` lacks a blocking auth phase covering login, HttpOnly cookies, CSRF, rotating refresh with reuse detection, roles, and a user seed.
 
+Mark **CRITICAL** when the project still uses `.eslintrc.cjs`, when `eslint-plugin-boundaries` does not keep `apps/api` and `apps/web` from importing each other (shared types and schemas belong in `packages/contracts`; `apps/api` must not import `@demo/ui`; `packages/contracts` must not import an app), when a controller or MCP tool touches Prisma, when product code calls `useEffect` outside `apps/web/src/shared/hooks/**` (server state goes through TanStack Query), when `process.env` or `requiredEnv` is read outside `apps/api/src/config` (Nest `ConfigModule` with Zod; also allowed: `prisma.config.ts`, `prisma/database-url.ts`, scripts, and e2e configs), when `@ts-ignore` or `@ts-expect-error` has no description, or when `eslint-disable` has no justification or ticket. Disabling `no-explicit-any` is **CRITICAL** even with a description.
+
 Also mark **CRITICAL** when `tasks.md` has no tasks for `openapi:generate`, `api-client:generate`, or an AST-based CASL check in `pnpm verify`, or when it still requires `ensureQueryData`, `prisma/prisma.config.ts`, `MongoAbility` / `createMongoAbility` for Prisma queries, or gitignoring `routeTree.gen.ts`.
 
 Mark **CRITICAL** when `tasks.md` is missing any of these test tasks:

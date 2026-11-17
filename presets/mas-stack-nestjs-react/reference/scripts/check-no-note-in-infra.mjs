@@ -13,7 +13,7 @@ const ROOTS = [
   "apps/api/src/auth",
   "apps/api/src/health.controller.ts",
   "apps/api/src/http.ts",
-  "apps/api/src/env.ts",
+  "apps/api/src/config",
   "apps/api/src/main.ts",
   "apps/api/src/prisma.service.ts",
   "apps/api/src/app.module.ts",

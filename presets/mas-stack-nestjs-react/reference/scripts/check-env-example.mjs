@@ -30,6 +30,7 @@ function namesIn(text) {
     /process\.env\.([A-Z][A-Z0-9_]*)/g,
     /process\.env\[\s*["']([A-Z][A-Z0-9_]*)["']\s*\]/g,
     /requiredEnv\(\s*["']([A-Z][A-Z0-9_]*)["']\s*\)/g,
+    /\bsource\[\s*["']([A-Z][A-Z0-9_]*)["']\s*\]/g,
     /(?<!process\.)env\[\s*["']([A-Z][A-Z0-9_]*)["']\s*\]/g,
   ];
   for (const pattern of patterns) {

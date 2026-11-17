@@ -7,11 +7,12 @@
     "node": ">=26"
   },
   "scripts": {
-    "verify": "pnpm --filter @demo/contracts build && pnpm lint && pnpm typecheck && pnpm madge && pnpm casl && pnpm shadcn:check && pnpm i18n:check && pnpm openapi:check && pnpm env:check && pnpm proxy:check && pnpm ports:check && pnpm test && pnpm skips:check",
+    "verify": "pnpm --filter @demo/contracts build && pnpm lint && pnpm lint:fixtures && pnpm typecheck && pnpm madge && pnpm casl && pnpm shadcn:check && pnpm i18n:check && pnpm openapi:check && pnpm env:check && pnpm proxy:check && pnpm ports:check && pnpm test && pnpm skips:check",
     "env:check": "node scripts/check-env-example.mjs",
     "proxy:check": "node scripts/check-dev-proxy.mjs",
     "ports:check": "node --experimental-strip-types apps/web/e2e/ports.ts --self-test",
     "lint": "eslint .",
+    "lint:fixtures": "node scripts/check-lint-fixtures.mjs",
     "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
     "routes:gen": "node scripts/generate-route-tree.mjs",
     "madge": "madge --circular --extensions ts --exclude 'generated/prisma|routeTree.gen' apps packages",
@@ -30,8 +31,10 @@
     "test:e2e:web": "pnpm --filter @demo/web exec playwright test"
   },
   "devDependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
     "eslint": "10.15.0",
+    "eslint-plugin-boundaries": "7.4.4",
     "madge": "8.0.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.2"

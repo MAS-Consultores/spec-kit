@@ -8,6 +8,7 @@ const vite = readFileSync("apps/web/vite.config.ts", "utf8");
 const playwright = readFileSync("apps/web/playwright.config.ts", "utf8");
 const spec = readFileSync("apps/web/e2e/proxy.spec.ts", "utf8");
 const main = readFileSync("apps/api/src/main.ts", "utf8");
+const env = readFileSync("apps/api/src/config/env.ts", "utf8");
 
 const failures = [];
 if (!vite.includes('"/api"') || !vite.includes("server:") || !vite.includes("preview:")) {
@@ -25,8 +26,11 @@ if (!playwright.includes("API_PROXY_TARGET")) {
 if (!spec.includes('page.request.get("/api/v1/health")')) {
   failures.push("playwright must call /api through the web origin");
 }
-if (!main.includes("enableCors") || !main.includes("credentials: true") || !main.includes('process.env["CORS_ORIGIN"]')) {
-  failures.push("CORS must be explicit, credentialed, and off unless CORS_ORIGIN is set");
+if (!env.includes('source["CORS_ORIGIN"]')) {
+  failures.push("CORS_ORIGIN must be read in the config module");
+}
+if (!main.includes("enableCors") || !main.includes("credentials: true") || !main.includes("CORS_ORIGIN")) {
+  failures.push("CORS must be explicit, credentialed, and applied from the config module");
 }
 
 if (failures.length > 0) {

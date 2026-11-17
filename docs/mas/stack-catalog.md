@@ -504,7 +504,7 @@ OpenAPI.
 
 **Enforcement:**
 
-- `eslint-plugin-boundaries` or `@nx/enforce-module-boundaries` for import rules
+- `eslint-plugin-boundaries` in flat `eslint.config.js`: `apps/api` and `apps/web` do not import each other; shared types and schemas live in `packages/contracts`; `apps/api` does not import `@demo/ui`; `packages/contracts` imports no app. Controllers and MCP tools do not touch Prisma. `process.env` is read in the Zod `ConfigModule`. `useEffect` is only allowed under `apps/web/src/shared/hooks`. `eslint-disable` needs a justification; `@ts-ignore` and `@ts-expect-error` need a description. Disabling `no-explicit-any` is forbidden
 - `madge --circular` in CI for cycles; `openapi-diff` for API changes
 
 ### Typical Risks
@@ -600,7 +600,7 @@ OpenAPI.
 
 - `packages/contracts` for shared Zod schemas (only coupling API ↔ Web).
 - `madge --circular` in CI; `openapi-diff` for API contract changes.
-- `eslint-plugin-boundaries` or equivalent for import enforcement.
+- `eslint-plugin-boundaries` in `eslint.config.js` for import enforcement. `useEffect` stays in `apps/web/src/shared/hooks`; server state uses TanStack Query. `@ts-ignore` and `@ts-expect-error` require a description.
 
 ### Security Controls
 

@@ -4,8 +4,9 @@ import { JwtService } from "@nestjs/jwt";
 import argon2 from "argon2";
 import type { Response } from "express";
 import { loginSchema } from "@demo/contracts";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma.service.js";
-import { requiredEnv } from "../env.js";
+import { configString } from "../config/read.js";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -16,6 +17,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly config: ConfigService,
   ) {}
 
   async login(body: unknown, res: Response): Promise<{ csrfToken: string }> {
@@ -41,7 +43,9 @@ export class AuthService {
     }
     let payload: { sub: string; family: string };
     try {
-      payload = this.jwt.verify(refreshToken, { secret: requiredEnv("JWT_REFRESH_SECRET") });
+      payload = this.jwt.verify(refreshToken, {
+        secret: configString(this.config, "JWT_REFRESH_SECRET"),
+      });
     } catch {
       throw new UnauthorizedException();
     }
@@ -90,7 +94,7 @@ export class AuthService {
     const access = this.jwt.sign({ sub: userId, scopes, csrf }, { expiresIn: "15m" });
     const refresh = this.jwt.sign(
       { sub: userId, family: familyId, jti: randomUUID() },
-      { secret: requiredEnv("JWT_REFRESH_SECRET"), expiresIn: "7d" },
+      { secret: configString(this.config, "JWT_REFRESH_SECRET"), expiresIn: "7d" },
     );
     await this.prisma.refreshToken.create({
       data: {
