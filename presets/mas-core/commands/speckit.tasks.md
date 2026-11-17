@@ -15,8 +15,32 @@ The script exits 1 when HEAD is `main`, `master`, detached, or not a
 `NNN-short-name` feature branch, and when `.specify/feature.json` names a
 directory whose basename is not HEAD. That exit is `HARD_FAIL`.
 
-Do not create `main` and do not merge. Task generation stays on the feature
-branch. The local merge is `finish-feature` during `/speckit.implement`.
+Do not create `main` and do not merge. Task generation commits stay on the
+feature branch. The local merge is `finish-feature` during `/speckit.implement`.
+
+## Phase commit (mandatory)
+
+After `tasks.md` is written, commit it on the current feature branch. Do not
+rely on `.specify/extensions.yml` or `speckit.git.commit`. Do not create
+`main`. Do not run `git branch`.
+
+1. `git symbolic-ref --short HEAD` must be the feature branch (`NNN-short-name`).
+2. If `git status --porcelain` is empty, stop this section.
+3. Otherwise run the commands for the current shell and require exit code 0.
+
+Bash:
+
+```bash
+git add -A
+git commit -m "speckit.tasks"
+```
+
+PowerShell:
+
+```powershell
+git add -A
+git commit -m "speckit.tasks"
+```
 
 ## MAS Stack-Aware Task Generation Requirements
 

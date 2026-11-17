@@ -18,6 +18,30 @@ directory whose basename is not HEAD. That exit is `HARD_FAIL`.
 Do not create `main` and do not merge. Planning commits stay on the feature
 branch. The local merge is `finish-feature` during `/speckit.implement`.
 
+## Phase commit (mandatory)
+
+After `plan.md` and the design artifacts are written, commit them on the
+current feature branch. Do not rely on `.specify/extensions.yml` or
+`speckit.git.commit`. Do not create `main`. Do not run `git branch`.
+
+1. `git symbolic-ref --short HEAD` must be the feature branch (`NNN-short-name`).
+2. If `git status --porcelain` is empty, stop this section.
+3. Otherwise run the commands for the current shell and require exit code 0.
+
+Bash:
+
+```bash
+git add -A
+git commit -m "speckit.plan"
+```
+
+PowerShell:
+
+```powershell
+git add -A
+git commit -m "speckit.plan"
+```
+
 ## MAS Stack-Aware Planning Requirements
 
 Before executing the core planning workflow, read these required project memory

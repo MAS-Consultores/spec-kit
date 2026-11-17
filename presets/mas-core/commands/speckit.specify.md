@@ -76,4 +76,30 @@ and then merges the feature with `--no-ff`. `/speckit.plan` and
 `/speckit.tasks` stay on the feature branch and do not create `main`.
 `/speckit.analyze` does not commit.
 
+## Phase commit (mandatory)
+
+After `spec.md` is written, commit it on the current feature branch. This commit
+is required and is the repository root when the repository was born empty.
+`finish-feature` later points `main` at that root (`git rev-list --max-parents=0 HEAD`).
+Do not rely on `.specify/extensions.yml` or `speckit.git.commit`. Do not create
+`main`. Do not run `git branch`.
+
+1. `git symbolic-ref --short HEAD` must be the feature branch (`NNN-short-name`).
+2. If `git status --porcelain` is empty, stop this section.
+3. Otherwise run the commands for the current shell and require exit code 0.
+
+Bash:
+
+```bash
+git add -A
+git commit -m "speckit.specify"
+```
+
+PowerShell:
+
+```powershell
+git add -A
+git commit -m "speckit.specify"
+```
+
 {CORE_TEMPLATE}
