@@ -122,7 +122,9 @@ def test_replace_slice_removes_note_from_infrastructure(tmp_path: Path) -> None:
     assert "model Widget" in schema
     assert "model Note" not in schema
     widget_sql = dest / "apps/api/prisma/migrations/20261114000000_widget/migration.sql"
-    assert 'CREATE TABLE "Widget"' in widget_sql.read_text(encoding="utf-8")
+    assert 'CREATE TABLE "widgets"' in widget_sql.read_text(encoding="utf-8")
+    assert "@@map(\"widgets\")" in schema
+    assert "@map(\"created_by\")" in schema
     init_sql = (dest / "apps/api/prisma/migrations/20261113000000_init/migration.sql").read_text(encoding="utf-8")
     assert '"Note"' not in init_sql
     assert not (dest / "apps/api/src/modules/notes").exists()

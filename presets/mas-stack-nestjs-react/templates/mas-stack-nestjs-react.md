@@ -111,6 +111,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `prisma/schema.prisma` with Prisma 7.x config:
   - `generator client { provider = "prisma-client" output = "../src/generated/prisma" moduleFormat = "esm" importFileExtension = "js" }`
   - `datasource db { provider = "postgresql" }` (no url; use prisma.config.ts)
+  - Models in English, PascalCase, singular. Physical tables in English, snake_case, plural via `@@map` (`users`, `notes`). Physical columns in snake_case via `@map`. No Spanglish and no persisted enum codes in Spanish (the UI translates). A field that must match an external source 1:1 may keep that name on the model; its column stays snake_case and the exception is commented
 - [ ] `apps/api/prisma.config.ts` (package root, not `prisma/prisma.config.ts`) with `schema: 'prisma/schema.prisma'`
 - [ ] `tsconfig.json` includes src and tests (editor + ESLint `projectService`); `tsconfig.build.json` includes only `src` for `nest build` (`rootDir: src` → `dist/generated/prisma/client.js`)
 - [ ] Seed script: `node --import tsx prisma/seed.ts` (`tsx` dependency). Do not use `node --experimental-strip-types` for the seed.

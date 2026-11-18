@@ -69,23 +69,23 @@ for (const file of textFiles) {
 const initSql = "apps/api/prisma/migrations/20261113000000_init/migration.sql";
 const sql = readFileSync(initSql, "utf8");
 const withoutNote = sql.replace(
-  /CREATE TABLE "Note" \([\s\S]*?CONSTRAINT "Note_pkey" PRIMARY KEY \("id"\)\n\);\n\n/,
+  /CREATE TABLE "notes" \([\s\S]*?CONSTRAINT "notes_pkey" PRIMARY KEY \("id"\)\n\);\n\n/,
   "",
 );
-if (withoutNote === sql || withoutNote.includes('"Note"')) {
-  console.error("failed to remove Note from the init migration");
+if (withoutNote === sql || withoutNote.includes('"notes"')) {
+  console.error("failed to remove notes from the init migration");
   process.exit(1);
 }
 writeFileSync(initSql, withoutNote);
 
-const widgetSql = `CREATE TABLE "Widget" (
+const widgetSql = `CREATE TABLE "widgets" (
   "id" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "body" TEXT NOT NULL,
-  "createdBy" TEXT NOT NULL,
-  "deletedAt" TIMESTAMP(3),
-  "deletedBy" TEXT,
-  CONSTRAINT "Widget_pkey" PRIMARY KEY ("id")
+  "created_by" TEXT NOT NULL,
+  "deleted_at" TIMESTAMP(3),
+  "deleted_by" TEXT,
+  CONSTRAINT "widgets_pkey" PRIMARY KEY ("id")
 );
 `;
 const migrationDir = "apps/api/prisma/migrations/20261114000000_widget";

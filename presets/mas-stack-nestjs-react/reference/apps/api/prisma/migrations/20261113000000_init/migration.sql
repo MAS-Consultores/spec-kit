@@ -1,55 +1,55 @@
-CREATE TABLE "User" (
+CREATE TABLE "users" (
   "id" TEXT NOT NULL,
   "email" TEXT NOT NULL,
-  "passwordHash" TEXT NOT NULL,
-  "deletedAt" TIMESTAMP(3),
-  CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+  "password_hash" TEXT NOT NULL,
+  "deleted_at" TIMESTAMP(3),
+  CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
-CREATE TABLE "Permission" (
+CREATE TABLE "permissions" (
   "id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
-  CONSTRAINT "Permission_pkey" PRIMARY KEY ("id")
+  CONSTRAINT "permissions_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "Permission_code_key" ON "Permission"("code");
+CREATE UNIQUE INDEX "permissions_code_key" ON "permissions"("code");
 
-CREATE TABLE "UserPermission" (
-  "userId" TEXT NOT NULL,
-  "permissionId" TEXT NOT NULL,
-  CONSTRAINT "UserPermission_pkey" PRIMARY KEY ("userId", "permissionId")
+CREATE TABLE "user_permissions" (
+  "user_id" TEXT NOT NULL,
+  "permission_id" TEXT NOT NULL,
+  CONSTRAINT "user_permissions_pkey" PRIMARY KEY ("user_id", "permission_id")
 );
-ALTER TABLE "UserPermission" ADD CONSTRAINT "UserPermission_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "UserPermission" ADD CONSTRAINT "UserPermission_permissionId_fkey" FOREIGN KEY ("permissionId") REFERENCES "Permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "user_permissions" ADD CONSTRAINT "user_permissions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "user_permissions" ADD CONSTRAINT "user_permissions_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-CREATE TABLE "RefreshToken" (
+CREATE TABLE "refresh_tokens" (
   "id" TEXT NOT NULL,
-  "userId" TEXT NOT NULL,
-  "tokenHash" TEXT NOT NULL,
-  "familyId" TEXT NOT NULL,
-  "expiresAt" TIMESTAMP(3) NOT NULL,
-  "revokedAt" TIMESTAMP(3),
-  CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("id")
+  "user_id" TEXT NOT NULL,
+  "token_hash" TEXT NOT NULL,
+  "family_id" TEXT NOT NULL,
+  "expires_at" TIMESTAMP(3) NOT NULL,
+  "revoked_at" TIMESTAMP(3),
+  CONSTRAINT "refresh_tokens_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "RefreshToken_tokenHash_key" ON "RefreshToken"("tokenHash");
-ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+CREATE UNIQUE INDEX "refresh_tokens_token_hash_key" ON "refresh_tokens"("token_hash");
+ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-CREATE TABLE "Note" (
+CREATE TABLE "notes" (
   "id" TEXT NOT NULL,
   "title" TEXT NOT NULL,
   "body" TEXT NOT NULL,
-  "createdBy" TEXT NOT NULL,
-  "deletedAt" TIMESTAMP(3),
-  "deletedBy" TEXT,
-  CONSTRAINT "Note_pkey" PRIMARY KEY ("id")
+  "created_by" TEXT NOT NULL,
+  "deleted_at" TIMESTAMP(3),
+  "deleted_by" TEXT,
+  CONSTRAINT "notes_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "AuditLog" (
+CREATE TABLE "audit_logs" (
   "id" TEXT NOT NULL,
   "action" TEXT NOT NULL,
   "entity" TEXT NOT NULL,
-  "entityId" TEXT NOT NULL,
-  "actorId" TEXT NOT NULL,
+  "entity_id" TEXT NOT NULL,
+  "actor_id" TEXT NOT NULL,
   "at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+  CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
