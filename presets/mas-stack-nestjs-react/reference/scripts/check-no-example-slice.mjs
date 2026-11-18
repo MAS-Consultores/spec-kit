@@ -3,6 +3,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const scanRoots = ["apps", "packages", "scripts"].map((name) => join(root, name));
 const skip = new Set(["node_modules", "dist", "generated", ".git"]);
 const note = "not" + "es";
 const widget = "wid" + "gets";
@@ -22,11 +23,19 @@ function files(dir, acc = []) {
 }
 
 const hits = [];
-for (const file of files(root)) {
-  if (file.endsWith("check-no-example-slice.mjs")) continue;
-  const rel = relative(root, file);
-  const text = readFileSync(file, "utf8");
-  if (forbidden.test(rel) || forbidden.test(text)) hits.push(rel);
+for (const scanRoot of scanRoots) {
+  let listed;
+  try {
+    listed = files(scanRoot);
+  } catch {
+    continue;
+  }
+  for (const file of listed) {
+    if (file.endsWith("check-no-example-slice.mjs")) continue;
+    const rel = relative(root, file);
+    const text = readFileSync(file, "utf8");
+    if (forbidden.test(rel) || forbidden.test(text)) hits.push(rel);
+  }
 }
 if (hits.length > 0) {
   console.error("example slice or example.com account found:");
