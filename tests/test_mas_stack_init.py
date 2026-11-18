@@ -1061,7 +1061,7 @@ def test_nestjs_react_closes_demo2_framework_gaps(tmp_path):
     analyze_skill = (project / ".agents" / "skills" / "speckit-analyze" / "SKILL.md").read_text(encoding="utf-8")
 
     assert "apps/api/prisma.config.ts" in context
-    assert "schema: 'prisma/schema.prisma'" in context
+    assert "schema: 'prisma/schema'" in context
     assert "npm view" in context
     assert "typescript-eslint" in context
     assert "Mandatory Auth Phase" in context

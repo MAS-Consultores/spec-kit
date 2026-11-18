@@ -1,14 +1,3 @@
-import { z } from "zod";
-
-export const loginSchema = z
-  .object({
-    email: z.email(),
-    password: z.string().min(8),
-  })
-  .strict();
-
-export type Login = z.infer<typeof loginSchema>;
-
 export const openApiDocument = {
   openapi: "3.0.3",
   info: { title: "API", version: "1.0.0" },

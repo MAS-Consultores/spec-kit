@@ -5,7 +5,7 @@ strategy: wrap
 
 ## Prototype fidelity
 
-Read **Prototype fidelity** in the stack constitution before writing `spec.md`.
+Read **Prototype fidelity** and **Modularidad estricta** in the stack constitution before writing `spec.md`. A feature MUST be a new Nest module and a web feature. It MUST NOT add code to `AppModule` beyond one `imports` line, MUST NOT import another module's internals, and MUST NOT put product UI in `packages/ui`.
 
 When the feature ports an HTML prototype, the spec MUST include the map from that section: prototype selector (or `data-testid`) to React `data-testid` to the properties to compare. Also write `specs/<feature>/fidelity-map.json` with the same pairs so `pnpm test:fidelity` can run it.
 

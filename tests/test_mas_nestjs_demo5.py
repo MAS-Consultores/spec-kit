@@ -112,7 +112,10 @@ def test_reference_has_no_example_slice(tmp_path: Path) -> None:
     checked = _run(["node", str(REFERENCE / "scripts" / "check-no-example-slice.mjs")])
     assert checked.returncode == 0, checked.stdout + checked.stderr
     assert "no example slice" in checked.stdout
-    schema = (REFERENCE / "apps/api/prisma/schema.prisma").read_text(encoding="utf-8")
+    schema = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((REFERENCE / "apps/api/prisma/schema").glob("*.prisma"))
+    )
     assert "model User" in schema
     assert "@@map(\"users\")" in schema
     assert "@@map(\"audit_logs\")" in schema

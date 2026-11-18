@@ -21,6 +21,10 @@ Do not declare the feature finished, and do not merge, until these suites have b
 
 A run that only has a few unit tests and a single Playwright spec does not meet the gate.
 
+## Modularidad estricta
+
+Follow **Modularidad estricta** in the stack constitution. New domains come from `pnpm gen:module <dominio>`. Do not register a domain by editing another domain. `pnpm lint` must stay at 0.
+
 ## Lint the agent must keep green
 
 `eslint.config.js` is flat config. Do not add `.eslintrc.cjs`.

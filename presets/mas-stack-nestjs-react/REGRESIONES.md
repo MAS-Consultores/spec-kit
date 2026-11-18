@@ -87,6 +87,20 @@ El commit `e2ce8252` agrupó los huecos 2–27 de la demo 2 sin enumerarlos uno 
 
 Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (locale es-CL del plan, `escapeLike`, `getZodError`, `onUnhandledFrame`, `richColors`, `getAnimations`): el esqueleto cubre es-CL, contraste y axe. El resto no tiene un fallo ejecutable propio y sigue pendiente.
 
+## Modularidad estricta
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D10-01 | un dominio no puede importar archivos internos de otro; solo `index.ts` | `apps/api/lint-fixtures/modules/billing/billing.service.ts` (`mas/public-module-api`) dentro de `pnpm lint` |
+| D10-02 | Prisma solo en `*.repository.ts` y en el módulo Prisma; `@Global()` solo en config | `service-imports-prisma.ts` (`mas/prisma-only-in-repositories`) y `global-module.ts` (`mas/no-global-module`) |
+| D10-03 | archivos de más de 300 líneas o funciones de más de 60 | `long-file.ts` (`max-lines`) y `long-function.ts` (`max-lines-per-function`) |
+| D10-04 | `let` o `new Map` en el top-level de una app | `module-state.ts` (`mas/no-module-state`). El rate limit del esqueleto persiste en `rate_limit_buckets` |
+| D10-05 | ciclos de módulos | `lint-fixtures/cycle` falla `import-x/no-cycle` y dependency-cruiser `no-circular` |
+| D10-06 | el router no importa una feature en estático; el shell no hace `fetch` | `apps/web/lint-fixtures/app-router.tsx` (`mas/lazy-feature-routes`) y `shell/logout.tsx` (`mas/fetch-in-feature-data`) |
+| D10-07 | cada módulo y cada feature tienen `index.ts` y el nombre permitido | `modules/orphan/orphan.module.ts` (`mas/module-layout`) |
+| D10-08 | un repositorio no toca modelos de otro dominio; el contrato se importa por su index | `billing.repository.ts` (`mas/own-models-only`) e `imports-contract-internal.ts` (`mas/contracts-public-index`) |
+| D10-09 | el esquema Prisma es un archivo por dominio y el generador no deja dominios de ejemplo | `node scripts/check-prisma-layout.mjs` en `pnpm verify`, y `node scripts/check-gen-fitness.mjs` al final del job `reference` (genera `alpha` y `beta`, lint, typecheck, test, build, diff acotado, y los borra) |
+
 ## Lint determinista del esqueleto
 
 `pnpm verify` ejecuta `pnpm lint` (el esqueleto en verde) y `pnpm lint:fixtures` (cada fixture tiene que fallar con el mensaje de la corrección). El job `reference` corre `pnpm verify`.

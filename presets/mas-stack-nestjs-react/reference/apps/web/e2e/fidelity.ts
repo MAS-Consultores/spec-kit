@@ -2,6 +2,8 @@
  * Compares a static HTML prototype with the app using getComputedStyle.
  * Screenshot, video, and trace are not used.
  */
+/* eslint-disable max-lines -- fidelity gate stays one script so the comparison, server, and CLI share one review */
+
 import { createReadStream, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { extname, join, normalize, relative, resolve, dirname } from "node:path";
@@ -66,7 +68,7 @@ const DEFAULT_PROPERTIES = [
   "animation-name",
   "animation-duration",
   "transition",
-];
+] as const;
 
 const CSS_PROPS: Record<string, readonly string[]> = {
   color: ["color"],
@@ -86,9 +88,9 @@ const CSS_PROPS: Record<string, readonly string[]> = {
   transition: ["transition-property", "transition-duration", "transition-timing-function"],
 };
 
-const LENGTH_PROPS = new Set(["padding", "width", "height", "font-size", "border-radius"]);
-const DURATION_PROPS = new Set(["animation-duration", "transition-duration"]);
-const COLOR_PROPS = new Set(["color", "background-color"]);
+const LENGTH_PROPS = ["padding", "width", "height", "font-size", "border-radius"] as const;
+const DURATION_PROPS = ["animation-duration", "transition-duration"] as const;
+const COLOR_PROPS = ["color", "background-color"] as const;
 
 function workspaceRoot(start: string): string {
   let dir = start;
@@ -204,8 +206,15 @@ function sameNumbers(left: number[], right: number[], tolerance: number): boolea
   return left.every((item, index) => Math.abs(item - (right[index] ?? 0)) <= tolerance);
 }
 
+function named(group: readonly string[], property: string): boolean {
+  for (const item of group) {
+    if (item === property) return true;
+  }
+  return false;
+}
+
 function equivalent(property: string, prototype: string, app: string, tolerances: Tolerances): boolean {
-  if (COLOR_PROPS.has(property)) {
+  if (named(COLOR_PROPS, property)) {
     const left = canonicalColor(prototype);
     const right = canonicalColor(app);
     if (left && right) {
@@ -214,12 +223,12 @@ function equivalent(property: string, prototype: string, app: string, tolerances
       return sameNumbers(leftRgb, rightRgb, tolerances.colorChannel);
     }
   }
-  if (LENGTH_PROPS.has(property)) {
+  if (named(LENGTH_PROPS, property)) {
     const left = lengthNumbers(prototype);
     const right = lengthNumbers(app);
     if (left && right) return sameNumbers(left, right, tolerances.lengthPx);
   }
-  if (DURATION_PROPS.has(property)) {
+  if (named(DURATION_PROPS, property)) {
     const left = durationMs(prototype);
     const right = durationMs(app);
     if (left && right) return sameNumbers(left, right, tolerances.durationMs);

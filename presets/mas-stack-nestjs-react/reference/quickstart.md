@@ -11,3 +11,5 @@ pnpm dev
 Other workspace commands use `pnpm --filter` with the `package.json` name (`@demo/api`, `@demo/web`), not the directory name alone.
 
 When a feature spec ships `specs/<feature>/fidelity-map.json`, `pnpm test:fidelity` compares computed style with the prototype. It does not take screenshots.
+
+A new domain is `pnpm gen:module <dominio>`. `pnpm lint` must stay at 0. It includes dependency-cruiser and the negative fixtures.

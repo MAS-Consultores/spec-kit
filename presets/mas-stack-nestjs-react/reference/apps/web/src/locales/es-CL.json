@@ -3,5 +3,6 @@
   "create": "Continuar",
   "rutLabel": "RUT",
   "dateLabel": "Fecha",
-  "numberLabel": "Número"
+  "numberLabel": "Número",
+  "logout": "Salir"
 }

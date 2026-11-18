@@ -57,6 +57,40 @@ async function ensureActor(): Promise<void> {
   await prisma.$disconnect();
 }
 
+async function assertRefreshRotation(app: INestApplication): Promise<void> {
+  const login = await request(server(app)).post("/api/v1/auth/login").send({ email: actor, password });
+  expect(login.status).toBe(201);
+  const setCookie = login.headers["set-cookie"];
+  const joined = Array.isArray(setCookie) ? setCookie.join("\n") : String(setCookie);
+  expect(joined).toMatch(/access_token=[^;]+;.*HttpOnly/i);
+  expect(joined).toMatch(/refresh_token=[^;]+;.*HttpOnly/i);
+  const firstCsrf = cookie(login, "csrf_token");
+  const refresh = await request(server(app))
+    .post("/api/v1/auth/refresh")
+    .set("Cookie", [`refresh_token=${cookie(login, "refresh_token")}`, `csrf_token=${firstCsrf}`]);
+  expect(refresh.status).toBe(201);
+  const rotated = cookie(refresh, "csrf_token");
+  expect(rotated).not.toBe(firstCsrf);
+  const stale = await request(server(app))
+    .post("/api/v1/auth/logout")
+    .set("Cookie", [`access_token=${cookie(refresh, "access_token")}`, `csrf_token=${firstCsrf}`])
+    .set("x-csrf-token", firstCsrf);
+  expect(stale.status).toBe(403);
+  const done = await request(server(app))
+    .post("/api/v1/auth/logout")
+    .set("Cookie", [`access_token=${cookie(refresh, "access_token")}`, `csrf_token=${rotated}`])
+    .set("x-csrf-token", rotated);
+  expect(done.status).toBe(201);
+  const revoked = await request(server(app))
+    .get("/api/v1/auth/me")
+    .set("Cookie", [`access_token=${cookie(refresh, "access_token")}`]);
+  expect(revoked.status).toBe(401);
+  const reused = await request(server(app))
+    .post("/api/v1/auth/refresh")
+    .set("Cookie", [`refresh_token=${cookie(login, "refresh_token")}`]);
+  expect(reused.status).toBe(401);
+}
+
 describe("api", () => {
   let app: INestApplication;
   beforeAll(async () => {
@@ -93,44 +127,6 @@ describe("api", () => {
   });
 
   it("rotates refresh and csrf, then logout needs the rotated csrf", async () => {
-    const login = await request(server(app))
-      .post("/api/v1/auth/login")
-      .send({ email: actor, password });
-    expect(login.status).toBe(201);
-    const setCookie = login.headers["set-cookie"];
-    const joined = Array.isArray(setCookie) ? setCookie.join("\n") : String(setCookie);
-    expect(joined).toMatch(/access_token=[^;]+;.*HttpOnly/i);
-    expect(joined).toMatch(/refresh_token=[^;]+;.*HttpOnly/i);
-    const firstCsrf = cookie(login, "csrf_token");
-    const refresh = await request(server(app))
-      .post("/api/v1/auth/refresh")
-      .set("Cookie", [`refresh_token=${cookie(login, "refresh_token")}`, `csrf_token=${firstCsrf}`]);
-    expect(refresh.status).toBe(201);
-    const rotated = cookie(refresh, "csrf_token");
-    expect(rotated).not.toBe(firstCsrf);
-    const stale = await request(server(app))
-      .post("/api/v1/auth/logout")
-      .set("Cookie", [
-        `access_token=${cookie(refresh, "access_token")}`,
-        `csrf_token=${firstCsrf}`,
-      ])
-      .set("x-csrf-token", firstCsrf);
-    expect(stale.status).toBe(403);
-    const done = await request(server(app))
-      .post("/api/v1/auth/logout")
-      .set("Cookie", [
-        `access_token=${cookie(refresh, "access_token")}`,
-        `csrf_token=${rotated}`,
-      ])
-      .set("x-csrf-token", rotated);
-    expect(done.status).toBe(201);
-    const revoked = await request(server(app))
-      .get("/api/v1/auth/me")
-      .set("Cookie", [`access_token=${cookie(refresh, "access_token")}`]);
-    expect(revoked.status).toBe(401);
-    const reused = await request(server(app))
-      .post("/api/v1/auth/refresh")
-      .set("Cookie", [`refresh_token=${cookie(login, "refresh_token")}`]);
-    expect(reused.status).toBe(401);
+    await assertRefreshRotation(app);
   });
 });

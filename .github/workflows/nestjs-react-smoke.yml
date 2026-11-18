@@ -513,3 +513,4 @@ jobs:
           node scripts/check-dev-proxy.mjs
           node --experimental-strip-types apps/web/e2e/ports.ts --self-test
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
+          node scripts/check-gen-fitness.mjs

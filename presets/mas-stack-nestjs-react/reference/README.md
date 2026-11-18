@@ -39,6 +39,8 @@ pnpm dev
 
 `pnpm test:fidelity` compares computed style with an HTML prototype when `specs/<feature>/fidelity-map.json` exists. With no map it exits 0. It does not take screenshots. `pnpm verify` runs it.
 
+`pnpm lint` is ESLint plus dependency-cruiser plus the negative fixtures. `pnpm gen:module <dominio>` adds a Nest module, a lazy web feature, a contract entry, and a Prisma file. It only edits `AppModule`, `feature-routes.ts`, and `eslint/model-ownership.js`. `pnpm schema:check` requires one `.prisma` file per domain under `prisma/schema/`.
+
 Postgres on a new machine often has no cluster and no `postgresql.conf`. `scripts/ensure-postgres.sh` exits 1 and prints `initdb -D "$PGDATA"` when `PGDATA` has no config, or when the server is down. Create two databases and keep the URLs different:
 
 ```bash

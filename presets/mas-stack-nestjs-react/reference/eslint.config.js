@@ -1,6 +1,7 @@
 import eslint from "@eslint/js";
 import comments from "@eslint-community/eslint-plugin-eslint-comments";
 import boundaries from "eslint-plugin-boundaries";
+import importX from "eslint-plugin-import-x";
 import tseslint from "typescript-eslint";
 import mas, { boundaryElements, boundaryRule, envAllowFiles } from "./eslint/mas-plugin.js";
 
@@ -10,11 +11,19 @@ export default tseslint.config(
   {
     plugins: {
       boundaries,
+      "import-x": importX,
       "@eslint-community/eslint-comments": comments,
       mas,
     },
     settings: {
       "boundaries/elements": boundaryElements,
+      "import-x/resolver": {
+        typescript: true,
+      },
+      "import-x/parsers": {
+        "@typescript-eslint/parser": [".ts", ".tsx"],
+      },
+      "import-x/extensions": [".js", ".ts", ".tsx"],
     },
     languageOptions: {
       parserOptions: {
@@ -45,8 +54,20 @@ export default tseslint.config(
         "@typescript-eslint/no-explicit-any",
       ],
       "boundaries/dependencies": boundaryRule,
+      "import-x/no-cycle": "error",
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
       "mas/no-process-env": "error",
       "mas/require-disable-justification": "error",
+      "mas/prisma-only-in-repositories": "error",
+      "mas/no-global-module": "error",
+      "mas/no-module-state": "error",
+      "mas/public-module-api": "error",
+      "mas/own-models-only": "error",
+      "mas/contracts-public-index": "error",
+      "mas/lazy-feature-routes": "error",
+      "mas/fetch-in-feature-data": "error",
+      "mas/module-layout": "error",
     },
   },
   {
@@ -78,6 +99,7 @@ export default tseslint.config(
       "scripts/**",
       "eslint.config.js",
       "eslint/**",
+      "**/*.cjs",
       ".specify/**",
       "**/.snippet-check/**",
       "**/lint-fixtures/**",

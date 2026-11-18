@@ -2,7 +2,7 @@ import { defineConfig } from "prisma/config";
 import { migrationDatabaseUrl } from "./prisma/database-url.js";
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  schema: "prisma/schema",
   datasource: {
     url: migrationDatabaseUrl(process.env),
   },

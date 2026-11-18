@@ -1,3 +1,5 @@
+import { modularityRules } from "./modularity.js";
+
 /** Teaching rules. The message is the fix, not only the ban. */
 
 const ENV_MESSAGE =
@@ -92,6 +94,7 @@ const masPlugin = {
         };
       },
     },
+    ...modularityRules,
     "require-disable-justification": {
       meta: {
         type: "problem",
@@ -151,6 +154,12 @@ export const boundaryRule = [
         disallow: { to: { element: { types: ["api", "web", "ui"] } } },
         message:
           "packages/contracts must not import an app or @demo/ui. Shared types and schemas stay in packages/contracts.",
+      },
+      {
+        from: { element: { type: "ui" } },
+        disallow: { to: { element: { types: ["api", "web", "contracts"] } } },
+        message:
+          "packages/ui stays generic primitives. It must not import contracts, app routes, or application code. Product shell lives in apps/web.",
       },
     ],
   },

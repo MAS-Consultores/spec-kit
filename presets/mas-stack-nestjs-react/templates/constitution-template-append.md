@@ -59,7 +59,7 @@ function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
 }
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  schema: "prisma/schema",
   datasource: {
     url: migrationDatabaseUrl(process.env),
   },
@@ -187,11 +187,25 @@ The stack does not include example modules, data, users, or screens. Every domai
 
 The skeleton keeps generic infrastructure only: health, guards, CASL wiring, the Prisma module, config, and the identity tables the auth design needs (`User`, `Permission`, `UserPermission`, `RefreshToken`) plus append-only `AuditLog`. It does not seed those tables. The first feature defines domain models and any accounts. `/speckit.analyze` MUST mark **CRITICAL** when the project contains demonstration code or seed (a notes or widgets slice, `notes:*` or `widgets:*`, `replace-example-slice`, or an `example.com` account).
 
+### Modularidad estricta
+
+Todo proyecto generado con este preset MUST cumplir estas reglas. Cada una nombra el control que la hace fallar (`pnpm lint` ejecuta ESLint, dependency-cruiser y los fixtures negativos).
+
+- MUST haber un módulo Nest por dominio en `apps/api/src/modules/<dominio>/`, con `index.ts` público y `<dominio>.module.ts`. `AppModule` solo compone: registra el módulo con un `import` en `imports`. MUST NOT importar archivos internos de otro módulo; solo su `index.ts`. Reglas: `mas/module-layout`, `mas/public-module-api`. dependency-cruiser: `no-foreign-module-internals`
+- MUST respetar controller → service de caso de uso → `*.repository.ts`. Solo los repositorios y `apps/api/src/modules/prisma` importan Prisma o `PrismaService`. `PrismaModule` MUST NOT ser `@Global()`. `@Global()` y `global: true` solo en `apps/api/src/config`. El seed y los `*.e2e.ts` pueden abrir un cliente porque no atienden requests. Reglas: `mas/prisma-only-in-repositories`, `mas/no-global-module`
+- MUST NOT pasar de 300 líneas por archivo ni de 60 por función (sin contar vacías ni comentarios). Una excepción MUST llevar `eslint-disable` con justificación tras `--`. Reglas: `max-lines`, `max-lines-per-function`, `mas/require-disable-justification`
+- MUST NOT haber estado mutable de módulo (`let`, `var`, `new Map`, `new Set`, arrays mutables en el top-level de `apps/`). Los contadores y el rate limit viven en Postgres (`rate_limit_buckets`), no en memoria. Regla: `mas/no-module-state`
+- MUST NOT haber ciclos de import. Reglas: `import-x/no-cycle` y dependency-cruiser `no-circular` (ambos dentro de `pnpm lint`)
+- El front MUST vivir en `apps/web/src/features/<feature>/` (`components`, `hooks`, `api`, `routes`, `index.ts`). MUST NOT importar internos de otra feature. `fetch` solo en `hooks/` o `api/` de la feature. El shell recibe acciones por props y arma la nav desde `feature-routes.ts`. Las rutas MUST cargar la feature con `import()`, nunca con un import estático. Reglas: `mas/module-layout`, `mas/public-module-api`, `mas/fetch-in-feature-data`, `mas/lazy-feature-routes`
+- `packages/ui` MUST ser solo primitivas genéricas: no importa contracts, rutas ni código de apps. `packages/contracts/src/<dominio>/index.ts` es la entrada pública de ese dominio (`@demo/contracts/<dominio>`). MUST NOT importar internos de otro contrato. Reglas: `boundaries/dependencies`, `mas/contracts-public-index`, dependency-cruiser `ui-primitives-only` y `contracts-are-leaf`
+- Un repositorio MUST usar solo los delegates Prisma de su dominio (`eslint/model-ownership.js`). El acceso cruzado pasa por el service exportado del otro módulo. Regla: `mas/own-models-only`
+- Agregar un dominio MUST tocar solo la línea de `imports` en `AppModule`, el registro en `feature-routes.ts` y el mapa de ownership. El resto lo crea `pnpm gen:module <dominio>` (módulo, feature, `packages/contracts/<dominio>`, `prisma/schema/<dominio>.prisma`). El esquema Prisma MUST ser multi-archivo bajo `prisma/schema/` (generador solo en `base.prisma`; `prisma` y `@prisma/client` en 7.10.1). Eso no cabe en ESLint: lo cubren `scripts/check-prisma-layout.mjs` y `scripts/check-gen-fitness.mjs` (genera dos dominios, corre lint, typecheck, test y build, exige que el diff no salga de esos archivos y los borra)
+
 ### Database Naming
 
 Prisma models and the physical PostgreSQL schema use English names only. The UI translates labels; the schema does not.
 
-- Prisma models MUST be English, PascalCase, and singular in `schema.prisma` (for example `Employee`, `AccessLog`)
+- Prisma models MUST be English, PascalCase, and singular, one domain per file under `prisma/schema/` (for example `Employee`, `AccessLog`)
 - Physical tables MUST be English, snake_case, and plural via `@@map` (for example `@@map("employees")`, `@@map("access_logs")`)
 - Physical columns MUST be snake_case via `@map` when the Prisma field name is not already that column name (for example `passwordHash String @map("password_hash")`)
 - MUST NOT use Spanglish in model names, field names, `@@map` / `@map` targets, or persisted enum values. Domain and enum codes stored in the database MUST be English; the UI translates them
