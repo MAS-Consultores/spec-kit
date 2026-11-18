@@ -7,6 +7,18 @@ import { loginSchema } from "@demo/contracts";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma.service.js";
 import { configString } from "../config/read.js";
+import { businessScopes } from "./session-token.js";
+
+let dummyPasswordHash: Promise<string> | undefined;
+
+function dummyHash(): Promise<string> {
+  dummyPasswordHash ??= argon2.hash(randomBytes(32).toString("hex"), { type: argon2.argon2id });
+  return dummyPasswordHash;
+}
+
+async function verifyPresentedPassword(hash: string | null, password: string): Promise<boolean> {
+  return argon2.verify(hash ?? (await dummyHash()), password);
+}
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -26,13 +38,11 @@ export class AuthService {
       where: { email: input.email, deletedAt: null },
       include: { permissions: { include: { permission: true } } },
     });
-    const valid =
-      user !== null && (await argon2.verify(user.passwordHash, input.password));
+    const valid = await verifyPresentedPassword(user?.passwordHash ?? null, input.password);
     if (!user || !valid) {
       throw new UnauthorizedException();
     }
-    const scopes = user.permissions.map((row) => row.permission.code);
-    await this.issue(res, user.id, scopes, randomUUID());
+    await this.issue(res, user.id, businessScopes(user), randomUUID(), user.tokenVersion);
     const csrf = this.readCsrf(res);
     return { csrfToken: csrf };
   }
@@ -72,16 +82,21 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException();
     }
-    const scopes = user.permissions.map((item) => item.permission.code);
-    await this.issue(res, user.id, scopes, row.familyId);
+    await this.issue(res, user.id, businessScopes(user), row.familyId, user.tokenVersion);
     return { csrfToken: this.readCsrf(res) };
   }
 
   async logout(userId: string, res: Response): Promise<{ csrfToken: string }> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { tokenVersion: { increment: 1 } },
+      }),
+    ]);
     const csrf = randomBytes(16).toString("hex");
     res.clearCookie("access_token", { path: "/" });
     res.clearCookie("refresh_token", { path: "/api/v1/auth" });
@@ -89,9 +104,15 @@ export class AuthService {
     return { csrfToken: csrf };
   }
 
-  private async issue(res: Response, userId: string, scopes: string[], familyId: string): Promise<void> {
+  private async issue(
+    res: Response,
+    userId: string,
+    scopes: string[],
+    familyId: string,
+    tokenVersion: number,
+  ): Promise<void> {
     const csrf = randomBytes(16).toString("hex");
-    const access = this.jwt.sign({ sub: userId, scopes, csrf }, { expiresIn: "15m" });
+    const access = this.jwt.sign({ sub: userId, scopes, csrf, ver: tokenVersion }, { expiresIn: "15m" });
     const refresh = this.jwt.sign(
       { sub: userId, family: familyId, jti: randomUUID() },
       { secret: configString(this.config, "JWT_REFRESH_SECRET"), expiresIn: "7d" },

@@ -3,14 +3,23 @@ import { JwtService } from "@nestjs/jwt";
 import type { McpTokenVerifier } from "@nestjs/mcp";
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import type { AccessPayload } from "../auth/jwt-auth.guard.js";
+import { SessionLookup } from "../auth/session-lookup.js";
+import { accessTokenStillValid } from "../auth/session-token.js";
 
 @Injectable()
 export class BearerVerifier implements McpTokenVerifier {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly sessions: SessionLookup,
+  ) {}
 
-  verifyAccessToken(token: string): AuthInfo | null {
+  async verifyAccessToken(token: string): Promise<AuthInfo | null> {
     try {
       const payload = this.jwt.verify<AccessPayload>(token);
+      const user = await this.sessions.findStamp(payload.sub);
+      if (!user || user.mustChangePassword || !accessTokenStillValid(user, payload)) {
+        return null;
+      }
       return {
         token,
         clientId: payload.sub,

@@ -885,7 +885,7 @@ MAS_STACKS: dict[str, MasStack] = {
             "CSRF: signed double-submit pattern (`csrf-csrf`); validate `Origin` and `Sec-Fetch-Site` headers; use `__Host-` cookie prefix for session cookies.",
             "MFA: TOTP required for admin roles (`auditoria`, `usuarios:*`, permission management); `speakeasy` or similar.",
             "Throttler: `@nestjs/throttler` with shared storage (Postgres or optional Redis) across replicas; per-account lockout, not only IP-based.",
-            "`trust proxy` enabled behind ALB/CloudFront; CSP served by whoever serves `index.html` (CloudFront/nginx).",
+            "Client IP for audit and rate limits is `request.ip`. Set `trust proxy` only when `TRUST_PROXY` is `loopback` or a hop count; validate it and reject `true`. Do not read `X-Forwarded-For` directly. CSP is served by whoever serves `index.html` (CloudFront/nginx).",
             "Session timeouts: inactivity timeout via refresh token window; absolute timeout via refresh token family expiration.",
             "## Authentication (`AuthModule`)",
             "Use official `@nestjs/passport` + `@nestjs/jwt` in a dedicated `AuthModule` (`apps/api/src/modules/auth/`), separate from `AuthzModule`.",

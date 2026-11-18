@@ -2,6 +2,9 @@ CREATE TABLE "users" (
   "id" TEXT NOT NULL,
   "email" TEXT NOT NULL,
   "password_hash" TEXT NOT NULL,
+  "password_changed_at" TIMESTAMP(3),
+  "token_version" INTEGER NOT NULL DEFAULT 0,
+  "must_change_password" BOOLEAN NOT NULL DEFAULT false,
   "deleted_at" TIMESTAMP(3),
   CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );

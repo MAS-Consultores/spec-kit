@@ -41,6 +41,17 @@ Locale rule: stack context does not override the spec. If the spec says es-CL is
 
 State `apps/api/prisma.config.ts` at the package root, `queryClient.query` in loaders, source-only `packages/ui`, and the auth design (HttpOnly cookies, CSRF, rotating refresh with reuse detection, Argon2id, CASL) even when the feature spec only assumes a logged-in user.
 
+When the feature includes authentication (login, account recovery, one-time passwords or tokens, session issuance, password change, or mail that carries auth secrets), `plan.md` MUST include this checklist. Mark each item covered, or not applicable with a reason:
+
+- [ ] One-time passwords and tokens are single-use: consumed atomically on first success and invalidated by any later successful login or password change
+- [ ] Account recovery and login never reveal account existence: same status, body, and similar latency; hashing, database writes, and email cannot change the response
+- [ ] Lockout and rate-limit counters update atomically (database increment or conditional update), never read-modify-write
+- [ ] Client IP for audit and rate limits comes from `request.ip`; `X-Forwarded-For` is trusted only through an explicit configured trust-proxy setting, and values are validated
+- [ ] A session that must change its password, or is otherwise restricted, carries no business scopes; guards allow only change-password, logout, and me; refresh does not reissue scopes
+- [ ] Outbound SMTP that carries secrets requires TLS (`secure` or `requireTLS`); plaintext only for a loopback dev mail catcher
+- [ ] Password change and session revocation invalidate existing access tokens (reject tokens issued before `passwordChangedAt` or an older token version)
+- [ ] Tests cover every rule that applies
+
 Do not plan an example slice. The reference has no notes or widgets module, no demonstration screen, and no `example.com` seed. Identity tables in the skeleton are generic auth infrastructure and stay empty until a feature defines accounts. Domain models, screens, and seeds come from the feature spec.
 
 Database names stay English. Prisma models are PascalCase singular. Physical tables are snake_case plural through `@@map` and physical columns are snake_case through `@map`. Do not plan Spanglish identifiers or Spanish enum values in the schema. A field that must match an external source system 1:1 may keep that source name on the model; its column is still snake_case and the plan records the exception.

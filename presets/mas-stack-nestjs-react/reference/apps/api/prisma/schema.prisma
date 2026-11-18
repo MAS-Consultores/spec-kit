@@ -10,12 +10,15 @@ datasource db {
 }
 
 model User {
-  id           String           @id @default(uuid())
-  email        String           @unique
-  passwordHash String           @map("password_hash")
-  deletedAt    DateTime?        @map("deleted_at")
-  permissions  UserPermission[]
-  tokens       RefreshToken[]
+  id                 String           @id @default(uuid())
+  email              String           @unique
+  passwordHash       String           @map("password_hash")
+  passwordChangedAt  DateTime?        @map("password_changed_at")
+  tokenVersion       Int              @default(0) @map("token_version")
+  mustChangePassword Boolean          @default(false) @map("must_change_password")
+  deletedAt          DateTime?        @map("deleted_at")
+  permissions        UserPermission[]
+  tokens             RefreshToken[]
 
   @@map("users")
 }

@@ -7,6 +7,7 @@ const names = [
   "LOGIN_THROTTLE_LIMIT",
   "PORT",
   "CORS_ORIGIN",
+  "TRUST_PROXY",
 ] as const;
 
 export type AppEnv = {
@@ -16,6 +17,7 @@ export type AppEnv = {
   LOGIN_THROTTLE_LIMIT: number;
   PORT: number;
   CORS_ORIGIN: string;
+  TRUST_PROXY: string;
 };
 
 function requiredText(value: string | undefined, name: string): string {
@@ -46,6 +48,7 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   const throttle = source["LOGIN_THROTTLE_LIMIT"];
   const port = source["PORT"];
   const corsOrigin = source["CORS_ORIGIN"];
+  const trustProxy = source["TRUST_PROXY"];
   return {
     DATABASE_URL: requiredText(databaseUrl, "DATABASE_URL"),
     JWT_ACCESS_SECRET: requiredText(accessSecret, "JWT_ACCESS_SECRET"),
@@ -53,6 +56,7 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     LOGIN_THROTTLE_LIMIT: optionalNumber(throttle, 1000, "LOGIN_THROTTLE_LIMIT"),
     PORT: optionalNumber(port, 0, "PORT"),
     CORS_ORIGIN: typeof corsOrigin === "string" ? corsOrigin : "",
+    TRUST_PROXY: typeof trustProxy === "string" ? trustProxy : "",
   };
 }
 

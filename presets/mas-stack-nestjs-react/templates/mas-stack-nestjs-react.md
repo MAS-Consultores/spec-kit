@@ -120,7 +120,15 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `prisma/migrations/` — Migration files (run `prisma migrate deploy` pre-deploy)
 - [ ] `src/generated/prisma/` — Generated Prisma client (gitignored, SWC compiles to dist)
 - [ ] `vitest.config.ts` (Vitest for NestJS 12 ESM)
-- [ ] `.env.example` at the repo root (copied by `specify init` from the reference) documenting every variable the app reads (`DATABASE_URL`, `SEED_DATABASE_URL`, JWT secrets, `PORT`, `API_PROXY_TARGET`, `CORS_ORIGIN`, and any later `process.env` name). Placeholders only. `scripts/check-env-example.mjs` fails when a read name is missing
+- [ ] `.env.example` at the repo root (copied by `specify init` from the reference) documenting every variable the app reads (`DATABASE_URL`, `SEED_DATABASE_URL`, JWT secrets, `PORT`, `API_PROXY_TARGET`, `CORS_ORIGIN`, `TRUST_PROXY`, and any later `process.env` name). Placeholders only. `scripts/check-env-example.mjs` fails when a read name is missing
+- [ ] Authentication security rules for any auth feature, each with tests (mark not applicable only with a reason):
+  - [ ] One-time passwords and tokens are single-use: atomic consume on first success, invalidated by a later successful login or password change
+  - [ ] Recovery and login do not reveal account existence (same status, body, and similar latency; hashing, writes, and email do not change the response)
+  - [ ] Lockout and rate-limit counters update atomically, never read-modify-write
+  - [ ] Client IP comes from `request.ip`; `X-Forwarded-For` only via an explicit validated `TRUST_PROXY` (`loopback` or a hop count, never `true`)
+  - [ ] A restricted or must-change-password session has no business scopes; guards allow only change-password, logout, and me; refresh does not reissue scopes
+  - [ ] SMTP that carries secrets uses TLS (`secure` or `requireTLS`); plaintext only for a loopback dev mail catcher
+  - [ ] Password change and session revocation reject access tokens issued before `passwordChangedAt` or an older token version
 
 ### apps/web (Required)
 

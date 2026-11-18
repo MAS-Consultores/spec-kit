@@ -124,6 +124,10 @@ describe("api", () => {
       ])
       .set("x-csrf-token", rotated);
     expect(done.status).toBe(201);
+    const revoked = await request(server(app))
+      .get("/api/v1/auth/me")
+      .set("Cookie", [`access_token=${cookie(refresh, "access_token")}`]);
+    expect(revoked.status).toBe(401);
     const reused = await request(server(app))
       .post("/api/v1/auth/refresh")
       .set("Cookie", [`refresh_token=${cookie(login, "refresh_token")}`]);

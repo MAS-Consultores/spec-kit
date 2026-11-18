@@ -152,6 +152,18 @@ Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
 - `apps/api` MUST declare `@modelcontextprotocol/client` as a devDependency (latest stable). `@nestjs/mcp/testing` imports it and does not declare the dependency
 - Secrets MUST be read at runtime from the environment; MUST NOT use hardcoded fallbacks. `.env.example` MUST list every name the app reads (`process.env.NAME`, `process.env["NAME"]`, `requiredEnv("NAME")`, `env["NAME"]`) with placeholders and no real secrets. `specify init` copies that file from the reference skeleton. `scripts/check-env-example.mjs` MUST fail when a read name is absent
 
+### Authentication security rules
+
+These rules are mandatory for every authentication feature (login, account recovery, one-time passwords or tokens, session issuance, password change, and mail that carries auth secrets). Each applicable rule MUST have tests. A rule that does not apply MUST be marked not applicable with a reason.
+
+- Temporary and one-time passwords and tokens are single-use. Consume them atomically on first success. Any later successful login or password change invalidates them
+- Account recovery and login never reveal whether the account exists. Same status, same body, and similar latency. Hashing, database writes, and email cannot change the response
+- Counters used for lockout or rate limits are updated atomically (database increment or conditional update), never read-modify-write
+- Client IP for audit and rate limits comes from `request.ip`. Trust `X-Forwarded-For` only through an explicit, configured trust-proxy setting, and validate the value. Do not read the header directly
+- A session that must change its password, or is otherwise restricted, carries no business scopes. Guards allow only the change-password, logout, and me endpoints. Refresh does not reissue scopes
+- Outbound SMTP that carries secrets requires TLS (`secure` or `requireTLS`). Plaintext is allowed only for a loopback dev mail catcher
+- Password change and session revocation invalidate existing access tokens. Reject tokens issued before `passwordChangedAt` or an older token version
+
 ### Frontend Stack
 
 React SPA with mandatory libraries and patterns:
