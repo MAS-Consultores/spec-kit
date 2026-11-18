@@ -121,7 +121,7 @@ def test_e2e_ports_discards_a_dead_listener() -> None:
     assert "e2e-ports ok" in run.stdout
 
 
-def test_slice_replacement_uses_authenticated_list_and_can_create(tmp_path: Path) -> None:
+def test_example_slice_check_fails_on_example_com(tmp_path: Path) -> None:
     node, _npm = _node()
     dest = tmp_path / "reference"
     shutil.copytree(
@@ -129,19 +129,24 @@ def test_slice_replacement_uses_authenticated_list_and_can_create(tmp_path: Path
         dest,
         ignore=shutil.ignore_patterns("node_modules", "dist", ".e2e-ports.json"),
     )
-    run = subprocess.run(
-        [node, str(dest / "scripts" / "replace-example-slice.mjs")],
+    clean = subprocess.run(
+        [node, str(dest / "scripts" / "check-no-example-slice.mjs")],
         cwd=dest,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert run.returncode == 0, run.stderr
-    controller = (dest / "apps/api/src/modules/widgets/widgets.controller.ts").read_text(encoding="utf-8")
-    listed = controller.split("create(", 1)[0]
-    assert "@Authenticated()" in listed
-    assert '@Can("widgets:ver")' not in listed
-    assert '@Can("widgets:crear")' in controller
+    assert clean.returncode == 0, clean.stderr
+    seed = dest / "apps/api/prisma/seed.ts"
+    seed.write_text(seed.read_text(encoding="utf-8") + "\nconst demo = 'admin@example.com';\n", encoding="utf-8")
+    dirty = subprocess.run(
+        [node, str(dest / "scripts" / "check-no-example-slice.mjs")],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert dirty.returncode != 0
 
 
 def test_dev_proxy_check_passes_on_the_reference() -> None:

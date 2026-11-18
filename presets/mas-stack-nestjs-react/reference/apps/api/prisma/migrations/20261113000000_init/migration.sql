@@ -34,16 +34,6 @@ CREATE TABLE "refresh_tokens" (
 CREATE UNIQUE INDEX "refresh_tokens_token_hash_key" ON "refresh_tokens"("token_hash");
 ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-CREATE TABLE "notes" (
-  "id" TEXT NOT NULL,
-  "title" TEXT NOT NULL,
-  "body" TEXT NOT NULL,
-  "created_by" TEXT NOT NULL,
-  "deleted_at" TIMESTAMP(3),
-  "deleted_by" TEXT,
-  CONSTRAINT "notes_pkey" PRIMARY KEY ("id")
-);
-
 CREATE TABLE "audit_logs" (
   "id" TEXT NOT NULL,
   "action" TEXT NOT NULL,

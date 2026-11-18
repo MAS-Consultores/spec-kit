@@ -9,8 +9,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import requires_bash
-
 REPO = Path(__file__).resolve().parents[1]
 HAS_PWSH = shutil.which("pwsh") is not None
 REFERENCE = REPO / "presets" / "mas-stack-nestjs-react" / "reference"
@@ -110,22 +108,29 @@ def test_tasks_skill_uses_the_lockfile_not_npm_view() -> None:
         assert "resolved with `npm view`" not in text
 
 
-@requires_bash
-def test_replace_slice_removes_note_from_infrastructure(tmp_path: Path) -> None:
-    dest = tmp_path / "app"
-    shutil.copytree(REFERENCE, dest, ignore=shutil.ignore_patterns("node_modules"))
-    replaced = _run(["node", str(dest / "scripts" / "replace-example-slice.mjs")])
-    assert replaced.returncode == 0, replaced.stderr
-    checked = _run(["node", str(dest / "scripts" / "check-no-note-in-infra.mjs")])
-    assert checked.returncode == 0, checked.stderr
-    schema = (dest / "apps/api/prisma/schema.prisma").read_text(encoding="utf-8")
-    assert "model Widget" in schema
+def test_reference_has_no_example_slice(tmp_path: Path) -> None:
+    checked = _run(["node", str(REFERENCE / "scripts" / "check-no-example-slice.mjs")])
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+    assert "no example slice" in checked.stdout
+    schema = (REFERENCE / "apps/api/prisma/schema.prisma").read_text(encoding="utf-8")
+    assert "model User" in schema
+    assert "@@map(\"users\")" in schema
+    assert "@@map(\"audit_logs\")" in schema
+    assert "@map(\"password_hash\")" in schema
     assert "model Note" not in schema
-    widget_sql = dest / "apps/api/prisma/migrations/20261114000000_widget/migration.sql"
-    assert 'CREATE TABLE "widgets"' in widget_sql.read_text(encoding="utf-8")
-    assert "@@map(\"widgets\")" in schema
-    assert "@map(\"created_by\")" in schema
-    init_sql = (dest / "apps/api/prisma/migrations/20261113000000_init/migration.sql").read_text(encoding="utf-8")
-    assert '"Note"' not in init_sql
-    assert not (dest / "apps/api/src/modules/notes").exists()
-    assert (dest / "apps/api/src/modules/widgets/widgets.controller.ts").is_file()
+    assert "model Widget" not in schema
+    init_sql = (REFERENCE / "apps/api/prisma/migrations/20261113000000_init/migration.sql").read_text(encoding="utf-8")
+    assert '"users"' in init_sql
+    assert '"notes"' not in init_sql
+    assert not (REFERENCE / "scripts" / "replace-example-slice.mjs").exists()
+    assert not (REFERENCE / "apps/api/src/modules/notes").exists()
+    seed = (REFERENCE / "apps/api/prisma/seed.ts").read_text(encoding="utf-8")
+    assert "example.com" not in seed
+    assert "upsert" not in seed
+    planted = tmp_path / "reference"
+    shutil.copytree(REFERENCE, planted, ignore=shutil.ignore_patterns("node_modules", "dist"))
+    marker = planted / "apps/api/src/modules/notes/notes.controller.ts"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("export class NotesController {}\n", encoding="utf-8")
+    failed = _run(["node", str(planted / "scripts" / "check-no-example-slice.mjs")])
+    assert failed.returncode != 0

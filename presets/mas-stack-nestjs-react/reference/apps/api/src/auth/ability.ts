@@ -1,6 +1,6 @@
 import { createPrismaAbility } from "@casl/prisma";
 
-/** `widgets:ver` -> subject `Widget`. The example slice does not appear in this file. */
+/** `audits:ver` -> subject `Audit`. Scope resource, singular, PascalCase. */
 export function subjectFor(scope: string): string {
   const resource = scope.split(":")[0] ?? "";
   const singular = resource.endsWith("s") ? resource.slice(0, -1) : resource;

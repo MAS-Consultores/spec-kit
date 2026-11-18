@@ -41,6 +41,8 @@ Locale rule: stack context does not override the spec. If the spec says es-CL is
 
 State `apps/api/prisma.config.ts` at the package root, `queryClient.query` in loaders, source-only `packages/ui`, and the auth design (HttpOnly cookies, CSRF, rotating refresh with reuse detection, Argon2id, CASL) even when the feature spec only assumes a logged-in user.
 
+Do not plan an example slice. The reference has no notes or widgets module, no demonstration screen, and no `example.com` seed. Identity tables in the skeleton are generic auth infrastructure and stay empty until a feature defines accounts. Domain models, screens, and seeds come from the feature spec.
+
 Database names stay English. Prisma models are PascalCase singular. Physical tables are snake_case plural through `@@map` and physical columns are snake_case through `@map`. Do not plan Spanglish identifiers or Spanish enum values in the schema. A field that must match an external source system 1:1 may keep that source name on the model; its column is still snake_case and the plan records the exception.
 
 Record the Active Node LTS resolved from `https://nodejs.org/dist/index.json` (first entry whose `lts` is not false): exact version for `.nvmrc`, that major for `engines` / `@types/node` / CI / Docker / README. Do not copy a Node version from memory. Corepack setup is `npm i -g corepack@latest && corepack enable` because Node 25+ does not bundle it.

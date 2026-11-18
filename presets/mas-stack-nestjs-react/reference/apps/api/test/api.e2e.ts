@@ -3,16 +3,22 @@ import { execFileSync } from "node:child_process";
 import { VersioningType } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
+import { PrismaPg } from "@prisma/adapter-pg";
+import argon2 from "argon2";
 import cookieParser from "cookie-parser";
+import pg from "pg";
 import request from "supertest";
-import { noteSchema } from "@demo/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { PrismaClient } from "../src/generated/prisma/client.js";
 import { AppModule } from "../src/app.module.js";
 import { headerLines } from "../src/http.js";
 
 process.env["JWT_ACCESS_SECRET"] ??= "test-access-secret-test-access";
 process.env["JWT_REFRESH_SECRET"] ??= "test-refresh-secret-test-refresh";
 process.env["LOGIN_THROTTLE_LIMIT"] = "1000";
+
+const actor = "refresh@infra.test";
+const password = "rotation-secret";
 
 function cookie(res: request.Response, name: string): string {
   const line = headerLines(res.headers["set-cookie"]).find((item) => item.startsWith(`${name}=`));
@@ -36,6 +42,21 @@ async function boot(): Promise<INestApplication> {
   return app;
 }
 
+async function ensureActor(): Promise<void> {
+  const url = process.env["SEED_DATABASE_URL"];
+  if (!url) {
+    throw new Error("SEED_DATABASE_URL is required");
+  }
+  const prisma = new PrismaClient({ adapter: new PrismaPg(new pg.Pool({ connectionString: url })) });
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+  await prisma.user.upsert({
+    where: { email: actor },
+    update: { passwordHash, deletedAt: null },
+    create: { email: actor, passwordHash },
+  });
+  await prisma.$disconnect();
+}
+
 describe("api", () => {
   let app: INestApplication;
   beforeAll(async () => {
@@ -53,21 +74,28 @@ describe("api", () => {
       },
     });
     process.env["DATABASE_URL"] = process.env["SEED_DATABASE_URL"];
+    await ensureActor();
     app = await boot();
   });
   afterAll(async () => {
     await app.close();
   });
 
+  it("returns health without a session", async () => {
+    const res = await request(server(app)).get("/api/v1/health");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+  });
+
   it("returns 401 without a session", async () => {
-    const res = await request(server(app)).get("/api/v1/notes");
+    const res = await request(server(app)).get("/api/v1/auth/me");
     expect(res.status).toBe(401);
   });
 
   it("rotates refresh and csrf, then logout needs the rotated csrf", async () => {
     const login = await request(server(app))
       .post("/api/v1/auth/login")
-      .send({ email: "admin@example.com", password: "password123" });
+      .send({ email: actor, password });
     expect(login.status).toBe(201);
     const setCookie = login.headers["set-cookie"];
     const joined = Array.isArray(setCookie) ? setCookie.join("\n") : String(setCookie);
@@ -100,25 +128,5 @@ describe("api", () => {
       .post("/api/v1/auth/refresh")
       .set("Cookie", [`refresh_token=${cookie(login, "refresh_token")}`]);
     expect(reused.status).toBe(401);
-  });
-
-  it("returns 403 when CASL denies delete", async () => {
-    const login = await request(server(app))
-      .post("/api/v1/auth/login")
-      .send({ email: "reader@example.com", password: "password123" });
-    const created = await request(server(app))
-      .post("/api/v1/auth/login")
-      .send({ email: "admin@example.com", password: "password123" });
-    const note = await request(server(app))
-      .post("/api/v1/notes")
-      .set("Cookie", [`access_token=${cookie(created, "access_token")}`, `csrf_token=${cookie(created, "csrf_token")}`])
-      .set("x-csrf-token", cookie(created, "csrf_token"))
-      .send({ title: "Uno", body: "cuerpo" });
-    expect(note.status).toBe(201);
-    const denied = await request(server(app))
-      .delete(`/api/v1/notes/${noteSchema.parse(note.body).id}`)
-      .set("Cookie", [`access_token=${cookie(login, "access_token")}`, `csrf_token=${cookie(login, "csrf_token")}`])
-      .set("x-csrf-token", cookie(login, "csrf_token"));
-    expect(denied.status).toBe(403);
   });
 });

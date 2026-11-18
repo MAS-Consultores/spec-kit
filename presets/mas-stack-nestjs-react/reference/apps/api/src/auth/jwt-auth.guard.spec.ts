@@ -18,7 +18,7 @@ function context(type: string, token?: string): ExecutionContext {
     switchToWs: () => ({}),
     switchToHttp: () => ({
       getRequest: () => ({
-        originalUrl: "/api/v1/notes",
+        originalUrl: "/api/v1/auth/me",
         cookies: token ? { access_token: token } : {},
       }),
       getResponse: () => ({}),

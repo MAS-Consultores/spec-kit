@@ -145,7 +145,7 @@ Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
   - `@Public()` — no session. Use it for routes that create the session (`login`, `refresh`) and for unauthenticated probes such as health
   - `@Authenticated()` from `decorators.ts` — a valid access token and no CASL permission. Use it for `logout`, `me`, and any feature route that only needs a signed-in user (for example listing the caller's own records when the spec does not grant a separate permission)
   - `@Can('category:action')` — feature authorization. Use it for create, update, delete, and for reads that are permission-gated
-- Session routes MUST NOT require a permission from the example slice. MCP tools MUST NOT use `@Public()` or `@Authenticated()` in place of a scope: each `@Tool` still needs `@Can(...)` and `scopes` that include that permission
+- Session routes (`logout`, `me`) MUST use `@Authenticated()` and MUST NOT require a feature permission. MCP tools MUST NOT use `@Public()` or `@Authenticated()` in place of a scope: each `@Tool` still needs `@Can(...)` and `scopes` that include that permission
 - MCP registration MUST use `McpModule.forRoot({ decorators: [Public(), SkipCsrf()] })` so a missing Bearer token is 401, not a CSRF 403. Pass the verifier as a class (`BearerVerifier`) and resolve the JWT secret inside `verifyAccessToken`, not at module import
 - Passwords MUST be hashed with Argon2id; login endpoints MUST have throttling
 - MCP endpoints MUST require Bearer token: missing or invalid token MUST return exactly 401 with `WWW-Authenticate: Bearer` header
@@ -168,6 +168,12 @@ React SPA with mandatory libraries and patterns:
 - `packages/ui` MUST be source-only (exports point at `src`, not `dist`)
 - MUST use TanStack Table v9 API (`useTable` + `stockFeatures`, not legacy `useReactTable`)
 - At least one Playwright spec MUST verify computed styles (e.g., button background not transparent, cell padding > 0) to catch CSS generation failures
+
+### No example domain
+
+The stack does not include example modules, data, users, or screens. Every domain starts from a Spec Kit feature. Demonstration code and demonstration seed are forbidden, including `example.com` accounts.
+
+The skeleton keeps generic infrastructure only: health, guards, CASL wiring, the Prisma module, config, and the identity tables the auth design needs (`User`, `Permission`, `UserPermission`, `RefreshToken`) plus append-only `AuditLog`. It does not seed those tables. The first feature defines domain models and any accounts. `/speckit.analyze` MUST mark **CRITICAL** when the project contains demonstration code or seed (a notes or widgets slice, `notes:*` or `widgets:*`, `replace-example-slice`, or an `example.com` account).
 
 ### Database Naming
 

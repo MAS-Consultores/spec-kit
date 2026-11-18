@@ -15,6 +15,8 @@ Read `.specify/memory/stack-context.md` and apply every item under "Mandatory Au
 
 When `apps/api` has no `AuthModule`, `tasks.md` MUST contain a blocking auth phase before user stories: login, HttpOnly cookies, CSRF, rotating refresh tokens with reuse detection, roles, and a user seed.
 
+Do not add a task that restores a notes or widgets example, a demonstration screen, or an `example.com` account. The skeleton seed inserts no rows. A feature that needs accounts owns that seed and uses addresses from the spec.
+
 Also require tasks for:
 
 - `apps/api/prisma.config.ts` at the API package root with `schema: 'prisma/schema.prisma'`

@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Demo API",
+    "title": "API",
     "version": "1.0.0"
   },
   "paths": {
@@ -46,31 +46,6 @@
         "responses": {
           "200": {
             "description": "session"
-          }
-        }
-      }
-    },
-    "/api/v1/notes": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "list"
-          }
-        }
-      },
-      "post": {
-        "responses": {
-          "201": {
-            "description": "create"
-          }
-        }
-      }
-    },
-    "/api/v1/notes/{id}": {
-      "delete": {
-        "responses": {
-          "200": {
-            "description": "delete"
           }
         }
       }

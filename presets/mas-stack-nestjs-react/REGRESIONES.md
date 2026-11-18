@@ -20,16 +20,16 @@ Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitutio
 | ID | Descripción | Commit | Chequeo |
 | --- | --- | --- | --- |
 | D6-01 | `check-casl.ts` acepta `@Authenticated()` en handlers HTTP; una tool MCP sin `@Can` sigue fallando; un handler sin `@Can`, `@Public` ni `@Authenticated` falla | `cbf536d6` | `tests/test_mas_nestjs_demo6.py` y `pnpm casl` del job `reference` |
-| D6-02 | `.env.example` lista las variables que la app lee y `specify init` lo copia | `19d2064d` | `tests/test_mas_nestjs_demo6.py` y `node scripts/check-env-example.mjs` en el esqueleto y tras el reemplazo del slice |
+| D6-02 | `.env.example` lista las variables que la app lee y `specify init` lo copia | `19d2064d` | `tests/test_mas_nestjs_demo6.py` y `node scripts/check-env-example.mjs` |
 | D6-03 | Vite hace proxy de `/api` en dev y preview; Playwright llama a la API por el origen de la web | `d8d05593` | `node scripts/check-dev-proxy.mjs` y `pnpm test:e2e:web` (health vía el origen web) en ambos tramos del job `reference` |
-| D6-04 | los puertos de `.e2e-ports.json` se reutilizan solo si están libres o los dos servidores responden; el reemplazo del slice deja listar en `@Authenticated` y crear en `@Can` | `5b56f0e0` | `node --experimental-strip-types apps/web/e2e/ports.ts --self-test`, Playwright dos veces seguidas en ambos tramos, y el chequeo del controller de widgets tras `replace-example-slice.mjs` |
+| D6-04 | los puertos de `.e2e-ports.json` se reutilizan solo si están libres o los dos servidores responden | `5b56f0e0` | `node --experimental-strip-types apps/web/e2e/ports.ts --self-test` y Playwright dos veces seguidas |
 
 ## Demo 5 (huecos de esta iteración)
 
 | ID | Descripción | Commit | Chequeo |
 | --- | --- | --- | --- |
-| D5-01 | `truncate-e2e.mjs` trunca las tablas de la app leídas de `information_schema`, sin nombres fijos, y omite `_prisma_migrations` | `bf51460a` | el e2e de API del job `reference` (antes y después del reemplazo del slice) ejecuta el script |
-| D5-02 | logout y `me` usan `@Authenticated()`; auth, CSRF, el verificador MCP, health y el seed base no nombran el slice de ejemplo | `dd35cd62` | `node scripts/check-no-note-in-infra.mjs` en el esqueleto y otra vez después de `scripts/replace-example-slice.mjs` |
+| D5-01 | `truncate-e2e.mjs` trunca las tablas de la app leídas de `information_schema`, sin nombres fijos, y omite `_prisma_migrations` | `bf51460a` | el e2e de API del job `reference` ejecuta el script |
+| D5-02 | logout y `me` usan `@Authenticated()`; el esqueleto no trae slice, seed ni cuentas de demostración | `dd35cd62` | `node scripts/check-no-example-slice.mjs` |
 | D5-03 | la rama se lee con `git symbolic-ref --short HEAD` en bash y PowerShell | `15c5e53b` | `tests/test_mas_nestjs_demo5.py` (repo sin commits) y el paso de CI en bash y PowerShell, que exige salida 128 de `rev-parse --abbrev-ref` |
 | D5-04 | `db:migrate` usa `DATABASE_URL`; un string vacío no cae a `SEED_DATABASE_URL`; el seed sigue exigiendo la otra URL | `c969f542` | `tests/test_mas_nestjs_demo5.py` y `prisma migrate deploy` de las dos bases en el job `reference` |
 | D5-05 | `/speckit.tasks` copia versiones del lockfile del esqueleto y no pide `npm view` | `9576bfc4` | `tests/test_mas_nestjs_demo5.py` lee el skill, la plantilla de tasks y el checklist |
@@ -107,7 +107,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | PM-05 | puertos 3000, 4173 o 5432 ocupados | Playwright reserva un puerto libre. La base se elige con las URLs, no asumiendo que 5432 esté libre para la app |
 | PM-06 | flujo de scripts sin LLM en un repo vacío | paso de CI en bash (Ubuntu y macOS) y PowerShell (Windows): init, create-new-feature, setup-plan, setup-tasks, ensure-feature-branch en la rama y en `main`, y `finish-feature` (repo nacido vacío, `main` con commits, árbol sucio) |
 | PM-07 | migración desde cero, seed dos veces, URLs distintas, truncado | job `reference`: `migrate deploy` de las dos bases, `pnpm db:seed` dos veces, `scripts/truncate-e2e.mjs` en el global setup y en el e2e de API |
-| PM-14 | el slice de ejemplo queda acoplado a la infraestructura y el segundo módulo no pasa los gates | el mismo job, paso «Replace the example slice», borra Note, agrega Widget y repite verify, unit, e2e de API, e2e de MCP, Playwright y el build |
+| PM-14 | el esqueleto no incluye un slice de ejemplo | el job de referencia ejecuta `node scripts/check-no-example-slice.mjs` y falla si reaparece un módulo o una cuenta de demostración |
 | PM-08 | cookies HttpOnly, CSRF rotado en logout, refresh, 429 aislado, MCP con guard JWT | `pnpm test:e2e:api`, `test/throttle.e2e.ts` (instancia propia con límite 2) y `pnpm test:e2e:mcp` |
 | PM-09 | es-CL, axe, `routeTree.gen` antes del typecheck, paths `@demo/ui` | `pnpm --filter @demo/web test`, Playwright + axe, `pnpm routes:gen` al inicio de `typecheck` |
 | PM-10 | drift de OpenAPI o del api-client, i18n, eslint strict, madge, CASL, tests skipped | `pnpm verify` |

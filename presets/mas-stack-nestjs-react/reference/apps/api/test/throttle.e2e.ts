@@ -26,11 +26,11 @@ describe("throttler", () => {
       throw new Error("HTTP server missing");
     }
     const agent = request(value as Parameters<typeof request>[0]);
-    await agent.post("/api/v1/auth/login").send({ email: "admin@example.com", password: "password123" });
-    await agent.post("/api/v1/auth/login").send({ email: "admin@example.com", password: "password123" });
+    await agent.post("/api/v1/auth/login").send({ email: "throttle@infra.test", password: "rotation-secret" });
+    await agent.post("/api/v1/auth/login").send({ email: "throttle@infra.test", password: "rotation-secret" });
     const limited = await agent
       .post("/api/v1/auth/login")
-      .send({ email: "admin@example.com", password: "password123" });
+      .send({ email: "throttle@infra.test", password: "rotation-secret" });
     expect(limited.status).toBe(429);
   });
 });

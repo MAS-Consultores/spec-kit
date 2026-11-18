@@ -50,17 +50,6 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model Note {
-  id        String    @id @default(uuid())
-  title     String
-  body      String
-  createdBy String    @map("created_by")
-  deletedAt DateTime? @map("deleted_at")
-  deletedBy String?   @map("deleted_by")
-
-  @@map("notes")
-}
-
 model AuditLog {
   id       String   @id @default(uuid())
   action   String
