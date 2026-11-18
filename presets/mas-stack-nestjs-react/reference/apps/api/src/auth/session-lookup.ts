@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Global, Injectable, Module } from "@nestjs/common";
 import { PrismaService } from "../prisma.service.js";
 import type { SessionStamp } from "./session-token.js";
 
@@ -12,4 +12,14 @@ export class SessionLookup {
       select: { tokenVersion: true, passwordChangedAt: true, mustChangePassword: true },
     });
   }
+}
+
+/** Global so McpModule can inject the lookup into BearerVerifier. */
+@Global()
+@Module({
+  providers: [PrismaService, SessionLookup],
+  exports: [PrismaService, SessionLookup],
+})
+export class SessionModule {
+  readonly label = "session";
 }

@@ -11,18 +11,18 @@ import { CsrfGuard } from "./auth/csrf.guard.js";
 import { Public, SkipCsrf } from "./auth/decorators.js";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard.js";
 import { JwtStrategy } from "./auth/jwt.strategy.js";
-import { SessionLookup } from "./auth/session-lookup.js";
+import { SessionModule } from "./auth/session-lookup.js";
 import { PermissionsGuard } from "./auth/permissions.guard.js";
 import { AppConfigModule } from "./config/config.module.js";
 import { configNumber, configString } from "./config/read.js";
 import { HealthController } from "./health.controller.js";
 import { BearerVerifier } from "./mcp/token-verifier.js";
-import { PrismaService } from "./prisma.service.js";
 import { mcpScopesSupported, sliceControllers, sliceProviders } from "./slices.js";
 
 @Module({
   imports: [
     AppConfigModule,
+    SessionModule,
     PassportModule,
     JwtModule.registerAsync({
       global: true,
@@ -58,8 +58,6 @@ import { mcpScopesSupported, sliceControllers, sliceProviders } from "./slices.j
   ],
   controllers: [HealthController, AuthController, ...sliceControllers],
   providers: [
-    PrismaService,
-    SessionLookup,
     AuthService,
     JwtStrategy,
     ...sliceProviders,
