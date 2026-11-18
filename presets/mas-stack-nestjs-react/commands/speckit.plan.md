@@ -26,6 +26,7 @@ export default defineConfig({
     url: migrationDatabaseUrl(process.env),
   },
   migrations: {
+    path: "prisma/migrations",
     seed: "node --import tsx prisma/seed.ts",
   },
 });
