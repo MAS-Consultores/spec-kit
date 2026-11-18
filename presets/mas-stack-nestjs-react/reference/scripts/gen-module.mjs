@@ -37,7 +37,7 @@ writeFileSync(
 
 writeFileSync(
   join(contractDir, "index.ts"),
-  `import { z } from "zod";\n\nexport const ${name}Schema = z.object({ id: z.string().uuid() }).strict();\nexport type ${pascal} = z.infer<typeof ${name}Schema>;\n`,
+  `import { z } from "zod";\n\nexport const ${name}Schema = z.object({ id: z.uuid() }).strict();\nexport type ${pascal} = z.infer<typeof ${name}Schema>;\n`,
 );
 
 writeFileSync(
