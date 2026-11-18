@@ -169,6 +169,16 @@ React SPA with mandatory libraries and patterns:
 - MUST use TanStack Table v9 API (`useTable` + `stockFeatures`, not legacy `useReactTable`)
 - At least one Playwright spec MUST verify computed styles (e.g., button background not transparent, cell padding > 0) to catch CSS generation failures
 
+### Database Naming
+
+Prisma models and the physical PostgreSQL schema use English names only. The UI translates labels; the schema does not.
+
+- Prisma models MUST be English, PascalCase, and singular in `schema.prisma` (for example `Employee`, `AccessLog`)
+- Physical tables MUST be English, snake_case, and plural via `@@map` (for example `@@map("employees")`, `@@map("access_logs")`)
+- Physical columns MUST be snake_case via `@map` when the Prisma field name is not already that column name (for example `passwordHash String @map("password_hash")`)
+- MUST NOT use Spanglish in model names, field names, `@@map` / `@map` targets, or persisted enum values. Domain and enum codes stored in the database MUST be English; the UI translates them
+- Exception: a field that must match an external source system 1:1 (for example a payroll feed) MAY keep that source name on the Prisma model. Its physical column MUST still be snake_case via `@map`. Document the exception next to the field (a Prisma comment naming the source system and why the model name is not translated)
+
 ### Comprehensive Auditing
 
 Every relevant action MUST be audited—this is foundational, not optional:
