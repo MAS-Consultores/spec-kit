@@ -20,7 +20,7 @@
     "gen:module": "node scripts/gen-module.mjs",
     "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
     "routes:gen": "node scripts/generate-route-tree.mjs",
-    "madge": "madge --circular --extensions ts --exclude 'generated/prisma|routeTree.gen' apps packages",
+    "madge": "madge --circular --extensions ts --exclude 'generated/prisma|routeTree.gen|lint-fixtures' apps packages",
     "casl": "pnpm --filter @demo/casl-check exec node --experimental-strip-types check-casl.ts",
     "shadcn:check": "node scripts/check-shadcn.mjs",
     "i18n:check": "node scripts/check-i18n.mjs",
