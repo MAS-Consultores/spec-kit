@@ -1,8 +1,10 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type ProxyOptions } from "vite";
+import { defineConfig, loadEnv, type ProxyOptions } from "vite";
 
-const apiTarget = process.env["API_PROXY_TARGET"] ?? "http://127.0.0.1:3001";
+export default defineConfig(({ mode }) => {
+const fileEnv = loadEnv(mode, new URL("../..", import.meta.url).pathname, "");
+const apiTarget = process.env["API_PROXY_TARGET"] ?? fileEnv["API_PROXY_TARGET"] ?? "http://127.0.0.1:3001";
 const apiProxy: Record<string, ProxyOptions> = {
   "/api": {
     target: apiTarget,
@@ -10,7 +12,7 @@ const apiProxy: Record<string, ProxyOptions> = {
   },
 };
 
-export default defineConfig({
+return {
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -19,4 +21,5 @@ export default defineConfig({
   },
   server: { proxy: apiProxy },
   preview: { proxy: apiProxy },
+};
 });

@@ -38,6 +38,7 @@ Mark **CRITICAL** when `tasks.md` is missing any of these test tasks:
 - API e2e with supertest against real Postgres (not a mocked Prisma client): at least one test per REST endpoint, including 401, 403 from CASL, refresh-token rotation that rejects reuse, and throttling (429)
 - MCP e2e with Bearer and scopes against that same Postgres: at least one test per MCP tool (401 without a token, denial for a missing scope, success with the required scope)
 - Playwright plus axe-core: at least one spec per user story, with `screenshot`, `video`, and `trace` set to `'off'`
+- When the spec ports an HTML prototype: **Prototype fidelity** tasks (tokens, brand assets, motion, shell design, `pnpm test:fidelity`). Mark **CRITICAL** when those tasks are missing, when a logo is planned as text, or when the shell design is left on skeleton defaults
 - Unit tests for each domain service, each guard, and each CASL policy
 
 A tasks file that only lists a few unit tests or a single Playwright spec fails this gate.

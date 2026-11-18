@@ -491,6 +491,19 @@ jobs:
           pnpm test:e2e:mcp
           pnpm --filter @demo/web exec playwright install chromium
           pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
+          pnpm test:fidelity -- --map "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/fidelity-map.json"
+          set +e
+          fidelity_out="$(pnpm test:fidelity -- --map "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/fidelity-map.json" --app "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/mismatch" 2>&1)"
+          fidelity_code=$?
+          set -e
+          printf '%s\n' "$fidelity_out"
+          test "$fidelity_code" -ne 0
+          printf '%s\n' "$fidelity_out" | grep -q "es texto"
+          printf '%s\n' "$fidelity_out" | grep -q "padding"
+          printf '%s\n' "$fidelity_out" | grep -q "12px"
+          printf '%s\n' "$fidelity_out" | grep -q "16px"
+          printf '%s\n' "$fidelity_out" | grep -q "width"
+          printf '%s\n' "$fidelity_out" | grep -q "200px"
           pnpm test:e2e:web
           pnpm test:e2e:web
           pnpm audit --audit-level=high

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "nest start --watch",
     "build": "nest build",
     "start:e2e": "nest build && node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",

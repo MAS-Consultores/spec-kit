@@ -198,3 +198,20 @@ def test_mcp_registration_uses_for_root(stack_project: Path) -> None:
     assert offenders == []
     constitution = (stack_project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
     assert "McpModule.forRoot({ decorators: [Public(), SkipCsrf()] })" in constitution
+
+
+def test_prototype_fidelity_is_wired() -> None:
+    root = REPO / "presets/mas-stack-nestjs-react"
+    constitution = (root / "templates/constitution-template-append.md").read_text(encoding="utf-8")
+    assert "Prototype fidelity" in constitution
+    assert "fidelity-map.json" in constitution
+    for name in ("speckit.specify.md", "speckit.plan.md", "speckit.tasks.md", "speckit.implement.md"):
+        text = (root / "commands" / name).read_text(encoding="utf-8")
+        assert "fidelity" in text.lower()
+    workflow = (REPO / ".github/workflows/nestjs-react-smoke.yml").read_text(encoding="utf-8")
+    assert "test:fidelity" in workflow
+    assert (root / "fixtures/fidelity/fidelity-map.json").is_file()
+    assert (root / "reference/apps/web/e2e/fidelity.ts").is_file()
+    package = (root / "reference/package.json").read_text(encoding="utf-8")
+    assert '"dev"' in package
+    assert "test:fidelity" in package

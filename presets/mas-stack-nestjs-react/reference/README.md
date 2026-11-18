@@ -27,6 +27,18 @@ Windows: nvm-windows, or `npm config set prefix %USERPROFILE%\.local` and add th
 
 Copy `.env.example` to `.env` and replace the placeholders. `node scripts/check-env-example.mjs` fails when the app reads an environment name that the example does not list.
 
+## Quickstart
+
+`pnpm dev` from this directory loads the root `.env` (`node --env-file-if-exists=.env`) and starts `@demo/api` and `@demo/web` together. The API uses `PORT` (3001 in the example). Vite serves the web app on 5173 and proxies `/api` to `API_PROXY_TARGET`. The same file is documented in `quickstart.md`. Vite also reads that root `.env` when you start `@demo/web` on its own.
+
+```bash
+pnpm install --frozen-lockfile
+cp .env.example .env
+pnpm dev
+```
+
+`pnpm test:fidelity` compares computed style with an HTML prototype when `specs/<feature>/fidelity-map.json` exists. With no map it exits 0. It does not take screenshots. `pnpm verify` runs it.
+
 Postgres on a new machine often has no cluster and no `postgresql.conf`. `scripts/ensure-postgres.sh` exits 1 and prints `initdb -D "$PGDATA"` when `PGDATA` has no config, or when the server is down. Create two databases and keep the URLs different:
 
 ```bash

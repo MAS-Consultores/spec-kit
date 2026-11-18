@@ -16,6 +16,7 @@ Do not declare the feature finished, and do not merge, until these suites have b
 - API e2e: supertest against the SWC build (`start:e2e`) and real Postgres. At least one test per REST endpoint, including 401, CASL 403, refresh-token rotation, and throttling 429.
 - MCP e2e: Bearer and scopes against that Postgres. At least one test per MCP tool.
 - Playwright with axe-core: at least one spec per user story. `screenshot`, `video`, and `trace` stay `'off'`.
+- When `spec.md` ports an HTML prototype, follow **Prototype fidelity** in the stack constitution: tokens from `prototype-tokens.json`, copied brand assets (never a text logo), literal motion with `prefers-reduced-motion`, and the shell design (header, rail, widths, gradients, collapsed and mobile). Scaffolding (CDN, jQuery, sim-bar, scripts) stays out. Run `pnpm test:fidelity` against `specs/<feature>/fidelity-map.json`. Do not finish while it fails. The command never takes a screenshot, video, or trace.
 - Unit tests for each domain service, guard, and CASL policy.
 
 A run that only has a few unit tests and a single Playwright spec does not meet the gate.

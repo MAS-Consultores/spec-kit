@@ -2,6 +2,14 @@
 
 Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitution no cuenta como cobertura. «Pendiente» significa que el historial no alcanza para un chequeo ejecutable o que el comportamiento no está en el esqueleto.
 
+## Fidelidad de maquetas
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D9-01 | el logo del prototipo se reemplazó por texto y nadie lo vio porque el e2e solo miraba roles y textos | el job `reference` corre `pnpm test:fidelity` sobre `fixtures/fidelity`: el caso que coincide sale 0; el caso negativo (logo en un `span`, padding 12px, riel 200px) sale distinto de 0 y el mensaje nombra `es texto`, `padding` y `width` |
+| D9-02 | se portaron solo tokens de marca y quedaron grises, radios o paddings por defecto del esqueleto | el mismo caso negativo exige `app-header padding 12px vs prototipo 16px` |
+| D9-03 | el menú se armó con estilos del esqueleto, sin riel, anchos ni gradiente | el mismo caso negativo exige el ancho del riel (`200px` vs `240px`) |
+
 ## Demo 8 (huecos de esta iteración)
 
 | ID | Descripción | Commit | Chequeo |

@@ -1,0 +1,42 @@
+{
+  "prototype": "./prototype",
+  "app": "./app",
+  "tolerances": { "lengthPx": 0, "durationMs": 0, "colorChannel": 1 },
+  "fonts": ["400 16px \"Fidelity Sans\""],
+  "pairs": [
+    {
+      "prototype": "[data-testid='app-header']",
+      "app": "[data-testid='app-header']",
+      "viewport": { "width": 1280, "height": 800 },
+      "properties": ["padding", "color", "background", "font-family", "font-size", "font-weight", "width", "height", "border-radius", "box-shadow", "transition"]
+    },
+    {
+      "prototype": "[data-testid='app-rail']",
+      "app": "[data-testid='app-rail']",
+      "viewport": { "width": 1280, "height": 800 },
+      "properties": ["width", "background"]
+    },
+    {
+      "prototype": "[data-testid='app-rail']",
+      "app": "[data-testid='app-rail']",
+      "viewport": { "width": 390, "height": 800 },
+      "properties": ["width", "height"]
+    },
+    {
+      "prototype": "[data-testid='app-rail-collapsed']",
+      "app": "[data-testid='app-rail-collapsed']",
+      "viewport": { "width": 1280, "height": 800 },
+      "properties": ["width"]
+    },
+    {
+      "prototype": "[data-testid='brand-mark']",
+      "app": "[data-testid='brand-mark']",
+      "properties": ["animation-name", "animation-duration"]
+    },
+    {
+      "kind": "logo",
+      "prototype": "[data-testid='brand-logo']",
+      "app": "[data-testid='brand-logo']"
+    }
+  ]
+}

@@ -219,6 +219,58 @@ Performance is a first-class requirement:
 - Server-side pagination mandatory (default 20, max 100)
 - Async heavy work; short transactions; p95 < 300 ms target
 
+### Prototype fidelity
+
+When a feature ports an HTML prototype from product, the visual design is a requirement. The gate compares computed style. It does not take screenshots, video, or traces.
+
+#### Tokens
+
+Extract every design value literally from the prototype CSS and from the Tailwind CDN `tailwind.config` (colors, font families, weights, radii, shadows, spacing, breakpoints). Write them to `apps/web/src/styles/prototype-tokens.json`. The shadcn and Tailwind 4 theme (`apps/web/src/index.css` `@theme`) MUST be generated from that file. If the prototype defines a value, the skeleton default for that value is forbidden (including default grays, radii, and shadows).
+
+#### Brand assets
+
+Copy logos, SVG marks, illustrations, and the favicon. Write `apps/web/src/assets/brand-manifest.json` with the prototype path and the app path for each file. A logo MUST be the copied image or SVG, never a text substitute. Self-host the same font files and the same weights the prototype uses. Do not copy demo photos or demo avatars.
+
+#### Motion
+
+Copy `@keyframes`, `transition`, and easing literally. Keep a `prefers-reduced-motion: reduce` rule that disables non-essential animation. The fidelity gate compares animation with reduced motion off, and it fails if the prototype CSS has `@keyframes` and the app CSS drops `prefers-reduced-motion`.
+
+#### Shell design versus scaffolding
+
+Do not port scaffolding: Tailwind CDN, jQuery, Font Awesome, sim-bar, and prototype scripts. Do port the shell design: header, rail and menu, widths, gradients, and the collapsed and mobile states. A `handoff.md` line that says the shell is out of scope does not drop the shell design.
+
+Name prototype styles `styles-prototype.css`, not a framework name. Put `data-testid` on the shell and on brand assets. Ship the same tokens as JSON, not only as CSS.
+
+#### Spec map
+
+`spec.md` MUST include this map, and `specs/<feature>/fidelity-map.json` MUST repeat it for the gate. Each row names the prototype element, the React element, and the properties to compare:
+
+```json
+{
+  "prototype": "prototypes/shell",
+  "app": "http://127.0.0.1:5173",
+  "tolerances": { "lengthPx": 0, "durationMs": 0, "colorChannel": 1 },
+    "fonts": ["400 16px \"Brand Sans\""],
+  "pairs": [
+    {
+      "prototype": "[data-testid='app-header']",
+      "app": "[data-testid='app-header']",
+      "viewport": { "width": 1280, "height": 800 },
+      "properties": ["padding", "color", "background", "font-family", "font-size", "font-weight", "width", "height", "border-radius", "box-shadow", "transition"]
+    },
+    {
+      "kind": "logo",
+      "prototype": "[data-testid='brand-logo']",
+      "app": "[data-testid='brand-logo']"
+    }
+  ]
+}
+```
+
+`background` compares `background-color` and `background-image`. `transition` compares property, duration, and timing function. `kind: "logo"` requires an `img` or `svg` whose natural width and height match the prototype and are greater than 0. `fonts` entries are passed to `document.fonts.check` on both pages. Colors accept hex, `rgb`/`rgba`, and `oklch` and compare after conversion. A mismatch is reported as `app-header padding 12px vs prototipo 16px`.
+
+`pnpm test:fidelity` serves a prototype directory and the app (directory or URL) and runs this comparison with Playwright. It does not call screenshot, video, or trace. With no `specs/**/fidelity-map.json` and no `--map`, it exits 0. When a map exists, `pnpm verify` and `/speckit.implement` fail the feature until the command exits 0.
+
 ### Validation Single Source of Truth
 
 Zod schemas in `packages/contracts` are the ONLY validation source:
