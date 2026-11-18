@@ -168,7 +168,7 @@ def test_specify_commit_is_main_root_after_finish_powershell(tmp_path: Path) -> 
 
 def test_mcp_registration_uses_for_root(stack_project: Path) -> None:
     skeleton = (
-        REPO / "presets/mas-stack-nestjs-react/reference/apps/api/src/app.module.ts"
+        REPO / "presets/mas-stack-nestjs-react/reference/apps/api/src/modules/mcp/mcp.module.ts"
     ).read_text(encoding="utf-8")
     assert "McpModule.forRoot(" in skeleton
     assert "McpModule.forRootAsync" not in skeleton
