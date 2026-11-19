@@ -468,6 +468,7 @@ jobs:
           JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret
           JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
           LOGIN_THROTTLE_LIMIT: "1000"
+          MCP_ENABLED: "true"
         run: |
           set -euo pipefail
           work="$(mktemp -d)"
@@ -481,12 +482,50 @@ jobs:
           pnpm install --frozen-lockfile
           bash scripts/ensure-postgres.sh
           pnpm db:generate
-          pnpm --filter @demo/api exec prisma migrate deploy
-          DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy
+          deploy_out="$(pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$deploy_out"
+          if printf '%s\n' "$deploy_out" | grep -q "No migration found"; then
+            echo "migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$deploy_out" | grep -q "successfully applied"
+          e2e_out="$(DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$e2e_out"
+          if printf '%s\n' "$e2e_out" | grep -q "No migration found"; then
+            echo "e2e migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$e2e_out" | grep -q "successfully applied"
           pnpm db:seed
           pnpm db:seed
           pnpm verify
           pnpm build
+          api_pid=""
+          cleanup_api() {
+            if [ -n "$api_pid" ]; then
+              kill "$api_pid" >/dev/null 2>&1 || true
+              wait "$api_pid" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup_api EXIT
+          MCP_ENABLED=true PORT=3999 node apps/api/dist/main.js &
+          api_pid=$!
+          ready=0
+          for _ in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:3999/api/v1/health" >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$api_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "http://127.0.0.1:3999/api/v1/health"
+          test "$ready" -eq 1
+          cleanup_api
+          api_pid=""
+          trap - EXIT
           pnpm test:e2e:api
           pnpm test:e2e:mcp
           pnpm --filter @demo/web exec playwright install chromium
@@ -514,3 +553,142 @@ jobs:
           node --experimental-strip-types apps/web/e2e/ports.ts --self-test
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
           node scripts/check-gen-fitness.mjs
+
+  skeleton-boot:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Active LTS from index.json
+        id: node
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request, os
+          url = "https://nodejs.org/dist/index.json"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              payload = json.load(response)
+          hit = next(entry for entry in payload if isinstance(entry, dict) and entry.get("lts") is not False)
+          exact = hit["version"][1:]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"version={exact}\n")
+          print(exact)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: Enable Corepack without writing to /usr
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -c 'CREATE DATABASE app'
+          psql -h localhost -U postgres -c 'CREATE DATABASE e2e'
+
+      - name: Generate, migrate a clean database, boot the API, e2e, Playwright
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+          SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+          JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret
+          JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
+          LOGIN_THROTTLE_LIMIT: "1000"
+          MCP_ENABLED: "true"
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          cp -a "$work/.specify/reference/." "$work/"
+          cd "$work"
+          pnpm install --frozen-lockfile
+          bash scripts/ensure-postgres.sh
+          pnpm db:generate
+          pnpm lint
+          deploy_out="$(pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$deploy_out"
+          if printf '%s\n' "$deploy_out" | grep -q "No migration found"; then
+            echo "migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$deploy_out" | grep -q "successfully applied"
+          e2e_out="$(DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$e2e_out"
+          if printf '%s\n' "$e2e_out" | grep -q "No migration found"; then
+            echo "e2e migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$e2e_out" | grep -q "successfully applied"
+          pnpm db:seed
+          pnpm --filter @demo/contracts build && pnpm --filter @demo/api build
+          api_pid=""
+          cleanup_api() {
+            if [ -n "$api_pid" ]; then
+              kill "$api_pid" >/dev/null 2>&1 || true
+              wait "$api_pid" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup_api EXIT
+          MCP_ENABLED=true PORT=3999 node apps/api/dist/main.js &
+          api_pid=$!
+          ready=0
+          for _ in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:3999/api/v1/health" >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$api_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "http://127.0.0.1:3999/api/v1/health"
+          test "$ready" -eq 1
+          cleanup_api
+          api_pid=""
+          trap - EXIT
+          pnpm test:e2e:api
+          pnpm --filter @demo/web exec playwright install chromium
+          pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
+          pnpm test:e2e:web

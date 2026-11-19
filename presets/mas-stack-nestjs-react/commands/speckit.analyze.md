@@ -35,6 +35,8 @@ Mark **CRITICAL** when the project still uses `.eslintrc.cjs`, when `eslint-plug
 
 Also mark **CRITICAL** when `tasks.md` has no tasks for `openapi:generate`, `api-client:generate`, or an AST-based CASL check in `pnpm verify`, or when it still requires `ensureQueryData`, `prisma/prisma.config.ts`, `MongoAbility` / `createMongoAbility` for Prisma queries, or gitignoring `routeTree.gen.ts`.
 
+Mark **CRITICAL** when `tasks.md` has no CI job that, against a clean Postgres, runs `prisma generate`, `prisma migrate deploy` (failing if the output contains `No migration found`), seed, a real `node dist/main.js` process with HTTP 200 on `/api/v1/health`, API e2e, and Playwright.
+
 Mark **CRITICAL** when `tasks.md` is missing any of these test tasks:
 
 - API e2e with supertest against real Postgres (not a mocked Prisma client): at least one test per REST endpoint, including 401, 403 from CASL, refresh-token rotation that rejects reuse, and throttling (429)

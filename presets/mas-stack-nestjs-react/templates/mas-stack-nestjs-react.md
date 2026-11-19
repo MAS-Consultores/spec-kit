@@ -113,7 +113,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
   - `datasource db { provider = "postgresql" }` (no url; use prisma.config.ts)
   - Models in English, PascalCase, singular. Physical tables in English, snake_case, plural via `@@map` (`users`, `refresh_tokens`, `audit_logs`). Physical columns in snake_case via `@map`. No Spanglish and no persisted enum codes in Spanish (the UI translates). A field that must match an external source 1:1 may keep that name on the model; its column stays snake_case and the exception is commented
 - [ ] No example domain. The reference ships health, generic auth infrastructure, Prisma, an empty web shell, `packages/ui`, and `packages/contracts`. It does not ship a notes or widgets module, a demonstration screen, a demonstration seed, or an `example.com` account. Domain code comes from a Spec Kit feature. `scripts/check-no-example-slice.mjs` fails if an example slice or `example.com` account reappears
-- [ ] `apps/api/prisma.config.ts` (package root, not `prisma/prisma.config.ts`) with `schema: 'prisma/schema'`
+- [ ] `apps/api/prisma.config.ts` (package root, not `prisma/prisma.config.ts`) with `schema: 'prisma/schema'` and `migrations.path` of `prisma/migrations`, both absolute via `import.meta.dirname`
 - [ ] `tsconfig.json` includes src and tests (editor + ESLint `projectService`); `tsconfig.build.json` includes only `src` for `nest build` (`rootDir: src` → `dist/generated/prisma/client.js`)
 - [ ] Seed script: `node --import tsx prisma/seed.ts` (`tsx` dependency). Do not use `node --experimental-strip-types` for the seed.
 - [ ] Test DB reset: `prisma migrate deploy` + `TRUNCATE`, never `prisma migrate reset`

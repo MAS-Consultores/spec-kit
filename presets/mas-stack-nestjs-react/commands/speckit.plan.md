@@ -10,6 +10,7 @@ including its `package.json` files and `pnpm-lock.yaml`. Do not invent a second
 Prisma, auth, MCP, or shadcn layout and do not resolve new versions.
 
 ```typescript
+import path from "node:path";
 import { defineConfig } from "prisma/config";
 
 function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
@@ -20,13 +21,15 @@ function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
   return value;
 }
 
+const apiRoot = import.meta.dirname;
+
 export default defineConfig({
-  schema: "prisma/schema",
+  schema: path.join(apiRoot, "prisma", "schema"),
   datasource: {
     url: migrationDatabaseUrl(process.env),
   },
   migrations: {
-    path: "prisma/migrations",
+    path: path.join(apiRoot, "prisma", "migrations"),
     seed: "node --import tsx prisma/seed.ts",
   },
 });

@@ -425,7 +425,7 @@ OpenAPI.
 ### MCP Support (`@nestjs/mcp`)
 
 - Use OFFICIAL `@nestjs/mcp` package; do NOT use `@rekog/mcp-nest`.
-- `McpModule.forRoot({ decorators: [Public(), SkipCsrf()] })` in AppModule with the verifier class (`BearerVerifier`); `/mcp` endpoint (Streamable HTTP, stateless). The JWT secret is read inside `verifyAccessToken`.
+- `McpModule.forRoot({ decorators: [Public(), SkipCsrf()], imports: [AuthModule] })` with the verifier class (`BearerVerifier`); `/mcp` endpoint (Streamable HTTP, stateless). The JWT secret is read inside `verifyAccessToken`. `imports` is what injects `JwtService`. The endpoint is mounted only when `MCP_ENABLED` is `true` or `1` (default in `.env.example`: `false`).
 - MCP tools in domain modules (`<domain>.mcp.ts`) calling domain services, not Prisma directly.
 - `/mcp` authenticated as OAuth 2.1 resource server; same guards as REST.
 - Test with in-memory MCP client from `@nestjs/mcp/testing`.

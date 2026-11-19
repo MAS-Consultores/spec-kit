@@ -171,6 +171,7 @@ def test_mcp_registration_uses_for_root(stack_project: Path) -> None:
         REPO / "presets/mas-stack-nestjs-react/reference/apps/api/src/modules/mcp/mcp.module.ts"
     ).read_text(encoding="utf-8")
     assert "McpModule.forRoot(" in skeleton
+    assert "imports: [AuthModule]" in skeleton
     assert "McpModule.forRootAsync" not in skeleton
 
     banned = "McpModule.forRootAsync"
@@ -198,6 +199,17 @@ def test_mcp_registration_uses_for_root(stack_project: Path) -> None:
     assert offenders == []
     constitution = (stack_project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
     assert "McpModule.forRoot({ decorators: [Public(), SkipCsrf()] })" in constitution
+    assert "MCP_ENABLED" in constitution
+    config = (
+        REPO / "presets/mas-stack-nestjs-react/reference/apps/api/prisma.config.ts"
+    ).read_text(encoding="utf-8")
+    assert "import.meta.dirname" in config
+    assert 'path.join(apiRoot, "prisma", "migrations")' in config
+    lint = (REPO / "presets/mas-stack-nestjs-react/reference/package.json").read_text(encoding="utf-8")
+    assert "ensure-prisma-client.mjs" in lint
+    workflow = (REPO / ".github/workflows/nestjs-react-smoke.yml").read_text(encoding="utf-8")
+    assert "skeleton-boot:" in workflow
+    assert "No migration found" in workflow
 
 
 def test_prototype_fidelity_is_wired() -> None:

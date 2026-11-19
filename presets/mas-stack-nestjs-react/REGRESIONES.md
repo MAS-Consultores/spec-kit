@@ -111,6 +111,10 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D11-04 | un bypass de guard compara el path; una query que contiene `/mcp` no salta la autenticación | `jwt-auth.guard.spec.ts` y el fixture `mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) dentro de `pnpm lint` |
 | D11-05 | `minimatch` anterior a 11.0.1 no puede quedar en el lockfile | `pnpm audit --audit-level=high` del job `reference` queda en cero; el override `minimatch@<11.0.1` está en `pnpm-workspace.yaml` |
 | D11-06 | cada rechazo de login paga el coste Argon2; un 401 que no verifica un hash real verifica antes el Argon2id ficticio fijo (mismos parámetros) | `auth.service.spec.ts` cubre cuenta ausente, contraseña incorrecta, inactiva y bloqueada, dentro de `pnpm test` |
+| D11-07 | `BearerVerifier` se instancia dentro del módulo dinámico de MCP y no ve `JwtService` aunque un módulo global reexporte `AuthModule`; la API no arranca (`UnknownDependenciesException`) | `McpModule.forRoot` lleva `imports: [AuthModule]`; el job `skeleton-boot` arranca `node dist/main.js` con `MCP_ENABLED=true` y exige HTTP 200 en `/api/v1/health` |
+| D11-08 | con el esquema en `prisma/schema/`, `prisma migrate deploy` imprime `No migration found in prisma/migrations` y sale 0 si `migrations.path` no es absoluto | `apps/api/prisma.config.ts` fija `schema` y `migrations.path` con `import.meta.dirname`; el job `skeleton-boot` falla si la salida contiene `No migration found` |
+| D11-09 | `pnpm lint` con el cliente Prisma sin generar reporta cientos de errores de módulo ausente | `pnpm lint` ejecuta `scripts/ensure-prisma-client.mjs` (`prisma generate`) antes de ESLint; el job `skeleton-boot` corre `pnpm lint` tras generate |
+| D11-10 | el CI de humo no levantaba la API como proceso ni trataba `No migration found` como fallo, así que un Postgres limpio y el DI de MCP pasaban | el job `skeleton-boot` (Postgres 16) hace generate, `migrate deploy`, seed, arranque real con healthcheck, `pnpm test:e2e:api` y Playwright |
 
 ## Lint determinista del esqueleto
 

@@ -48,6 +48,7 @@ Always use the latest stable release, never prereleases:
 These fences are extracted and typechecked against the skeleton lockfile. Keep them complete.
 
 ```typescript
+import path from "node:path";
 import { defineConfig } from "prisma/config";
 
 function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
@@ -58,13 +59,15 @@ function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
   return value;
 }
 
+const apiRoot = import.meta.dirname;
+
 export default defineConfig({
-  schema: "prisma/schema",
+  schema: path.join(apiRoot, "prisma", "schema"),
   datasource: {
     url: migrationDatabaseUrl(process.env),
   },
   migrations: {
-    path: "prisma/migrations",
+    path: path.join(apiRoot, "prisma", "migrations"),
     seed: "node --import tsx prisma/seed.ts",
   },
 });
@@ -124,6 +127,7 @@ Tests MUST exercise real production code; gates MUST pass before merge:
 - MUST NOT write tautological tests that only exercise helpers defined in the same test file
 - MUST NOT close a gate with skipped tests (`.skip`, `.todo`, `.only`, `xit`, `xdescribe`)—skipped count MUST be 0
 - ALL gates MUST pass with real output as evidence: typecheck, lint, unit tests, API e2e, MCP e2e, Playwright + axe-core, build, `pnpm audit` (no high/critical), `madge --circular`
+- CI MUST include a job with a clean Postgres service that runs `prisma generate`, `prisma migrate deploy` (the job fails if the output contains `No migration found`), seed, a real API process (`node dist/main.js`, not only an in-process Nest app) whose `/api/v1/health` returns HTTP 200, `pnpm test:e2e:api`, and Playwright. `/speckit.analyze` MUST mark **CRITICAL** when `tasks.md` has no task for that job. `pnpm lint` MUST run `prisma generate` before ESLint so a missing client is not a lint failure
 - Minimums, all required: at least one supertest e2e per REST endpoint against real Postgres, covering 401, CASL 403, refresh-token rotation, and throttling 429; at least one MCP e2e per tool with Bearer and scopes against that Postgres; at least one Playwright spec with axe-core per user story (`screenshot`, `video`, and `trace` `'off'`); at least one unit test per domain service, guard, and CASL policy
 - `/speckit.analyze` MUST mark **CRITICAL** when `tasks.md` omits any of those tasks. `/speckit.implement` MUST NOT declare the work finished without running them
 
@@ -147,7 +151,8 @@ Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
   - `@Authenticated()` from `decorators.ts` — a valid access token and no CASL permission. Use it for `logout`, `me`, and any feature route that only needs a signed-in user (for example listing the caller's own records when the spec does not grant a separate permission)
   - `@Can('category:action')` — feature authorization. Use it for create, update, delete, and for reads that are permission-gated
 - Session routes (`logout`, `me`) MUST use `@Authenticated()` and MUST NOT require a feature permission. MCP tools MUST NOT use `@Public()` or `@Authenticated()` in place of a scope: each `@Tool` still needs `@Can(...)` and `scopes` that include that permission
-- MCP registration MUST use `McpModule.forRoot({ decorators: [Public(), SkipCsrf()] })` so a missing Bearer token is 401, not a CSRF 403. Pass the verifier as a class (`BearerVerifier`) and resolve the JWT secret inside `verifyAccessToken`, not at module import
+- MCP registration MUST use `McpModule.forRoot({ decorators: [Public(), SkipCsrf()] })` so a missing Bearer token is 401, not a CSRF 403. Pass the verifier as a class (`BearerVerifier`) and resolve the JWT secret inside `verifyAccessToken`, not at module import. `forRoot` MUST set `imports: [AuthModule]` so the dynamic module that constructs `BearerVerifier` receives `JwtService` from the module that exports `JwtModule`. A `@Global()` re-export is not that injection
+- MCP stays in the preset and is opt-in. `MCP_ENABLED=true` or `MCP_ENABLED=1` mounts `ApiMcpModule`; any other value, including unset, leaves it off. `.env.example` MUST default to `false` so a project without tools does not boot the endpoint. The skeleton CI sets `MCP_ENABLED=true` when it healthchecks the real process and when it runs the MCP e2e, because the preset still ships the verifier. `AppModule` reads the flag through `mcpEnabled()` in `apps/api/src/config`
 - Passwords MUST be hashed with Argon2id; login endpoints MUST have throttling
 - MCP endpoints MUST require Bearer token: missing or invalid token MUST return exactly 401 with `WWW-Authenticate: Bearer` header
 - `apps/api` MUST declare `@modelcontextprotocol/client` as a devDependency (latest stable). `@nestjs/mcp/testing` imports it and does not declare the dependency
@@ -201,7 +206,7 @@ The skeleton keeps generic infrastructure only: health, guards, CASL wiring, the
 Todo proyecto generado con este preset MUST cumplir estas reglas. Cada una nombra el control que la hace fallar (`pnpm lint` ejecuta ESLint, dependency-cruiser y los fixtures negativos).
 
 - MUST haber un módulo Nest por dominio en `apps/api/src/modules/<dominio>/`, con `index.ts` público y `<dominio>.module.ts`. `AppModule` solo compone: registra el módulo con un `import` en `imports`. MUST NOT importar archivos internos de otro módulo; solo su `index.ts`. Reglas: `mas/module-layout`, `mas/public-module-api`. dependency-cruiser: `no-foreign-module-internals`
-- MUST respetar controller → service de caso de uso → `*.repository.ts`. Solo los repositorios y `apps/api/src/modules/prisma` importan Prisma o `PrismaService`. `PrismaModule` MUST NOT ser `@Global()`. `@Global()` y `global: true` solo en `apps/api/src/config` (`AuthBridgeModule` reexporta auth para que `McpModule` pueda construir `BearerVerifier`). El seed y los `*.e2e.ts` pueden abrir un cliente porque no atienden requests. Reglas: `mas/prisma-only-in-repositories`, `mas/no-global-module`
+- MUST respetar controller → service de caso de uso → `*.repository.ts`. Solo los repositorios y `apps/api/src/modules/prisma` importan Prisma o `PrismaService`. `PrismaModule` MUST NOT ser `@Global()`. `@Global()` y `global: true` solo en `apps/api/src/config`. `AuthBridgeModule` puede reexportar auth, y además `McpModule.forRoot` MUST importar `AuthModule` (`imports: [AuthModule]`) porque el verifier se construye dentro del módulo dinámico y un reexport global no le entrega `JwtService`. El seed y los `*.e2e.ts` pueden abrir un cliente porque no atienden requests. Reglas: `mas/prisma-only-in-repositories`, `mas/no-global-module`
 - MUST NOT pasar de 300 líneas por archivo ni de 60 por función (sin contar vacías ni comentarios). Una excepción MUST llevar `eslint-disable` con justificación tras `--`. Reglas: `max-lines`, `max-lines-per-function`, `mas/require-disable-justification`
 - MUST NOT haber estado mutable de módulo (`let`, `var`, `new Map`, `new Set`, arrays mutables en el top-level de `apps/`). Los contadores y el rate limit viven en Postgres (`rate_limit_buckets`), no en memoria. Regla: `mas/no-module-state`
 - Un guard MUST NOT decidir un bypass con `originalUrl.includes` ni `url.includes`. Compara solo el path parseado. Regla: `mas/no-url-includes-in-guards`
