@@ -12,4 +12,6 @@ Other workspace commands use `pnpm --filter` with the `package.json` name (`@dem
 
 When a feature spec ships `specs/<feature>/fidelity-map.json`, `pnpm test:fidelity` compares computed style with the prototype. It does not take screenshots.
 
-A new domain is `pnpm gen:module <dominio>`. `pnpm lint` must stay at 0. It includes dependency-cruiser and the negative fixtures.
+A new domain is `pnpm gen:module <dominio>`. `pnpm lint` must stay at 0. It includes dependency-cruiser, the negative fixtures, and `scripts/lint-migrations.mjs`.
+
+`pnpm db:setup` migrates `DATABASE_URL` and seeds. With `SEED_DATABASE_URL` unset, that seed uses `DATABASE_URL` only for `127.0.0.1`, `localhost`, or `::1`. With `SEED_DATABASE_URL` set, it must be a different database (CI and e2e). Production runs `prisma migrate deploy` only.

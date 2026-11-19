@@ -41,24 +41,29 @@ pnpm dev
 
 `pnpm lint` is ESLint plus dependency-cruiser plus the negative fixtures. `pnpm gen:module <dominio>` adds a Nest module, a lazy web feature, a contract entry, and a Prisma file. It only edits `AppModule`, `feature-routes.ts`, and `eslint/model-ownership.js`. `pnpm schema:check` requires one `.prisma` file per domain under `prisma/schema/`.
 
-Postgres on a new machine often has no cluster and no `postgresql.conf`. `scripts/ensure-postgres.sh` exits 1 and prints `initdb -D "$PGDATA"` when `PGDATA` has no config, or when the server is down. Create two databases and keep the URLs different:
+Postgres on a new machine often has no cluster and no `postgresql.conf`. `scripts/ensure-postgres.sh` exits 1 and prints `initdb -D "$PGDATA"` when `PGDATA` has no config, or when the server is down.
+
+One local database: leave `SEED_DATABASE_URL` unset and point `DATABASE_URL` at `127.0.0.1`, `localhost`, or `::1`. `pnpm db:setup` migrates and seeds that database. Any other host is refused.
+
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/app
+unset SEED_DATABASE_URL
+bash scripts/ensure-postgres.sh
+pnpm db:setup
+```
+
+CI and e2e set `SEED_DATABASE_URL` to a different database. `pnpm db:migrate` still migrates only `DATABASE_URL`. An empty `DATABASE_URL` does not fall through to `SEED_DATABASE_URL`. Migrate the e2e database, then seed it twice:
 
 ```bash
 export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/app
 export SEED_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/e2e
-bash scripts/ensure-postgres.sh
-```
-
-`pnpm db:migrate` migrates `DATABASE_URL`. An empty `DATABASE_URL` or `SEED_DATABASE_URL` is unset and does not fall through to the other variable. Migrate both databases, then seed the e2e database twice:
-
-```bash
 pnpm db:migrate
 DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy
 pnpm db:seed
 pnpm db:seed
 ```
 
-`prisma db seed` refuses to run unless `SEED_DATABASE_URL` is set and different from `DATABASE_URL`. The dev database is not seeded by that command.
+When `SEED_DATABASE_URL` is set, `prisma db seed` refuses to run if it is the same string as `DATABASE_URL`. The seed is for local setup and e2e, not for production deploy.
 
 Vite proxies `/api` to `API_PROXY_TARGET` for `dev` and `preview`. Playwright opens the web origin and calls the API through that proxy. Set `CORS_ORIGIN` only when a browser calls the API host directly; that switch enables credentialed CORS.
 

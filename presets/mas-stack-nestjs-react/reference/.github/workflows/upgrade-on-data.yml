@@ -1,0 +1,63 @@
+name: Upgrade on existing data
+
+on:
+  pull_request:
+
+# Generated projects copy this file from `.specify/reference/.github/workflows/upgrade-on-data.yml`.
+# It is not a production seed. It migrates the base branch, runs `pnpm db:seed` against that
+# loopback database, then `prisma migrate deploy` for the pull request migrations.
+
+jobs:
+  upgrade-on-data:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack without writing to /usr
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create the upgrade database
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -c 'CREATE DATABASE upgrade'
+
+      - name: Migrate base, seed, deploy new migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/upgrade
+        run: |
+          set -euo pipefail
+          git fetch origin "${GITHUB_BASE_REF}"
+          pnpm install --frozen-lockfile
+          pnpm db:generate
+          node scripts/upgrade-on-data.mjs

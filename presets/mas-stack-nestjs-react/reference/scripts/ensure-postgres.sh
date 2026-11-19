@@ -10,16 +10,17 @@ if [[ -n "${PGDATA:-}" && ! -f "${PGDATA}/postgresql.conf" ]]; then
   echo "Create one with: initdb -D \"${PGDATA}\" && pg_ctl -D \"${PGDATA}\" start" >&2
   exit 1
 fi
-if [[ -z "${SEED_DATABASE_URL:-}" ]]; then
-  echo "ERROR: SEED_DATABASE_URL is empty. Point it at the e2e database, not DATABASE_URL." >&2
+root="$(cd "$(dirname "$0")/.." && pwd)"
+resolved="$(node --experimental-strip-types --input-type=module -e '
+import { pathToFileURL } from "node:url";
+const mod = await import(pathToFileURL(process.argv[1]));
+process.stdout.write(mod.seedDatabaseUrl(process.env));
+' "$root/apps/api/prisma/database-url.ts")" || {
+  echo "ERROR: seed database URL was refused. When SEED_DATABASE_URL is set it must differ from DATABASE_URL. When it is unset, DATABASE_URL must use 127.0.0.1, localhost, or ::1." >&2
   exit 1
-fi
-if [[ "${SEED_DATABASE_URL}" == "${DATABASE_URL:-}" ]]; then
-  echo "ERROR: SEED_DATABASE_URL and DATABASE_URL are the same. Keep the e2e database separate." >&2
-  exit 1
-fi
-if ! pg_isready -d "$SEED_DATABASE_URL" >/dev/null 2>&1; then
-  echo "ERROR: Postgres is not accepting connections for SEED_DATABASE_URL." >&2
+}
+if ! pg_isready -d "$resolved" >/dev/null 2>&1; then
+  echo "ERROR: Postgres is not accepting connections for the seed database." >&2
   echo "If this machine has no cluster, run initdb and start the server so postgresql.conf exists." >&2
   exit 1
 fi

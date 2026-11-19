@@ -623,6 +623,8 @@ jobs:
           set -euo pipefail
           psql -h localhost -U postgres -c 'CREATE DATABASE app'
           psql -h localhost -U postgres -c 'CREATE DATABASE e2e'
+          psql -h localhost -U postgres -c 'CREATE DATABASE upgrade'
+          psql -h localhost -U postgres -c 'CREATE DATABASE upgrade_reject'
 
       - name: Generate, migrate a clean database, boot the API, e2e, Playwright
         env:
@@ -647,6 +649,10 @@ jobs:
           pnpm db:generate
           pnpm --filter @demo/contracts build
           pnpm lint
+          DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/upgrade" \
+            node scripts/upgrade-on-data.mjs --split-last
+          DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/upgrade_reject" \
+            node scripts/upgrade-on-data.mjs --prove-reject
           deploy_out="$(pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
           printf '%s\n' "$deploy_out"
           if printf '%s\n' "$deploy_out" | grep -q "No migration found"; then

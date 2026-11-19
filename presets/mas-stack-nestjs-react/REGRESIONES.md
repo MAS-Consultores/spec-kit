@@ -39,7 +39,7 @@ Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitutio
 | D5-01 | `truncate-e2e.mjs` trunca las tablas de la app leídas de `information_schema`, sin nombres fijos, y omite `_prisma_migrations` | `bf51460a` | el e2e de API del job `reference` ejecuta el script |
 | D5-02 | logout y `me` usan `@Authenticated()`; el esqueleto no trae slice, seed ni cuentas de demostración | `dd35cd62` | `node scripts/check-no-example-slice.mjs` |
 | D5-03 | la rama se lee con `git symbolic-ref --short HEAD` en bash y PowerShell | `15c5e53b` | `tests/test_mas_nestjs_demo5.py` (repo sin commits) y el paso de CI en bash y PowerShell, que exige salida 128 de `rev-parse --abbrev-ref` |
-| D5-04 | `db:migrate` usa `DATABASE_URL`; un string vacío no cae a `SEED_DATABASE_URL`; el seed sigue exigiendo la otra URL | `c969f542` | `tests/test_mas_nestjs_demo5.py` y `prisma migrate deploy` de las dos bases en el job `reference` |
+| D5-04 | `db:migrate` usa `DATABASE_URL`; un string vacío no cae a `SEED_DATABASE_URL`; si `SEED_DATABASE_URL` está definida debe ser distinta | `c969f542` | `tests/test_mas_nestjs_demo5.py` y `prisma migrate deploy` de las dos bases en el job `reference`. El fallback de loopback cuando el seed no está definido es D12-09 |
 | D5-05 | `/speckit.tasks` copia versiones del lockfile del esqueleto y no pide `npm view` | `9576bfc4` | `tests/test_mas_nestjs_demo5.py` lee el skill, la plantilla de tasks y el checklist |
 
 ## Demo 4 (huecos de esta iteración)
@@ -129,6 +129,23 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | L2-05 | `@ts-ignore` y `@ts-expect-error` exigen descripción (`@typescript-eslint/ban-ts-comment`) | `apps/api/lint-fixtures/bare-ts-ignore.ts` |
 | L2-06 | `eslint-disable` exige justificación o ticket (`@eslint-community/eslint-plugin-eslint-comments` `require-description`). Desactivar `no-explicit-any` sigue prohibido aunque haya descripción | `apps/api/lint-fixtures/disable-without-reason.ts` y `disable-explicit-any.ts` |
 | L2-07 | un `*.guard.ts` no llama a `originalUrl.includes` ni a `url.includes` | `apps/api/lint-fixtures/mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) |
+
+## Migraciones seguras sobre datos existentes
+
+`pnpm lint` corre `scripts/lint-migrations.mjs` (las migraciones del esqueleto, sin base de datos) y `scripts/check-migration-fixtures.mjs` (cada fixture negativo sale distinto de 0 con su código). El job `skeleton-boot` aplica el script sobre Postgres.
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D12-01 | `ADD COLUMN ... NOT NULL` sin `DEFAULT` sobre una tabla que ya existe | fixture `add-not-null` (`not-null-add`) dentro de `pnpm lint` |
+| D12-02 | `UPDATE` asigna NULL antes de quitar `NOT NULL` (el caso P3018 / 23502) | fixture `null-into-not-null` y `node scripts/upgrade-on-data.mjs --prove-reject` en `skeleton-boot` |
+| D12-03 | `SET NOT NULL` sin un `UPDATE` previo que asigne un valor no nulo | fixture `set-not-null` (`not-null-set`) |
+| D12-04 | `DROP COLUMN` o `DROP TABLE` sin `-- mas:allow-destructive <motivo>` | fixtures `drop-column` y `drop-table` (`destructive`) |
+| D12-05 | renombre de columna sin esa marca | fixture `rename-column` (`destructive`) |
+| D12-06 | índice único nuevo sobre una tabla que ya estaba en una migración anterior | fixture `unique-existing` (`unique-on-existing`) |
+| D12-07 | se edita el SQL de una migración que ya está en la rama base | fixture `edited` (`edited-migration`). El lint real compara con `origin/master`, `origin/main` o `MIGRATION_BASE_REF` |
+| D12-08 | el caso seguro pasa: `DEFAULT`, backfill y luego `SET NOT NULL`, y `DROP COLUMN` con la marca | fixture `pass` (el script exige cero hallazgos) |
+| D12-09 | sin `SEED_DATABASE_URL`, `db:seed` usa `DATABASE_URL` solo en `127.0.0.1`, `localhost` o `::1`; un host remoto se niega; con la variable definida sigue siendo distinta | `test_migration_url_ignores_blank_and_seed` en `tests/test_mas_nestjs_demo5.py` |
+| D12-10 | el deploy de un PR no asume una base vacía: migraciones de la base, seed, luego `migrate deploy` | `skeleton-boot` ejecuta `upgrade-on-data.mjs --split-last`. Los proyectos copian `.github/workflows/upgrade-on-data.yml` del esqueleto |
 
 ## Versiones probadas
 

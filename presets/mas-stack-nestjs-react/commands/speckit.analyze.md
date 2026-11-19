@@ -37,6 +37,8 @@ Also mark **CRITICAL** when `tasks.md` has no tasks for `openapi:generate`, `api
 
 Mark **CRITICAL** when `tasks.md` has no CI job that, against a clean Postgres, runs `prisma generate`, `prisma migrate deploy` (failing if the output contains `No migration found`), seed, a real `node dist/main.js` process with HTTP 200 on `/api/v1/health`, API e2e, and Playwright.
 
+Mark **CRITICAL** when `tasks.md` skips **Migraciones seguras sobre datos existentes**: no task for a new migration instead of editing one already applied in testing or production, no expand/contract plan for destructive changes, no `-- mas:allow-destructive <motivo>` requirement, no `pnpm lint` migration check (`scripts/lint-migrations.mjs` and the negative fixtures), or no `upgrade-on-data` job that migrates the base branch, seeds that database, and runs `prisma migrate deploy` for the pull request. The seed is not a deploy mechanism. A single local database is allowed only when `SEED_DATABASE_URL` is unset and `DATABASE_URL` uses `127.0.0.1`, `localhost`, or `::1`.
+
 Mark **CRITICAL** when `tasks.md` is missing any of these test tasks:
 
 - API e2e with supertest against real Postgres (not a mocked Prisma client): at least one test per REST endpoint, including 401, 403 from CASL, refresh-token rotation that rejects reuse, and throttling (429)

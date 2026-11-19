@@ -15,7 +15,7 @@
     "env:check": "node scripts/check-env-example.mjs",
     "proxy:check": "node scripts/check-dev-proxy.mjs",
     "ports:check": "node --experimental-strip-types apps/web/e2e/ports.ts --self-test",
-    "lint": "node scripts/ensure-prisma-client.mjs && eslint . && depcruise apps packages --config .dependency-cruiser.cjs && node scripts/check-lint-fixtures.mjs",
+    "lint": "node scripts/ensure-prisma-client.mjs && eslint . && depcruise apps packages --config .dependency-cruiser.cjs && node scripts/check-lint-fixtures.mjs && node scripts/lint-migrations.mjs && node scripts/check-migration-fixtures.mjs",
     "lint:fixtures": "node scripts/check-lint-fixtures.mjs",
     "gen:module": "node scripts/gen-module.mjs",
     "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
@@ -31,6 +31,7 @@
     "db:generate": "pnpm --filter @demo/api exec prisma generate",
     "db:migrate": "pnpm db:generate && pnpm --filter @demo/api exec prisma migrate deploy",
     "db:seed": "pnpm --filter @demo/api exec prisma db seed",
+    "db:setup": "node scripts/db-setup.mjs",
     "test:e2e:api": "pnpm --filter @demo/api test:e2e",
     "test:e2e:mcp": "pnpm --filter @demo/api test:mcp",
     "test:e2e:web": "pnpm --filter @demo/web exec playwright test"

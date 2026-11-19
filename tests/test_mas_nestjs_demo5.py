@@ -76,15 +76,23 @@ import { migrationDatabaseUrl, seedDatabaseUrl } from %s;
 const app = "postgresql://postgres@127.0.0.1:5432/app";
 const e2e = "postgresql://postgres@127.0.0.1:5432/e2e";
 if (migrationDatabaseUrl({ DATABASE_URL: app, SEED_DATABASE_URL: e2e }) !== app) process.exit(2);
+const loopback = [
+  app,
+  "postgresql://postgres@localhost:5432/app",
+  "postgresql://postgres@[::1]:5432/app",
+];
 for (const blank of ["", "   "]) {
   let failed = false;
   try { migrationDatabaseUrl({ DATABASE_URL: blank, SEED_DATABASE_URL: e2e }); }
   catch { failed = true; }
   if (!failed) process.exit(3);
+  for (const url of loopback) {
+    if (seedDatabaseUrl({ DATABASE_URL: url, SEED_DATABASE_URL: blank }) !== url) process.exit(4);
+  }
   failed = false;
-  try { seedDatabaseUrl({ DATABASE_URL: app, SEED_DATABASE_URL: blank }); }
+  try { seedDatabaseUrl({ DATABASE_URL: "postgresql://postgres@db.internal:5432/app", SEED_DATABASE_URL: blank }); }
   catch { failed = true; }
-  if (!failed) process.exit(4);
+  if (!failed) process.exit(7);
 }
 if (seedDatabaseUrl({ DATABASE_URL: app, SEED_DATABASE_URL: e2e }) !== e2e) process.exit(5);
 let same = false;

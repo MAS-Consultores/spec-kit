@@ -43,6 +43,15 @@ Locale rule: stack context does not override the spec. If the spec says es-CL is
 
 `quickstart.md` commands MUST use `pnpm --filter` with the `name` from each workspace `package.json` (for example `@demo/api` and `@demo/web`). Do not use the directory names `api` or `web` unless that string is the package name. `quickstart.md` MUST include `pnpm dev` from the repo root, which loads the root `.env` and starts the API and the web app together.
 
+The plan MUST follow **Migraciones seguras sobre datos existentes** in the stack constitution. Every migration MUST apply on a database that already has rows. Do not edit a migration that testing or production already applied. Destructive changes use expand/contract and `-- mas:allow-destructive <motivo>`. `pnpm db:seed` is not a deploy step. When `SEED_DATABASE_URL` is unset, `pnpm db:setup` and `pnpm db:seed` use `DATABASE_URL` only for host `127.0.0.1`, `localhost`, or `::1`.
+
+`plan.md` MUST include this checklist. Mark each item covered, or not applicable with a reason:
+
+- [ ] New SQL lives in a new `prisma/migrations/<timestamp>/migration.sql`. No edits to a migration that is already on the base branch
+- [ ] `NOT NULL` on an existing table has a `DEFAULT` or an earlier non-null `UPDATE` in that migration. No `UPDATE` assigns NULL before `DROP NOT NULL`
+- [ ] `DROP COLUMN`, `DROP TABLE`, renames, and other destructive statements carry `-- mas:allow-destructive <motivo>` and ship as a later contract migration
+- [ ] `tasks.md` includes `pnpm lint` (migration lint plus negative fixtures) and the `upgrade-on-data` CI job copied from `.specify/reference/.github/workflows/upgrade-on-data.yml`
+
 The plan MUST follow **Modularidad estricta** in the stack constitution: one Nest module per domain, repository ownership, per-domain contracts and Prisma files, lazy feature routes, and `pnpm gen:module` when a domain is new.
 
 When the spec ports an HTML prototype, the plan MUST follow **Prototype fidelity** in the stack constitution. Plan the token file, the brand manifest, self-hosted fonts, literal motion, and the shell design. Do not plan porting CDN, jQuery, sim-bar, or prototype scripts. Do not plan a text logo or skeleton default colors when the prototype defines the value. Plan `pnpm test:fidelity` on `specs/<feature>/fidelity-map.json`.
