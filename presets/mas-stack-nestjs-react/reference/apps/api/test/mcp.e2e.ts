@@ -5,8 +5,6 @@ import cookieParser from "cookie-parser";
 import request from "supertest";
 import type { INestApplication } from "@nestjs/common";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AppModule } from "../src/app.module.js";
-
 function server(app: INestApplication): Parameters<typeof request>[0] {
   const value: unknown = app.getHttpServer();
   if (typeof value !== "object" || value === null) {
@@ -20,7 +18,9 @@ describe("mcp", () => {
   beforeAll(async () => {
     process.env["JWT_ACCESS_SECRET"] ??= "test-access-secret-test-access";
     process.env["LOGIN_THROTTLE_LIMIT"] = "1000";
-    app = await NestFactory.create(AppModule, { logger: ["error"], abortOnError: false });
+    process.env["MCP_ENABLED"] = "true";
+    const loaded = await import("../src/app.module.js");
+    app = await NestFactory.create(loaded.AppModule, { logger: ["error"] });
     app.setGlobalPrefix("api");
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
     app.use(cookieParser());

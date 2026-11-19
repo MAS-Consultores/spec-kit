@@ -9,7 +9,7 @@ import { trustProxySetting } from "./client-ip.js";
 import { configNumber, configString } from "./config/read.js";
 
 async function main(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { abortOnError: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
   app.use(cookieParser());

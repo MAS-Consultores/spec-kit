@@ -20,6 +20,12 @@ export type AppEnv = {
   TRUST_PROXY: string;
 };
 
+/** MCP HTTP stays off unless the process opts in. Projects without tools leave it unset. */
+export function mcpEnabled(source: NodeJS.ProcessEnv = process.env): boolean {
+  const value = source["MCP_ENABLED"];
+  return value === "true" || value === "1";
+}
+
 function requiredText(value: string | undefined, name: string): string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(

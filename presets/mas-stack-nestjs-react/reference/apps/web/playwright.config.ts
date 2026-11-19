@@ -28,6 +28,7 @@ const config: PlaywrightTestConfig = {
         ...process.env,
         PORT: String(apiPort),
         DATABASE_URL: databaseUrl,
+        MCP_ENABLED: "true",
       },
     },
     {

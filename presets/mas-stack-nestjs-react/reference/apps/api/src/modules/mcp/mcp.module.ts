@@ -11,6 +11,7 @@ import { BearerVerifier } from "./bearer.service.js";
       version: "0.0.1",
       path: "mcp",
       decorators: [Public(), SkipCsrf()],
+      imports: [AuthModule],
       auth: {
         verifier: BearerVerifier,
         resource: "http://127.0.0.1/api/v1/mcp",
@@ -19,7 +20,6 @@ import { BearerVerifier } from "./bearer.service.js";
       },
     }),
   ],
-  providers: [BearerVerifier],
 })
 export class ApiMcpModule {
   readonly label = "mcp";
