@@ -62,9 +62,14 @@ function git(args) {
   }
 }
 
+function readEnv(name) {
+  return process.env[name];
+}
+
 function baseRef() {
-  if (process.env.MIGRATION_BASE_REF) return process.env.MIGRATION_BASE_REF;
-  const pr = process.env.GITHUB_BASE_REF;
+  const explicit = readEnv("MIGRATION_BASE_REF");
+  if (explicit) return explicit;
+  const pr = readEnv("GITHUB_BASE_REF");
   const candidates = [];
   if (pr) candidates.push(`origin/${pr}`);
   candidates.push("origin/master", "origin/main", "master", "main");

@@ -7,8 +7,6 @@
  * (127.0.0.1, localhost, or ::1). Any other host is refused.
  */
 
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
-
 export function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
   const value = env["DATABASE_URL"];
   if (typeof value !== "string" || value.trim() === "") {
@@ -21,7 +19,7 @@ export function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
 
 export function databaseHost(url: string): string | null {
   try {
-    return new URL(url).hostname.toLowerCase();
+    return new URL(url).hostname.replace(/^\[|\]$/g, "").toLowerCase();
   } catch {
     return null;
   }
@@ -29,7 +27,7 @@ export function databaseHost(url: string): string | null {
 
 export function isLoopbackDatabaseUrl(url: string): boolean {
   const host = databaseHost(url);
-  return host !== null && LOOPBACK_HOSTS.has(host);
+  return host === "127.0.0.1" || host === "localhost" || host === "::1";
 }
 
 export function seedDatabaseUrl(env: NodeJS.ProcessEnv): string {
