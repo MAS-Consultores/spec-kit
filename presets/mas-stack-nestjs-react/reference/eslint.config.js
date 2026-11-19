@@ -103,6 +103,7 @@ export default tseslint.config(
       "**/dist/**",
       "**/node_modules/**",
       "scripts/**",
+      "templates/**",
       "eslint.config.js",
       "eslint/**",
       "**/*.cjs",
