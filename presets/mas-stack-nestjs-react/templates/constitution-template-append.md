@@ -158,12 +158,20 @@ Authentication uses `@nestjs/passport` + `@nestjs/jwt` with CASL authorization:
 These rules are mandatory for every authentication feature (login, account recovery, one-time passwords or tokens, session issuance, password change, and mail that carries auth secrets). Each applicable rule MUST have tests. A rule that does not apply MUST be marked not applicable with a reason.
 
 - Temporary and one-time passwords and tokens are single-use. Consume them atomically on first success. Any later successful login or password change invalidates them
-- Account recovery and login never reveal whether the account exists. Same status, same body, and similar latency. Hashing, database writes, and email cannot change the response
-- Counters used for lockout or rate limits are updated atomically (database increment or conditional update), never read-modify-write
+- Account recovery and login never reveal whether the account exists. Same status, same body, and similar latency. When the account or credential is missing, verify against a fixed dummy Argon2 hash so timing does not leak existence. Hashing, database writes, and email cannot change the response
+- Counters used for lockout or rate limits are updated inside one database transaction (per-key `pg_advisory_xact_lock` or an atomic upsert-increment). Never read-then-write and never count-then-insert. Reject inside that transaction, purge expired rows in the same transaction, and cover it with a concurrency test
 - Client IP for audit and rate limits comes from `request.ip`. Trust `X-Forwarded-For` only through an explicit, configured trust-proxy setting, and validate the value. Do not read the header directly
 - A session that must change its password, or is otherwise restricted, carries no business scopes. Guards allow only the change-password, logout, and me endpoints. Refresh does not reissue scopes
 - Outbound SMTP that carries secrets requires TLS (`secure` or `requireTLS`). Plaintext is allowed only for a loopback dev mail catcher
-- Password change and session revocation invalidate existing access tokens. Reject tokens issued before `passwordChangedAt` or an older token version
+- Password change and session revocation invalidate existing access tokens and refresh tokens. Reject tokens issued before `passwordChangedAt` (`password_changed_at`) or an older token version. The refresh endpoint runs that check before issuing a new pair
+- A guard bypass (for example `/mcp`) compares the parsed path only. Never `originalUrl.includes` or `url.includes`: a query string that contains the bypass path must not skip the guard
+
+### Reglas de autenticación
+
+- **Sin enumeración.** La recuperación y el login no revelan si la cuenta existe: mismo estado, mismo cuerpo y latencia parecida. Si falta la cuenta o la credencial, se verifica contra un hash Argon2 ficticio fijo. El hash, las escrituras y el correo no cambian la respuesta
+- **Contadores atómicos.** El bloqueo y el rate limit se actualizan en una sola transacción, con `pg_advisory_xact_lock` por clave o un upsert que incrementa. Esta regla prohíbe read-then-write y count-then-insert. El rechazo ocurre dentro de la transacción, las filas vencidas se purgan en esa misma transacción, y hace falta un test de concurrencia
+- **Invalidación.** Un cambio de contraseña o la revocación de sesión invalidan los access tokens y los refresh tokens emitidos antes de `password_changed_at` o con una token version anterior. El endpoint de refresh hace esa comprobación antes de emitir
+- **Bypass de guards.** Una excepción de ruta (por ejemplo `/mcp`) compara solo el path ya parseado. Nunca `originalUrl.includes` ni `url.includes`: una query que contiene el path de bypass no abre la ruta
 
 ### Frontend Stack
 
@@ -196,6 +204,7 @@ Todo proyecto generado con este preset MUST cumplir estas reglas. Cada una nombr
 - MUST respetar controller → service de caso de uso → `*.repository.ts`. Solo los repositorios y `apps/api/src/modules/prisma` importan Prisma o `PrismaService`. `PrismaModule` MUST NOT ser `@Global()`. `@Global()` y `global: true` solo en `apps/api/src/config` (`AuthBridgeModule` reexporta auth para que `McpModule` pueda construir `BearerVerifier`). El seed y los `*.e2e.ts` pueden abrir un cliente porque no atienden requests. Reglas: `mas/prisma-only-in-repositories`, `mas/no-global-module`
 - MUST NOT pasar de 300 líneas por archivo ni de 60 por función (sin contar vacías ni comentarios). Una excepción MUST llevar `eslint-disable` con justificación tras `--`. Reglas: `max-lines`, `max-lines-per-function`, `mas/require-disable-justification`
 - MUST NOT haber estado mutable de módulo (`let`, `var`, `new Map`, `new Set`, arrays mutables en el top-level de `apps/`). Los contadores y el rate limit viven en Postgres (`rate_limit_buckets`), no en memoria. Regla: `mas/no-module-state`
+- Un guard MUST NOT decidir un bypass con `originalUrl.includes` ni `url.includes`. Compara solo el path parseado. Regla: `mas/no-url-includes-in-guards`
 - MUST NOT haber ciclos de import. Reglas: `import-x/no-cycle` y dependency-cruiser `no-circular` (ambos dentro de `pnpm lint`)
 - El front MUST vivir en `apps/web/src/features/<feature>/` (`components`, `hooks`, `api`, `routes`, `index.ts`). MUST NOT importar internos de otra feature. `fetch` solo en `hooks/` o `api/` de la feature. El shell recibe acciones por props y arma la nav desde `feature-routes.ts`. Las rutas MUST cargar la feature con `import()`, nunca con un import estático. Reglas: `mas/module-layout`, `mas/public-module-api`, `mas/fetch-in-feature-data`, `mas/lazy-feature-routes`
 - `packages/ui` MUST ser solo primitivas genéricas: no importa contracts, rutas ni código de apps. `packages/contracts/src/<dominio>/index.ts` es la entrada pública de ese dominio (`@demo/contracts/<dominio>`). MUST NOT importar internos de otro contrato. Reglas: `boundaries/dependencies`, `mas/contracts-public-index`, dependency-cruiser `ui-primitives-only` y `contracts-are-leaf`

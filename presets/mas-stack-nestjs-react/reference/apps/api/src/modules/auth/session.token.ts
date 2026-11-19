@@ -35,7 +35,29 @@ export function accessTokenStillValid(user: SessionStamp, payload: AccessPayload
   return true;
 }
 
+/** Path only. A query or fragment that mentions a bypass must not count. */
+export function requestPath(url: string): string {
+  const withoutHash = url.split("#")[0] ?? "";
+  return withoutHash.split("?")[0] ?? "";
+}
+
+export function isMcpTransport(url: string): boolean {
+  const segments = requestPath(url).split("/").filter((segment) => segment.length > 0);
+  return segments.includes("mcp");
+}
+
 export function restrictedSessionAllows(url: string): boolean {
-  const path = url.split("?")[0] ?? "";
-  return /\/auth\/(?:me|logout|password)\/?$/.test(path);
+  return /\/auth\/(?:me|logout|password)\/?$/.test(requestPath(url));
+}
+
+/** Refresh tokens carry `iat`, not the access-token version claim. */
+export function refreshIssuedAfterPasswordChange(
+  user: SessionStamp,
+  issuedAtSeconds: number | undefined,
+): boolean {
+  if (!user.passwordChangedAt) {
+    return true;
+  }
+  const issuedMs = typeof issuedAtSeconds === "number" ? issuedAtSeconds * 1000 : 0;
+  return issuedMs > user.passwordChangedAt.getTime();
 }

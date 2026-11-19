@@ -68,6 +68,7 @@ export default tseslint.config(
       "mas/lazy-feature-routes": "error",
       "mas/fetch-in-feature-data": "error",
       "mas/module-layout": "error",
+      "mas/no-url-includes-in-guards": "error",
     },
   },
   {

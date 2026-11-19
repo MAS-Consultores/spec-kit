@@ -9,6 +9,7 @@ import type { Request } from "express";
 import { readCookie } from "../../http.js";
 import { IS_PUBLIC, SKIP_CSRF } from "./auth.decorators.js";
 import type { AccessPayload } from "./jwt-auth.guard.js";
+import { isMcpTransport } from "./session.token.js";
 
 @Injectable()
 export class CsrfGuard implements CanActivate {
@@ -19,7 +20,7 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
     const early = context.switchToHttp().getRequest<Request>();
-    if (early.originalUrl.includes("/mcp")) {
+    if (isMcpTransport(early.originalUrl)) {
       return true;
     }
     const skip = this.reflector.getAllAndOverride<boolean>(SKIP_CSRF, [

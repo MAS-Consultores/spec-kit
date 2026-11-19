@@ -123,12 +123,13 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `.env.example` at the repo root (copied by `specify init` from the reference) documenting every variable the app reads (`DATABASE_URL`, `SEED_DATABASE_URL`, JWT secrets, `PORT`, `API_PROXY_TARGET`, `CORS_ORIGIN`, `TRUST_PROXY`, and any later `process.env` name). Placeholders only. `scripts/check-env-example.mjs` fails when a read name is missing
 - [ ] Authentication security rules for any auth feature, each with tests (mark not applicable only with a reason):
   - [ ] One-time passwords and tokens are single-use: atomic consume on first success, invalidated by a later successful login or password change
-  - [ ] Recovery and login do not reveal account existence (same status, body, and similar latency; hashing, writes, and email do not change the response)
-  - [ ] Lockout and rate-limit counters update atomically, never read-modify-write
+  - [ ] Recovery and login do not reveal account existence (same status, body, and similar latency; a fixed dummy Argon2 hash when the account is missing; hashing, writes, and email do not change the response)
+  - [ ] Lockout and rate-limit counters update in one transaction (per-key lock or atomic upsert). Never read-then-write or count-then-insert. Reject inside the transaction, purge expired rows there, and add a concurrency test
   - [ ] Client IP comes from `request.ip`; `X-Forwarded-For` only via an explicit validated `TRUST_PROXY` (`loopback` or a hop count, never `true`)
   - [ ] A restricted or must-change-password session has no business scopes; guards allow only change-password, logout, and me; refresh does not reissue scopes
   - [ ] SMTP that carries secrets uses TLS (`secure` or `requireTLS`); plaintext only for a loopback dev mail catcher
-  - [ ] Password change and session revocation reject access tokens issued before `passwordChangedAt` or an older token version
+  - [ ] Password change and session revocation reject access tokens and refresh tokens issued before `passwordChangedAt` or an older token version; refresh checks before issuing
+  - [ ] Guard bypasses compare the parsed path only (`mas/no-url-includes-in-guards`); never `originalUrl.includes` or `url.includes`
 
 ### apps/web (Required)
 

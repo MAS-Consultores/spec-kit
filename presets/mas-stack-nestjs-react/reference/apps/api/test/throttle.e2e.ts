@@ -5,6 +5,8 @@ import cookieParser from "cookie-parser";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../src/app.module.js";
+import { PrismaService } from "../src/modules/prisma/index.js";
+import { ThrottleRepository } from "../src/modules/throttle/throttle.repository.js";
 
 describe("throttler", () => {
   let app: Awaited<ReturnType<typeof NestFactory.create>>;
@@ -32,5 +34,18 @@ describe("throttler", () => {
       .post("/api/v1/auth/login")
       .send({ email: "throttle@infra.test", password: "rotation-secret" });
     expect(limited.status).toBe(429);
+  });
+
+  it("counts concurrent hits exactly, rejects inside the lock, and purges expired rows", async () => {
+    const buckets = app.get(ThrottleRepository);
+    const prisma = app.get(PrismaService);
+    const key = "concurrency-" + String(Date.now());
+    await prisma.$executeRaw`INSERT INTO rate_limit_buckets (key, hits, expires_at) VALUES (${key}, 9, NOW() - INTERVAL '1 second')`;
+    const rounds = await Promise.all(Array.from({ length: 20 }, () => buckets.consume(key, 60_000, 5)));
+    const hits = rounds.map((row) => row.hits).sort((left, right) => left - right);
+    expect(hits).toEqual(Array.from({ length: 20 }, (_unused, index) => index + 1));
+    expect(rounds.filter((row) => row.blocked)).toHaveLength(15);
+    const left = await prisma.$queryRaw<{ hits: number }[]>`SELECT hits FROM rate_limit_buckets WHERE key = ${key}`;
+    expect(left[0]?.hits).toBe(20);
   });
 });

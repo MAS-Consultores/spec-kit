@@ -101,6 +101,16 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D10-08 | un repositorio no toca modelos de otro dominio; el contrato se importa por su index | `billing.repository.ts` (`mas/own-models-only`) e `imports-contract-internal.ts` (`mas/contracts-public-index`) |
 | D10-09 | el esquema Prisma es un archivo por dominio y el generador no deja dominios de ejemplo | `node scripts/check-prisma-layout.mjs` en `pnpm verify`, y `node scripts/check-gen-fitness.mjs` al final del job `reference` (genera `alpha` y `beta`, lint, typecheck, test, build, diff acotado, y los borra) |
 
+## Auth del esqueleto
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D11-01 | los contadores de rate limit no pueden hacer count-then-insert; una transacción con `pg_advisory_xact_lock` incrementa, rechaza dentro y purga filas vencidas | `test/throttle.e2e.ts` (20 hits concurrentes, hits 1..20, 15 bloqueados, la fila vencida no sobrevive) en `pnpm test:e2e:api` del job `reference` |
+| D11-02 | el login de una cuenta ausente verifica un hash Argon2 ficticio fijo | `auth.service.spec.ts` exige `argon2.verify` con `DUMMY_PASSWORD_HASH` y con el hash real, dentro de `pnpm test` |
+| D11-03 | un refresh emitido antes de `password_changed_at` no emite otra sesión | `auth.service.spec.ts` (Unauthorized y `createRefresh` no se llama) |
+| D11-04 | un bypass de guard compara el path; una query que contiene `/mcp` no salta la autenticación | `jwt-auth.guard.spec.ts` y el fixture `mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) dentro de `pnpm lint` |
+| D11-05 | `minimatch` anterior a 11.0.1 no puede quedar en el lockfile | `pnpm audit --audit-level=high` del job `reference` queda en cero; el override `minimatch@<11.0.1` está en `pnpm-workspace.yaml` |
+
 ## Lint determinista del esqueleto
 
 `pnpm verify` ejecuta `pnpm lint` (el esqueleto en verde) y `pnpm lint:fixtures` (cada fixture tiene que fallar con el mensaje de la corrección). El job `reference` corre `pnpm verify`.
@@ -113,6 +123,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | L2-04 | `useEffect` solo en `apps/web/src/shared/hooks/**`. El estado de servidor va por TanStack Query | `apps/web/lint-fixtures/route-effect.tsx` (`mas/no-use-effect`). El hook `useWindowEvent` del esqueleto sigue en verde |
 | L2-05 | `@ts-ignore` y `@ts-expect-error` exigen descripción (`@typescript-eslint/ban-ts-comment`) | `apps/api/lint-fixtures/bare-ts-ignore.ts` |
 | L2-06 | `eslint-disable` exige justificación o ticket (`@eslint-community/eslint-plugin-eslint-comments` `require-description`). Desactivar `no-explicit-any` sigue prohibido aunque haya descripción | `apps/api/lint-fixtures/disable-without-reason.ts` y `disable-explicit-any.ts` |
+| L2-07 | un `*.guard.ts` no llama a `originalUrl.includes` ni a `url.includes` | `apps/api/lint-fixtures/mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) |
 
 ## Versiones probadas
 

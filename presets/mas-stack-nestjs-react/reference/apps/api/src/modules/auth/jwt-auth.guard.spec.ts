@@ -60,6 +60,16 @@ describe("JwtAuthGuard", () => {
     expect(() => guard().canActivate(context("http"))).toThrow(UnauthorizedException);
   });
 
+  it("does not bypass auth when the query string contains /mcp", () => {
+    expect(() => guard().canActivate(context("http", undefined, "/api/v1/records?next=/mcp"))).toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it("allows the mcp path itself when the query string is present", () => {
+    expect(guard().canActivate(context("http", undefined, "/api/v1/mcp?next=/records"))).toBe(true);
+  });
+
   it("rejects an access token from before the password change or an older version", async () => {
     const changed = new Date(Date.now() + 60_000);
     await expect(

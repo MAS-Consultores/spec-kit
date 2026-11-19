@@ -3,8 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import argon2 from "argon2";
 import type { Response } from "express";
-import { describe, expect, it } from "vitest";
-import { AuthService } from "./auth.service.js";
+import { describe, expect, it, vi } from "vitest";
+import { AuthService, DUMMY_PASSWORD_HASH } from "./auth.service.js";
 import type { AuthRepository, AuthUserRecord } from "./auth.repository.js";
 
 const accessSecret = "test-access-secret-test-access";
@@ -43,8 +43,9 @@ const jwt = new JwtService({ secret: accessSecret });
 const config = new ConfigService({ JWT_REFRESH_SECRET: refreshSecret });
 
 describe("login existence", () => {
-  it("hides whether the account exists", async () => {
+  it("hides whether the account exists by verifying a fixed dummy hash", async () => {
     const passwordHash = await argon2.hash("correct-password", { type: argon2.argon2id });
+    const verify = vi.spyOn(argon2, "verify");
     const missing = new AuthService(
       { findUserByEmail: () => Promise.resolve(null) } as unknown as AuthRepository,
       jwt,
@@ -72,6 +73,9 @@ describe("login existence", () => {
     expect((missingError as UnauthorizedException).message).toBe((wrongError as UnauthorizedException).message);
     expect(missingMs).toBeGreaterThan(20);
     expect(wrongMs).toBeGreaterThan(20);
+    expect(verify).toHaveBeenCalledWith(DUMMY_PASSWORD_HASH, "wrong-password");
+    expect(verify).toHaveBeenCalledWith(passwordHash, "wrong-password");
+    verify.mockRestore();
   });
 
 });
@@ -104,31 +108,38 @@ describe("restricted session", () => {
 
 });
 
+function refreshDoubles(record: AuthUserRecord, created: string[]): AuthRepository {
+  return {
+    findRefreshByHash: () =>
+      Promise.resolve({
+        id: "row-1",
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        familyId: "fam-1",
+      }),
+    revokeById: () => Promise.resolve(undefined),
+    findUserById: () => Promise.resolve(record),
+    createRefresh: () => {
+      created.push("issued");
+      return Promise.resolve(undefined);
+    },
+  } as unknown as AuthRepository;
+}
+
 describe("refresh", () => {
   it("does not reissue business scopes on refresh", async () => {
     const passwordHash = await argon2.hash("correct-password", { type: argon2.argon2id });
     const refresh = jwt.sign({ sub: "user-1", family: "fam-1", jti: "jti-1" }, { secret: refreshSecret });
     const service = new AuthService(
-      {
-        findRefreshByHash: () =>
-          Promise.resolve({
-            id: "row-1",
-            revokedAt: null,
-            expiresAt: new Date(Date.now() + 60_000),
-            familyId: "fam-1",
-          }),
-        revokeById: () => Promise.resolve(undefined),
-        findUserById: () =>
-          Promise.resolve(
-            user({
-              passwordHash,
-              tokenVersion: 4,
-              mustChangePassword: true,
-              permissions: [{ permission: { code: "records:read" } }],
-            }),
-          ),
-        createRefresh: () => Promise.resolve(undefined),
-      } as unknown as AuthRepository,
+      refreshDoubles(
+        user({
+          passwordHash,
+          tokenVersion: 4,
+          mustChangePassword: true,
+          permissions: [{ permission: { code: "records:read" } }],
+        }),
+        [],
+      ),
       jwt,
       config,
     );
@@ -138,6 +149,18 @@ describe("refresh", () => {
     expect(payload.scopes).toEqual([]);
   });
 
+  it("rejects a refresh token issued before password_changed_at", async () => {
+    const passwordHash = await argon2.hash("correct-password", { type: argon2.argon2id });
+    const refresh = jwt.sign({ sub: "user-1", family: "fam-1", jti: "jti-old" }, { secret: refreshSecret });
+    const created: string[] = [];
+    const service = new AuthService(
+      refreshDoubles(user({ passwordHash, passwordChangedAt: new Date(Date.now() + 60_000) }), created),
+      jwt,
+      config,
+    );
+    await expect(service.refresh(refresh, response())).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(created).toEqual([]);
+  });
 });
 
 describe("logout", () => {

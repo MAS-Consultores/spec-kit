@@ -9,6 +9,7 @@ import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import { AUTHENTICATED, CAN_KEY, IS_PUBLIC } from "./auth.decorators.js";
 import type { AccessPayload } from "./jwt-auth.guard.js";
+import { isMcpTransport } from "./session.token.js";
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -19,7 +20,7 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
     const request = context.switchToHttp().getRequest<Request & { user?: AccessPayload }>();
-    if (request.originalUrl.includes("/mcp")) {
+    if (isMcpTransport(request.originalUrl)) {
       return true;
     }
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [

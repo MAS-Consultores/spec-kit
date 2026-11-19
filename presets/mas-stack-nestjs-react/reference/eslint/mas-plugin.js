@@ -14,6 +14,9 @@ const EFFECT_MESSAGE =
 const DISABLE_MESSAGE =
   "An eslint-disable comment needs a justification or ticket after --, for example: eslint-disable-next-line some-rule -- TICKET-123 why this exception is safe.";
 
+const GUARD_URL_MESSAGE =
+  "Guards must compare the parsed path only. Do not call originalUrl.includes or url.includes: a query string can contain the bypass path. Split off the query and match path segments.";
+
 const ANY_DISABLE_MESSAGE =
   "Disabling @typescript-eslint/no-explicit-any is forbidden outright, even with a justification. Give the value a real type. The constitution forbids any.";
 
@@ -90,6 +93,37 @@ const masPlugin = {
                   ? callee.property.name
                   : "";
             if (name === "useEffect") context.report({ node, messageId: "banned" });
+          },
+        };
+      },
+    },
+    "no-url-includes-in-guards": {
+      meta: {
+        type: "problem",
+        docs: { description: GUARD_URL_MESSAGE },
+        schema: [],
+        messages: { banned: GUARD_URL_MESSAGE },
+      },
+      create(context) {
+        const filename = context.filename ?? "";
+        if (!filename.endsWith(".guard.ts")) return {};
+        return {
+          CallExpression(node) {
+            const callee = node.callee;
+            if (callee.type !== "MemberExpression" || callee.computed) return;
+            if (callee.property.type !== "Identifier" || callee.property.name !== "includes") return;
+            const object = callee.object;
+            const name =
+              object.type === "Identifier"
+                ? object.name
+                : object.type === "MemberExpression" &&
+                    !object.computed &&
+                    object.property.type === "Identifier"
+                  ? object.property.name
+                  : "";
+            if (name === "originalUrl" || name === "url") {
+              context.report({ node, messageId: "banned" });
+            }
           },
         };
       },

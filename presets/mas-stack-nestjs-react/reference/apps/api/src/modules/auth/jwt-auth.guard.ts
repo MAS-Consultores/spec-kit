@@ -11,7 +11,12 @@ import type { Request } from "express";
 import { readCookie } from "../../http.js";
 import { IS_PUBLIC } from "./auth.decorators.js";
 import { SessionLookup } from "./session.service.js";
-import { type AccessPayload, accessTokenStillValid, restrictedSessionAllows } from "./session.token.js";
+import {
+  type AccessPayload,
+  accessTokenStillValid,
+  isMcpTransport,
+  restrictedSessionAllows,
+} from "./session.token.js";
 
 export type { AccessPayload };
 
@@ -28,7 +33,7 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
     const request = context.switchToHttp().getRequest<Request & { user?: AccessPayload }>();
-    if (request.originalUrl.includes("/mcp")) {
+    if (isMcpTransport(request.originalUrl)) {
       return true;
     }
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [

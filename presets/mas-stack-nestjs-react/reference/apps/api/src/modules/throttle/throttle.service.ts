@@ -20,9 +20,9 @@ export class DbThrottlerStorage implements ThrottlerStorage {
     _blockDuration: number,
     throttlerName: string,
   ): Promise<StorageRecord> {
-    const row = await this.buckets.hit(`${throttlerName}:${key}`, ttl);
+    const row = await this.buckets.consume(`${throttlerName}:${key}`, ttl, limit);
     const timeToExpire = Math.max(0, row.expiresAt.getTime() - Date.now());
-    const blocked = row.hits > limit;
+    const blocked = row.blocked;
     return {
       totalHits: row.hits,
       timeToExpire,

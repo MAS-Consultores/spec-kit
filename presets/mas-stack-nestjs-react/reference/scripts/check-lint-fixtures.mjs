@@ -94,6 +94,10 @@ const cases = [
     file: "apps/api/lint-fixtures/cycle/a.ts",
     expects: [{ ruleId: "import-x/no-cycle" }],
   },
+  {
+    file: "apps/api/lint-fixtures/mcp-bypass.guard.ts",
+    expects: [{ ruleId: "mas/no-url-includes-in-guards", includes: "parsed path" }],
+  },
 ];
 
 const eslint = new ESLint({
@@ -134,6 +138,7 @@ const eslint = new ESLint({
         "mas/lazy-feature-routes": "error",
         "mas/fetch-in-feature-data": "error",
         "mas/module-layout": "error",
+        "mas/no-url-includes-in-guards": "error",
         "import-x/no-cycle": "error",
         "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
         "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],

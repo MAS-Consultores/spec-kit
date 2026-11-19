@@ -49,12 +49,13 @@ State `apps/api/prisma.config.ts` at the package root, `queryClient.query` in lo
 When the feature includes authentication (login, account recovery, one-time passwords or tokens, session issuance, password change, or mail that carries auth secrets), `plan.md` MUST include this checklist. Mark each item covered, or not applicable with a reason:
 
 - [ ] One-time passwords and tokens are single-use: consumed atomically on first success and invalidated by any later successful login or password change
-- [ ] Account recovery and login never reveal account existence: same status, body, and similar latency; hashing, database writes, and email cannot change the response
-- [ ] Lockout and rate-limit counters update atomically (database increment or conditional update), never read-modify-write
+- [ ] Account recovery and login never reveal account existence: same status, body, and similar latency, with a fixed dummy Argon2 hash when the account or credential is missing; hashing, database writes, and email cannot change the response
+- [ ] Lockout and rate-limit counters update in one transaction (per-key lock or atomic upsert-increment): never read-then-write, never count-then-insert, reject inside the transaction, purge expired rows in that transaction, and include a concurrency test
 - [ ] Client IP for audit and rate limits comes from `request.ip`; `X-Forwarded-For` is trusted only through an explicit configured trust-proxy setting, and values are validated
 - [ ] A session that must change its password, or is otherwise restricted, carries no business scopes; guards allow only change-password, logout, and me; refresh does not reissue scopes
 - [ ] Outbound SMTP that carries secrets requires TLS (`secure` or `requireTLS`); plaintext only for a loopback dev mail catcher
-- [ ] Password change and session revocation invalidate existing access tokens (reject tokens issued before `passwordChangedAt` or an older token version)
+- [ ] Password change and session revocation invalidate existing access tokens and refresh tokens (reject tokens issued before `passwordChangedAt` or an older token version; refresh checks before issuing)
+- [ ] Guard bypasses compare the parsed path only and never use `originalUrl.includes` or `url.includes`
 - [ ] Tests cover every rule that applies
 
 Do not plan an example slice. The reference has no notes or widgets module, no demonstration screen, and no `example.com` seed. Identity tables in the skeleton are generic auth infrastructure and stay empty until a feature defines accounts. Domain models, screens, and seeds come from the feature spec.

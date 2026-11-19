@@ -7,7 +7,11 @@ import argon2 from "argon2";
 import type { Response } from "express";
 import { configString } from "../../config/read.js";
 import { AuthRepository, type AuthUserRecord } from "./auth.repository.js";
-import { businessScopes } from "./session.token.js";
+import { businessScopes, refreshIssuedAfterPasswordChange } from "./session.token.js";
+
+/** Fixed Argon2id hash so a missing account still pays for a verify. */
+export const DUMMY_PASSWORD_HASH =
+  "$argon2id$v=19$m=65536,t=3,p=4$i+7v1Y65Et9pQzNYgwqHlw$5tzWjRR6z6jn37Vtr+n0w5HuSE4sjifWd8r4yqclQ4Y";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -15,8 +19,6 @@ function hashToken(token: string): string {
 
 @Injectable()
 export class AuthService {
-  private dummyPasswordHash: Promise<string> | undefined;
-
   constructor(
     private readonly users: AuthRepository,
     private readonly jwt: JwtService,
@@ -48,7 +50,7 @@ export class AuthService {
     }
     await this.users.revokeById(row.id);
     const user = await this.users.findUserById(payload.sub);
-    if (!user) {
+    if (!user || !refreshIssuedAfterPasswordChange(user, payload.iat)) {
       throw new UnauthorizedException();
     }
     await this.issue(res, user, row.familyId);
@@ -65,11 +67,10 @@ export class AuthService {
   }
 
   private async verifyPresentedPassword(hash: string | null, password: string): Promise<boolean> {
-    this.dummyPasswordHash ??= argon2.hash(randomBytes(32).toString("hex"), { type: argon2.argon2id });
-    return argon2.verify(hash ?? (await this.dummyPasswordHash), password);
+    return argon2.verify(hash ?? DUMMY_PASSWORD_HASH, password);
   }
 
-  private readRefresh(refreshToken: string): { sub: string } {
+  private readRefresh(refreshToken: string): { sub: string; iat?: number } {
     try {
       return this.jwt.verify(refreshToken, {
         secret: configString(this.config, "JWT_REFRESH_SECRET"),
