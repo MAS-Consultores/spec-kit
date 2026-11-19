@@ -97,7 +97,7 @@ if (!appText.includes(importLine)) {
 
 const routes = join(root, "apps/web/src/feature-routes.ts");
 let routeText = readFileSync(routes, "utf8");
-const routeLine = `  {\n    to: "/${plural}",\n    labelKey: "${name}",\n    load: () => import("./features/${name}/index"),\n  },\n`;
+const routeLine = `  {\n    to: "/${plural}",\n    labelKey: "title",\n    load: () => import("./features/${name}/index"),\n  },\n`;
 if (!routeText.includes(`features/${name}/index.ts`)) {
   routeText = routeText.replace("] as const;\n", `${routeLine}] as const;\n`);
   writeFileSync(routes, routeText);
