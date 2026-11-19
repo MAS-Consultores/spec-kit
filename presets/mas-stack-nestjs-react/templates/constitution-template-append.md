@@ -262,6 +262,16 @@ Performance is a first-class requirement:
 - Server-side pagination mandatory (default 20, max 100)
 - Async heavy work; short transactions; p95 < 300 ms target
 
+### Locale resolution
+
+Product copy goes through `i18next` and `react-i18next`. Dictionaries live in `apps/web/src/locales/<tag>.json`. The skeleton ships `es-CL` only. Add `en`, `pt-BR`, `fr-FR`, or any other tag only when the feature spec requires it. Every key used in source, and every key present in any dictionary, MUST exist in every declared locale. `scripts/check-i18n.mjs` (`i18n:check`) runs inside `pnpm lint` and fails on a missing key or an orphan key.
+
+One module, `apps/web/src/i18n/locale.ts`, resolves the active locale. The order is fixed: the person's preference, then the `locale` cookie, then the browser language, then the organization default. Tags match exactly against the declared list. The browser MUST NOT replace a supported cookie. `i18n.changeLanguage` and other i18n mutations (`addResource`, `addResourceBundle`, `removeResourceBundle`, `setDefaultNamespace`) run only in an event handler or in an effect that guards with `if (i18n.language !== next)` before the call. Calling them in the render body of a component or hook is forbidden: it loops and pins the language control. `useApplyLocale` in that module is the only product `useEffect` outside `apps/web/src/shared/hooks/**`.
+
+`t()` and `i18n.t()` are forbidden at module scope and inside navigation constants. Store `labelKey` and translate while rendering, so a language change updates menus without a reload. Visible JSX text and the props `aria-label`, `title`, `placeholder`, and `alt` come from `t()`. Punctuation, numbers, and the exact strings in `apps/web/src/i18n/literal-allowlist.json` are the only literals. The rules are `mas/no-i18n-mutation-in-render`, `mas/no-module-translation`, and `mas/no-literal-copy`, all inside `pnpm lint`, with a valid case and an invalid fixture for each.
+
+When a feature declares more than one locale, a language switcher, or login copy, `plan.md` and `tasks.md` MUST include this module, these lint rules, `i18n:check`, and the tests. The skeleton has no login screen. A feature that adds login MUST copy `.specify/reference/templates/i18n-login.spec.ts` and keep `screenshot`, `video`, and `trace` off. The spec changes language on the login screen, checks that the visible text changes, checks that a later click responds within 500 ms (a render loop fails this), signs in, reloads, checks that the locale remains, and checks that navigation text changes without a reload. `/speckit.analyze` MUST mark **CRITICAL** when an i18n feature omits any of these gates or tests.
+
 ### Prototype fidelity
 
 When a feature ports an HTML prototype from product, the visual design is a requirement. Fidelity includes icons (the same library and the same glyphs), computed colors, and the hover and active states. `pnpm lint` is the primary gate for icons and colors. `pnpm test:fidelity` is the backup for computed color, hover, and active, which lint cannot see. The gate does not take screenshots, video, or traces.
@@ -327,6 +337,10 @@ Name prototype styles `styles-prototype.css`, not a framework name. Put `data-te
 `background` compares `background-color` and `background-image`. `transition` compares property, duration, and timing function. `kind: "logo"` requires an `img` or `svg` whose natural width and height match the prototype and are greater than 0. `fonts` entries are passed to `document.fonts.check` on both pages. Colors accept hex, `rgb`/`rgba`, and `oklch` and compare after conversion. A mismatch is reported as `app-header padding 12px vs prototipo 16px`.
 
 `pnpm test:fidelity` serves a prototype directory and the app (directory or URL) and runs this comparison with Playwright. It does not call screenshot, video, or trace. With no `specs/**/fidelity-map.json` and no `--map`, it exits 0. When a map exists, `pnpm verify` and `/speckit.implement` fail the feature until the command exits 0.
+
+#### Repeated components
+
+When the prototype repeats a structure (settings cards, rows with a status badge and a switch, or the same panel more than once), plan and tasks MUST extract one React component and reuse it. The component MUST keep the prototype's element order and class roles: for a settings card, `panel-card`, `section-label`, `h5`, muted text, `<hr class="my-4">` between items, then a row with the label, a status badge, help text, and the switch on the right. Style it with theme tokens. Literal colors are forbidden. Add a `fidelity-map.json` pair for that component covering computed `border`, `border-radius`, `box-shadow`, `padding`, `font-family`, `font-size`, `font-weight`, `color`, and `background`. `scripts/check-settings-card.mjs` inside `pnpm lint` fails a card that drops the `<hr>`, omits `box-shadow` from the map, or uses a hex color. `/speckit.analyze` MUST mark **CRITICAL** when a repeated prototype pattern has no reusable component or no such fidelity-map entry.
 
 ### Validation Single Source of Truth
 

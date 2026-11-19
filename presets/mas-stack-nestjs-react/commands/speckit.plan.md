@@ -39,7 +39,9 @@ export default defineConfig({
 
 Resolve contradictions between `spec.md` and `.specify/memory/stack-context.md` inside `MAS Stack Validation` before writing design artifacts.
 
-Locale rule: stack context does not override the spec. If the spec says es-CL is the only required locale, plan only `locales/es-CL.json` and do not add `en.json` or a language switcher. Record the decision as `PASS` with that note. Add `en` only when the spec requires it.
+Locale rule: stack context does not override the spec. If the spec says es-CL is the only required locale, plan only `locales/es-CL.json` and do not add `en.json` or a language switcher. Record the decision as `PASS` with that note. Add `en`, `pt-BR`, or `fr-FR` only when the spec requires them.
+
+When the feature has more than one locale, a language switcher, or translated product copy, `plan.md` MUST follow **Locale resolution** in the stack constitution. Plan `apps/web/src/i18n/locale.ts` (person preference, then the `locale` cookie, then the browser, then the organization default), `changeLanguage` only in a handler or in a guarded effect, keys stored for navigation and translated during render, and `pnpm lint` as the gate (`mas/no-i18n-mutation-in-render`, `mas/no-module-translation`, `mas/no-literal-copy`, `scripts/check-i18n.mjs`). Do not plan calling `i18n.changeLanguage` during render.
 
 `quickstart.md` commands MUST use `pnpm --filter` with the `name` from each workspace `package.json` (for example `@demo/api` and `@demo/web`). Do not use the directory names `api` or `web` unless that string is the package name. `quickstart.md` MUST include `pnpm dev` from the repo root, which loads the root `.env` and starts the API and the web app together.
 
@@ -55,6 +57,8 @@ The plan MUST follow **Migraciones seguras sobre datos existentes** in the stack
 The plan MUST follow **Modularidad estricta** in the stack constitution: one Nest module per domain, repository ownership, per-domain contracts and Prisma files, lazy feature routes, and `pnpm gen:module` when a domain is new.
 
 When the spec ports an HTML prototype, the plan MUST follow **Prototype fidelity** in the stack constitution. Plan the token file, the brand manifest, self-hosted fonts, literal motion, and the shell design. Do not plan porting CDN, jQuery, sim-bar, or prototype scripts. Do not plan a text logo or skeleton default colors when the prototype defines the value. Plan `pnpm test:fidelity` on `specs/<feature>/fidelity-map.json`.
+
+When the prototype repeats a pattern (settings cards, rows with a badge and a switch), the plan MUST name one reusable component that keeps the prototype element order (`panel-card`, `section-label`, `h5`, muted text, `hr.my-4`, label, badge, help, switch on the right) and tokens instead of literal colors. The fidelity map for that component MUST list computed `border`, `border-radius`, `box-shadow`, `padding`, `font-family`, `font-size`, `font-weight`, `color`, and `background`.
 
 When the prototype uses an icon library, `plan.md` MUST name that same library and those glyphs, and MUST set `apps/web/ui.icons.json` (`library` is the official npm package, `module` is `apps/web/src/icons/index.ts`). Plan per-icon imports inside that module only. Do not plan a CDN script. Do not plan `lucide-react` when the prototype names another library. `lucide-react` is the fallback only when the prototype defines no icons. Plan `data-icon` on each ported glyph. `pnpm lint` (`mas/icon-library`, `mas/no-literal-color`, `scripts/check-colors.mjs`) is the primary gate for icons and colors.
 

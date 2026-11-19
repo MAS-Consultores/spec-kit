@@ -110,6 +110,26 @@ const cases = [
     file: "apps/web/lint-fixtures/icons/literal-color.tsx",
     expects: [{ ruleId: "mas/no-literal-color", includes: "text-[#fff]" }],
   },
+  {
+    file: "apps/web/lint-fixtures/i18n/change-in-render.tsx",
+    expects: [{ ruleId: "mas/no-i18n-mutation-in-render", includes: "during render" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/i18n/effect-without-guard.tsx",
+    expects: [{ ruleId: "mas/no-i18n-mutation-in-render", includes: "needs a guard" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/i18n/module-t.ts",
+    expects: [{ ruleId: "mas/no-module-translation", includes: "module scope" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/i18n/nav-literal.ts",
+    expects: [{ ruleId: "mas/no-module-translation", includes: "labelKey" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/i18n/jsx-literal.tsx",
+    expects: [{ ruleId: "mas/no-literal-copy", includes: "locales/*.json" }],
+  },
 ];
 
 const eslint = new ESLint({
@@ -153,6 +173,9 @@ const eslint = new ESLint({
         "mas/no-url-includes-in-guards": "error",
         "mas/icon-library": "error",
         "mas/no-literal-color": "error",
+        "mas/no-i18n-mutation-in-render": "error",
+        "mas/no-module-translation": "error",
+        "mas/no-literal-copy": "error",
         "import-x/no-cycle": "error",
         "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
         "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
@@ -214,6 +237,24 @@ const textCases = [
     filePath: feature,
     code: 'import type { IconName } from "../../icons/index.ts";\nexport function Mark(name: IconName): React.ReactElement {\n  return <span className="text-primary" data-icon={name} />;\n}\n',
     forbid: ["mas/icon-library", "mas/no-literal-color"],
+  },
+  {
+    name: "changeLanguage in a click handler",
+    filePath: join(referenceRoot, "apps/web/src/shell/app-shell.tsx"),
+    code: 'const i18n = { changeLanguage(_locale: string) { return Promise.resolve(); } };\nexport function Switch(): React.ReactElement {\n  return <button type="button" onClick={() => { void i18n.changeLanguage("en"); }} />;\n}\n',
+    forbid: ["mas/no-i18n-mutation-in-render", "mas/no-literal-copy"],
+  },
+  {
+    name: "changeLanguage inside a guarded effect",
+    filePath: join(referenceRoot, "apps/web/src/i18n/locale.tsx"),
+    code: 'import { useEffect } from "react";\nconst i18n = { language: "es-CL", changeLanguage(_l: string) { return Promise.resolve(); } };\nexport function useApplyLocale(next: string): void {\n  useEffect(() => {\n    if (i18n.language !== next) void i18n.changeLanguage(next);\n  }, [next]);\n}\n',
+    forbid: ["mas/no-i18n-mutation-in-render"],
+  },
+  {
+    name: "t() during render and labelKey navigation",
+    filePath: join(referenceRoot, "apps/web/src/shell/app-shell.tsx"),
+    code: 'import { useTranslation } from "react-i18next";\nconst adminNav = [{ to: "/admin", labelKey: "nav.admin" }];\nexport function Menu(): React.ReactElement {\n  const { t } = useTranslation();\n  return <nav>{adminNav.map((item) => <span key={item.to}>{t(item.labelKey)}</span>)}</nav>;\n}\n',
+    forbid: ["mas/no-module-translation", "mas/no-literal-copy"],
   },
 ];
 for (const item of textCases) {

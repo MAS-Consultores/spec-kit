@@ -71,6 +71,9 @@ export default tseslint.config(
       "mas/no-url-includes-in-guards": "error",
       "mas/icon-library": "error",
       "mas/no-literal-color": "error",
+      "mas/no-i18n-mutation-in-render": "error",
+      "mas/no-module-translation": "error",
+      "mas/no-literal-copy": "error",
     },
   },
   {
@@ -82,7 +85,7 @@ export default tseslint.config(
   },
   {
     files: ["apps/web/**/*.{ts,tsx}"],
-    ignores: ["apps/web/src/shared/hooks/**"],
+    ignores: ["apps/web/src/shared/hooks/**", "apps/web/src/i18n/**"],
     rules: {
       "mas/no-use-effect": "error",
     },
