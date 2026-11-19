@@ -645,6 +645,7 @@ jobs:
           pnpm install --frozen-lockfile
           bash scripts/ensure-postgres.sh
           pnpm db:generate
+          pnpm --filter @demo/contracts build
           pnpm lint
           deploy_out="$(pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
           printf '%s\n' "$deploy_out"
@@ -661,7 +662,7 @@ jobs:
           fi
           printf '%s\n' "$e2e_out" | grep -q "successfully applied"
           pnpm db:seed
-          pnpm --filter @demo/contracts build && pnpm --filter @demo/api build
+          pnpm --filter @demo/api build
           api_pid=""
           cleanup_api() {
             if [ -n "$api_pid" ]; then
