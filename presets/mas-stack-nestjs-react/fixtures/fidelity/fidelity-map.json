@@ -37,6 +37,13 @@
       "kind": "logo",
       "prototype": "[data-testid='brand-logo']",
       "app": "[data-testid='brand-logo']"
+    },
+    {
+      "prototype": "[data-testid='rail-link']",
+      "app": "[data-testid='rail-link']",
+      "icon": true,
+      "states": ["rest", "hover", "active"],
+      "properties": ["color", "background-color", "font-family"]
     }
   ]
 }

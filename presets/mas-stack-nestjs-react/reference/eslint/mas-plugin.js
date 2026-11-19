@@ -1,3 +1,4 @@
+import { iconColorRules } from "./icons-color.js";
 import { modularityRules } from "./modularity.js";
 
 /** Teaching rules. The message is the fix, not only the ban. */
@@ -129,6 +130,7 @@ const masPlugin = {
       },
     },
     ...modularityRules,
+    ...iconColorRules,
     "require-disable-justification": {
       meta: {
         type: "problem",

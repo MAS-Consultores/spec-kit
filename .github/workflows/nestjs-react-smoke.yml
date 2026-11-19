@@ -530,7 +530,13 @@ jobs:
           pnpm test:e2e:mcp
           pnpm --filter @demo/web exec playwright install chromium
           pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
-          pnpm test:fidelity -- --map "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/fidelity-map.json"
+          pnpm --filter @demo/web exec node --experimental-strip-types e2e/fidelity.ts --self-test --prototype-css "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/prototype/css/styles-prototype.css" --mismatch-css "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/mismatch/css/app.css"
+          fidelity_ok="$(pnpm test:fidelity -- --map "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/fidelity-map.json" 2>&1)"
+          fidelity_ok_code=$?
+          printf '%s\n' "$fidelity_ok"
+          test "$fidelity_ok_code" -eq 0
+          printf '%s\n' "$fidelity_ok" | grep -q "fontawesome:fa-solid fa-gauge"
+          printf '%s\n' "$fidelity_ok" | grep -q "recorded"
           set +e
           fidelity_out="$(pnpm test:fidelity -- --map "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/fidelity-map.json" --app "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/mismatch" 2>&1)"
           fidelity_code=$?
@@ -543,6 +549,10 @@ jobs:
           printf '%s\n' "$fidelity_out" | grep -q "16px"
           printf '%s\n' "$fidelity_out" | grep -q "width"
           printf '%s\n' "$fidelity_out" | grep -q "200px"
+          printf '%s\n' "$fidelity_out" | grep -q "lucide:gauge"
+          printf '%s\n' "$fidelity_out" | grep -q "fontawesome:fa-solid fa-gauge"
+          printf '%s\n' "$fidelity_out" | grep -q "hover color"
+          printf '%s\n' "$fidelity_out" | grep -q "color-contrast"
           pnpm test:e2e:web
           pnpm test:e2e:web
           pnpm audit --audit-level=high

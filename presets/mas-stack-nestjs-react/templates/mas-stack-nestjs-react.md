@@ -179,7 +179,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 - [ ] `scripts/check-casl.ts` — copy `templates/check-casl.ts` from this preset (TypeScript AST, not regex) and wire it into `pnpm verify` with `openapi:generate` and `api-client:generate`
 - [ ] `pnpm verify` and quickstart commands use `pnpm --filter` with the `name` from each `package.json` (for example `@demo/api`), not the directory name alone
 - [ ] `pnpm dev` at the repo root loads `.env` and starts `@demo/api` and `@demo/web` together. `quickstart.md` documents that command
-- [ ] When a feature ports an HTML prototype, follow **Prototype fidelity** in the constitution: `prototype-tokens.json`, brand manifest, self-hosted fonts, literal motion, shell design, and `pnpm test:fidelity` (computed style only; no screenshots)
+- [ ] When a feature ports an HTML prototype, follow **Prototype fidelity** in the constitution: `prototype-tokens.json`, brand manifest, self-hosted fonts, the prototype icon library via `apps/web/ui.icons.json` and `apps/web/src/icons/index.ts` (no CDN, no second library), literal motion, shell design, `pnpm lint` as the primary icon and color gate, and `pnpm test:fidelity` (computed color, hover, active, `data-icon`, axe contrast; no screenshots)
 
 ### docker/ (Recommended)
 

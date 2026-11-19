@@ -8,6 +8,7 @@ import { createReadStream, existsSync, readFileSync, readdirSync, statSync } fro
 import { createServer, type Server } from "node:http";
 import { extname, join, normalize, relative, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import AxeBuilder from "@axe-core/playwright";
 import { chromium, type Page } from "@playwright/test";
 
 interface Viewport {
@@ -21,6 +22,8 @@ interface Pair {
   properties?: string[];
   viewport?: Viewport;
   kind?: "style" | "logo";
+  states?: Array<"rest" | "hover" | "active">;
+  icon?: boolean;
 }
 
 interface FidelityMap {
@@ -45,6 +48,14 @@ interface Measured {
   naturalHeight: number;
   styles: Record<string, string>;
   fonts: Record<string, boolean>;
+  icon: string;
+}
+
+interface StateVisual {
+  color: string;
+  backgroundColor: string;
+  fontFamily: string;
+  icon: string;
 }
 
 interface ServeHandle {
@@ -324,7 +335,16 @@ async function measure(page: Page, selector: string, properties: readonly string
       await document.fonts.ready;
       for (const check of checks) fontResults[check] = document.fonts.check(check);
       if (!element) {
-        return { missing: true, tag: "", image: false, naturalWidth: 0, naturalHeight: 0, styles: {}, fonts: fontResults };
+        return {
+          missing: true,
+          tag: "",
+          image: false,
+          naturalWidth: 0,
+          naturalHeight: 0,
+          styles: {},
+          fonts: fontResults,
+          icon: "",
+        };
       }
       const image = element instanceof HTMLImageElement ? element : element.querySelector("img");
       if (image instanceof HTMLImageElement) {
@@ -346,6 +366,7 @@ async function measure(page: Page, selector: string, properties: readonly string
         naturalHeight: image instanceof HTMLImageElement ? image.naturalHeight : svg !== null ? svg.clientHeight : 0,
         styles,
         fonts: fontResults,
+        icon: "",
       };
     },
     { selector, properties, fonts },
@@ -360,6 +381,124 @@ function cssNames(properties: readonly string[]): string[] {
     }
   }
   return names;
+}
+
+async function readState(page: Page, selector: string): Promise<StateVisual & { missing: boolean }> {
+  return page.evaluate((target) => {
+    const element = document.querySelector(target);
+    if (!element) return { missing: true, color: "", backgroundColor: "", fontFamily: "", icon: "" };
+    const computed = getComputedStyle(element);
+    const classes = Array.from(element.classList);
+    const faStyles = ["fa-solid", "fa-regular", "fa-brands", "fa-light", "fa-thin", "fa-duotone"];
+    const faStyle = classes.find((name) => faStyles.includes(name));
+    const glyph = classes.find((name) => name.startsWith("fa-") && !faStyles.includes(name) && name !== "fa");
+    const text = element.textContent;
+    const lucide = element.getAttribute("data-lucide");
+    const dataIcon = element.getAttribute("data-icon");
+    const material = classes.includes("material-symbols-outlined") || classes.includes("material-symbols");
+    const icon =
+      faStyle && glyph
+        ? `fontawesome:${faStyle} ${glyph}`
+        : material
+          ? `material-symbols:${text.trim()}`
+          : lucide !== null
+            ? `lucide:${lucide}`
+            : dataIcon === null
+              ? ""
+              : dataIcon;
+    return {
+      missing: false,
+      color: computed.color,
+      backgroundColor: computed.backgroundColor,
+      fontFamily: computed.fontFamily,
+      icon,
+    };
+  }, selector);
+}
+
+async function readInteractive(page: Page, selector: string, states: readonly string[]): Promise<Record<string, StateVisual & { missing: boolean }>> {
+  await page.mouse.move(0, 0);
+  const rest = await readState(page, selector);
+  const found: Record<string, StateVisual & { missing: boolean }> = { rest };
+  if (states.includes("hover") || states.includes("active")) {
+    await page.locator(selector).hover();
+    if (states.includes("hover")) found["hover"] = await readState(page, selector);
+    if (states.includes("active")) {
+      await page.mouse.down();
+      found["active"] = await readState(page, selector);
+      await page.mouse.up();
+    }
+  }
+  await page.mouse.move(0, 0);
+  return found;
+}
+
+function visualValue(state: StateVisual, property: string): string {
+  if (property === "color") return state.color;
+  if (property === "background-color" || property === "background") return state.backgroundColor;
+  if (property === "font-family") return state.fontFamily;
+  return "";
+}
+
+function stateFailures(pair: Pair, prototype: Record<string, StateVisual & { missing: boolean }>, app: Record<string, StateVisual & { missing: boolean }>, tolerances: Tolerances): string[] {
+  const label = labelOf(pair.app);
+  const failures: string[] = [];
+  const states = pair.states ?? [];
+  const properties = (pair.properties ?? ["color", "background-color", "font-family"]).filter((property) =>
+    property === "color" || property === "background" || property === "background-color" || property === "font-family",
+  );
+  for (const state of states) {
+    const left = prototype[state];
+    const right = app[state];
+    if (!left || left.missing) {
+      failures.push(`${label} no está en el prototipo (${pair.prototype})`);
+      continue;
+    }
+    if (!right || right.missing) {
+      failures.push(`${label} no está en la app (${pair.app})`);
+      continue;
+    }
+    for (const property of properties) {
+      const prototypeValue = visualValue(left, property);
+      const appValue = visualValue(right, property);
+      if (!equivalent(property === "background" ? "background-color" : property, prototypeValue, appValue, tolerances)) {
+        const prefix = state === "rest" ? property : `${state} ${property}`;
+        failures.push(`${label} ${prefix} ${appValue} vs prototipo ${prototypeValue}`);
+      }
+    }
+  }
+  if (pair.icon) {
+    const prototypeIcon = prototype["rest"]?.icon ?? "";
+    const appIcon = app["rest"]?.icon ?? "";
+    if (prototypeIcon !== appIcon) {
+      failures.push(`${label} icon ${appIcon || "ninguno"} vs prototipo ${prototypeIcon || "ninguno"}`);
+    }
+  }
+  return failures;
+}
+
+function recordedLine(selector: string, visual: StateVisual & { missing: boolean }, state: string): string {
+  return `recorded ${labelOf(selector)} ${state} icon ${visual.icon || "ninguno"} color ${visual.color} background ${visual.backgroundColor} font ${visual.fontFamily}`;
+}
+
+function rootCustomProperty(css: string, name: string): string {
+  const root = /:root\s*\{([^}]*)\}/.exec(css);
+  if (!root) return "";
+  const matched = new RegExp(`--${name}\\s*:\\s*([^;]+)`).exec(root[1] ?? "");
+  return matched?.[1]?.trim() ?? "";
+}
+
+export function rootVariableTrap(prototypeCss: string, mismatchCss: string): string | undefined {
+  const prototypeRoot = rootCustomProperty(prototypeCss, "sidebar-accent-foreground");
+  const mismatchRoot = rootCustomProperty(mismatchCss, "sidebar-accent-foreground");
+  if (prototypeRoot === "" || prototypeRoot.toLowerCase() !== mismatchRoot.toLowerCase()) {
+    return "el fixture ya no comparte --sidebar-accent-foreground en :root";
+  }
+  if (!prototypeCss.includes("#123456")) return "el prototipo ya no fija el color computado #123456";
+  if (!mismatchCss.includes("var(--sidebar-accent-foreground)")) {
+    return "el caso negativo ya no pinta con la variable de :root";
+  }
+  return undefined;
 }
 
 function comparePair(pair: Pair, prototype: Measured, app: Measured, tolerances: Tolerances): string[] {
@@ -394,7 +533,8 @@ function comparePair(pair: Pair, prototype: Measured, app: Measured, tolerances:
 }
 
 async function openPage(browser: Awaited<ReturnType<typeof chromium.launch>>, url: string): Promise<Page> {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
   await page.goto(url, { waitUntil: "load" });
   return page;
 }
@@ -425,10 +565,27 @@ export async function runFidelity(map: FidelityMap, prototypeDir: string, appTar
       const viewport = pair.viewport ?? { width: 1280, height: 800 };
       await prototypePage.setViewportSize(viewport);
       await appPage.setViewportSize(viewport);
+      const interactive = (pair.states?.length ?? 0) > 0 || pair.icon === true;
+      if (interactive) {
+        const states = pair.states ?? ["rest"];
+        const prototypeStates = await readInteractive(prototypePage, pair.prototype, states);
+        const appStates = await readInteractive(appPage, pair.app, states);
+        for (const state of states) {
+          const visual = prototypeStates[state];
+          if (visual && !visual.missing) console.log(recordedLine(pair.prototype, visual, state));
+        }
+        failures.push(...stateFailures(pair, prototypeStates, appStates, tolerances));
+        continue;
+      }
       const names = pair.kind === "logo" ? [] : cssNames(pair.properties ?? DEFAULT_PROPERTIES);
       const prototypeMeasured = await measure(prototypePage, pair.prototype, names, []);
       const appMeasured = await measure(appPage, pair.app, names, []);
       failures.push(...comparePair(pair, prototypeMeasured, appMeasured, tolerances));
+    }
+    await appPage.mouse.move(0, 0);
+    const contrast = await new AxeBuilder({ page: appPage }).withRules(["color-contrast"]).analyze();
+    for (const violation of [...contrast.violations, ...contrast.incomplete]) {
+      failures.push(`axe color-contrast ${String(violation.nodes.length)}`);
     }
   } finally {
     await browser.close();
@@ -485,7 +642,24 @@ function resolveTarget(base: string, target: string | undefined): string {
   return resolve(base, target);
 }
 
+function selfTest(): number {
+  const prototypeCss = readFlag("--prototype-css");
+  const mismatchCss = readFlag("--mismatch-css");
+  if (!prototypeCss || !mismatchCss) {
+    console.error("self-test needs --prototype-css and --mismatch-css");
+    return 1;
+  }
+  const trap = rootVariableTrap(readFileSync(prototypeCss, "utf8"), readFileSync(mismatchCss, "utf8"));
+  if (trap) {
+    console.error(trap);
+    return 1;
+  }
+  console.log("la variable de :root coincide y el color computado no");
+  return 0;
+}
+
 async function main(): Promise<number> {
+  if (process.argv.includes("--self-test")) return selfTest();
   const explicit = readFlag("--map");
   const appOverride = readFlag("--app");
   if (explicit) return runMapFile(resolve(explicit), appOverride);

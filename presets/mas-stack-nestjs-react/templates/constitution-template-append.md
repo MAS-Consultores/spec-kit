@@ -264,7 +264,7 @@ Performance is a first-class requirement:
 
 ### Prototype fidelity
 
-When a feature ports an HTML prototype from product, the visual design is a requirement. The gate compares computed style. It does not take screenshots, video, or traces.
+When a feature ports an HTML prototype from product, the visual design is a requirement. Fidelity includes icons (the same library and the same glyphs), computed colors, and the hover and active states. `pnpm lint` is the primary gate for icons and colors. `pnpm test:fidelity` is the backup for computed color, hover, and active, which lint cannot see. The gate does not take screenshots, video, or traces.
 
 #### Tokens
 
@@ -280,7 +280,21 @@ Copy `@keyframes`, `transition`, and easing literally. Keep a `prefers-reduced-m
 
 #### Shell design versus scaffolding
 
-Do not port scaffolding: Tailwind CDN, jQuery, Font Awesome, sim-bar, and prototype scripts. Do port the shell design: header, rail and menu, widths, gradients, and the collapsed and mobile states. A `handoff.md` line that says the shell is out of scope does not drop the shell design.
+Do not port scaffolding: Tailwind CDN, jQuery, icon CDN scripts, sim-bar, and prototype scripts. Do port the shell design: header, rail and menu, widths, gradients, icons, and the collapsed and mobile states. A `handoff.md` line that says the shell is out of scope does not drop the shell design.
+
+#### Icons
+
+When the prototype uses an icon library (Font Awesome classes such as `fa-solid fa-gauge`, Material Symbols, Lucide, or another set), the plan and the tasks MUST use that same library and those same glyphs. Install the official npm package and import each icon from it. Do not load the library from a CDN (the CSP forbids it). Re-export the icons from one central module, `apps/web/src/icons/index.ts`.
+
+Write `apps/web/ui.icons.json` with `library` (the npm package) and `module` (the central file). `mas/icon-library` allows only that package, and only inside the central module. Changing the library is a change to that JSON, not an eslint-disable. `lucide-react` is the fallback only when the prototype defines no icon library. Do not keep it when the prototype names another library.
+
+The React element MUST set `data-icon` to the prototype glyph, for example `fontawesome:fa-solid fa-gauge`. The extractor in `apps/web/e2e/fidelity.ts` records, for each mapped element, the icon library and name, the computed color, the computed background, the font-family, and the hover and active states. It reads computed style, not the variables on `:root`.
+
+#### Colors
+
+No literal colors in TSX or in CSS outside the theme file `apps/web/src/index.css`: no hex, `rgb`/`rgba`, `hsl`/`hsla`, `oklch`, the names `white` and `black`, or Tailwind arbitrary colors (`text-[#fff]`, `bg-white`, `text-black`). `mas/no-literal-color` covers components. `scripts/check-colors.mjs` (inside `pnpm lint`) covers CSS. A `var(--token)` used in other CSS MUST be defined in the theme file for `:root` (inherited) or for the same selector. A token defined only under `.dark` MUST NOT be used from `:root`.
+
+The Playwright check compares those computed values, including hover via `hover()` and active via pointer down, and compares icons through `data-icon`. `@axe-core/playwright` MUST report color contrast (`color-contrast`) on the app page. A theme variable that is white in `:root` does not prove the element is white: `.rail-link[aria-current=page]` and `:hover` can compute a different color. Comparing `:root` variables is not a fidelity check.
 
 Name prototype styles `styles-prototype.css`, not a framework name. Put `data-testid` on the shell and on brand assets. Ship the same tokens as JSON, not only as CSS.
 

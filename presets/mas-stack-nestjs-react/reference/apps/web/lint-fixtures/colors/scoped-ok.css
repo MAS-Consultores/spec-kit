@@ -1,0 +1,4 @@
+.dark {
+  --only-in-dark: var(--foreground);
+  color: var(--only-in-dark);
+}

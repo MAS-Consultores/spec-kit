@@ -1,0 +1,7 @@
+.dark {
+  --only-in-dark: var(--foreground);
+}
+
+:root {
+  color: var(--only-in-dark);
+}

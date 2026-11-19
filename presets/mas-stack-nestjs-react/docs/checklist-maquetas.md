@@ -7,7 +7,7 @@ El equipo de producto entrega el diseño. El andamiaje del prototipo no se porta
 No forma parte del diseño y no se porta:
 
 - Tailwind por CDN y el `<script>` que lo carga
-- jQuery, Font Awesome y otros scripts de prototipo
+- jQuery, el `<script>` CDN de Font Awesome u otra librería de íconos, y otros scripts de prototipo
 - sim-bar y controles que solo existen para navegar el HTML
 
 Sí forma parte del diseño y se porta, aunque `handoff.md` diga que el shell no se toca:
@@ -15,6 +15,7 @@ Sí forma parte del diseño y se porta, aunque `handoff.md` diga que el shell no
 - header
 - riel y menú, incluidos anchos, gradiente y estados contraído y móvil
 - colores, tipografía, radios, sombras y espaciados del shell
+- íconos: la misma librería y los mismos glifos (`fa-solid fa-gauge`, Material Symbols, Lucide). Se instalan por npm, con imports por ícono, en `apps/web/src/icons`. `lucide-react` solo si la maqueta no define librería. El color se compara computado, también en hover y activo, no leyendo variables de `:root`
 
 ## Nombres
 

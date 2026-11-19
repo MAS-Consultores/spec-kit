@@ -69,6 +69,8 @@ export default tseslint.config(
       "mas/fetch-in-feature-data": "error",
       "mas/module-layout": "error",
       "mas/no-url-includes-in-guards": "error",
+      "mas/icon-library": "error",
+      "mas/no-literal-color": "error",
     },
   },
   {

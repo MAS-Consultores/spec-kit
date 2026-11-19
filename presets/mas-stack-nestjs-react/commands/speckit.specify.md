@@ -14,7 +14,8 @@ Record these decisions in the spec:
 - Tokens are copied literally from the prototype CSS and the Tailwind CDN config into `prototype-tokens.json`. Skeleton defaults are not acceptable where the prototype sets a value.
 - Logos and other brand assets are copied files, never text. Fonts are self-hosted at the same weights. Demo photos and avatars are not copied.
 - `@keyframes`, transitions, and easing are copied literally, with `prefers-reduced-motion`.
-- Scaffolding (CDN, jQuery, Font Awesome, sim-bar, scripts) is not ported. Shell design (header, rail, widths, gradients, collapsed and mobile) is ported even when `handoff.md` says the shell is out of scope.
+- Scaffolding (CDN, jQuery, icon CDN scripts, sim-bar, scripts) is not ported. Shell design (header, rail, widths, gradients, collapsed and mobile) is ported even when `handoff.md` says the shell is out of scope.
+- When the prototype uses an icon library, name that library and the glyphs (for example `fa-solid fa-gauge`). The spec does not switch them for `lucide-react` or another default. `lucide-react` is only the fallback when the prototype defines no icons.
 
 Do not add an example slice to illustrate the map. The map belongs to the feature spec.
 

@@ -98,6 +98,18 @@ const cases = [
     file: "apps/api/lint-fixtures/mcp-bypass.guard.ts",
     expects: [{ ruleId: "mas/no-url-includes-in-guards", includes: "parsed path" }],
   },
+  {
+    file: "apps/web/lint-fixtures/icons/wrong-library.tsx",
+    expects: [{ ruleId: "mas/icon-library", includes: "ui.icons.json" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/icons/direct-library.tsx",
+    expects: [{ ruleId: "mas/icon-library", includes: "central module" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/icons/literal-color.tsx",
+    expects: [{ ruleId: "mas/no-literal-color", includes: "text-[#fff]" }],
+  },
 ];
 
 const eslint = new ESLint({
@@ -139,6 +151,8 @@ const eslint = new ESLint({
         "mas/fetch-in-feature-data": "error",
         "mas/module-layout": "error",
         "mas/no-url-includes-in-guards": "error",
+        "mas/icon-library": "error",
+        "mas/no-literal-color": "error",
         "import-x/no-cycle": "error",
         "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
         "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
@@ -184,6 +198,40 @@ for (const item of cases) {
   }
 }
 if (failed) process.exit(1);
+
+const referenceRoot = new URL("..", import.meta.url).pathname;
+const central = join(referenceRoot, "apps/web/src/icons/index.ts");
+const feature = join(referenceRoot, "apps/web/src/features/home/components/home-page.tsx");
+const textCases = [
+  {
+    name: "central module may import the declared library",
+    filePath: central,
+    code: 'import { Gauge } from "lucide-react";\nexport const icon = Gauge;\n',
+    forbid: ["mas/icon-library", "mas/no-literal-color"],
+  },
+  {
+    name: "feature imports the central module and token classes",
+    filePath: feature,
+    code: 'import type { IconName } from "../../icons/index.ts";\nexport function Mark(name: IconName): React.ReactElement {\n  return <span className="text-primary" data-icon={name} />;\n}\n',
+    forbid: ["mas/icon-library", "mas/no-literal-color"],
+  },
+];
+for (const item of textCases) {
+  const results = await eslint.lintText(item.code, { filePath: item.filePath });
+  const messages = results.flatMap((result) => result.messages);
+  const fatal = messages.find((message) => message.fatal === true);
+  if (fatal) {
+    console.error(`valid case failed to parse: ${item.name}: ${fatal.message}`);
+    process.exit(1);
+  }
+  const hit = messages.find((message) => item.forbid.includes(message.ruleId ?? ""));
+  if (hit) {
+    console.error(`valid case failed: ${item.name}: ${hit.ruleId}: ${hit.message}`);
+    process.exit(1);
+  }
+  console.log(`fixture ok ${item.name}`);
+}
+
 
 const cruiseRoot = new URL("..", import.meta.url).pathname;
 const cruiseBin = join(cruiseRoot, "node_modules/.bin/depcruise");

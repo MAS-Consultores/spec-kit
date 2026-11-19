@@ -14,6 +14,8 @@
   --shadow: 0 2px 4px rgb(0 0 0 / 0.2);
   --rail-width: 240px;
   --rail-collapsed: 72px;
+  --sidebar-accent: #0b1f33;
+  --sidebar-accent-foreground: #ffffff;
 }
 
 [data-testid="app-header"] {
@@ -72,6 +74,16 @@
 [data-testid="app-rail-collapsed"] {
   width: var(--rail-collapsed);
   background-color: var(--brand);
+}
+
+.rail-link,
+.rail-link:hover,
+.rail-link:active,
+.rail-link[aria-current="page"] {
+  color: var(--sidebar-accent-foreground);
+  background-color: #ffffff;
+  font-family: "Fidelity Sans", sans-serif;
+  font-size: 16px;
 }
 
 @media (max-width: 640px) {

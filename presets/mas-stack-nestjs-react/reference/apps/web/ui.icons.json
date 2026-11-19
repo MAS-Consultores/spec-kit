@@ -1,0 +1,5 @@
+{
+  "library": "lucide-react",
+  "module": "apps/web/src/icons/index.ts",
+  "fallback": true
+}

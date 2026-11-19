@@ -37,7 +37,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-`pnpm test:fidelity` compares computed style with an HTML prototype when `specs/<feature>/fidelity-map.json` exists. With no map it exits 0. It does not take screenshots. `pnpm verify` runs it.
+`pnpm test:fidelity` compares computed style with an HTML prototype when `specs/<feature>/fidelity-map.json` exists. With no map it exits 0. It does not take screenshots. It compares computed color (not `:root` variables), hover, active, and `data-icon`, and runs axe `color-contrast`. `pnpm lint` is the primary gate for the icon package in `apps/web/ui.icons.json` and for literal colors. `pnpm verify` runs both.
 
 `pnpm lint` is ESLint plus dependency-cruiser plus the negative fixtures. `pnpm gen:module <dominio>` adds a Nest module, a lazy web feature, a contract entry, and a Prisma file. It only edits `AppModule`, `feature-routes.ts`, and `eslint/model-ownership.js`. `pnpm schema:check` requires one `.prisma` file per domain under `prisma/schema/`.
 

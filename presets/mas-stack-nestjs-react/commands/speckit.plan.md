@@ -56,6 +56,8 @@ The plan MUST follow **Modularidad estricta** in the stack constitution: one Nes
 
 When the spec ports an HTML prototype, the plan MUST follow **Prototype fidelity** in the stack constitution. Plan the token file, the brand manifest, self-hosted fonts, literal motion, and the shell design. Do not plan porting CDN, jQuery, sim-bar, or prototype scripts. Do not plan a text logo or skeleton default colors when the prototype defines the value. Plan `pnpm test:fidelity` on `specs/<feature>/fidelity-map.json`.
 
+When the prototype uses an icon library, `plan.md` MUST name that same library and those glyphs, and MUST set `apps/web/ui.icons.json` (`library` is the official npm package, `module` is `apps/web/src/icons/index.ts`). Plan per-icon imports inside that module only. Do not plan a CDN script. Do not plan `lucide-react` when the prototype names another library. `lucide-react` is the fallback only when the prototype defines no icons. Plan `data-icon` on each ported glyph. `pnpm lint` (`mas/icon-library`, `mas/no-literal-color`, `scripts/check-colors.mjs`) is the primary gate for icons and colors.
+
 State `apps/api/prisma.config.ts` at the package root, `queryClient.query` in loaders, source-only `packages/ui`, and the auth design (HttpOnly cookies, CSRF, rotating refresh with reuse detection, Argon2id, CASL) even when the feature spec only assumes a logged-in user.
 
 When the feature includes authentication (login, account recovery, one-time passwords or tokens, session issuance, password change, or mail that carries auth secrets), `plan.md` MUST include this checklist. Mark each item covered, or not applicable with a reason:
