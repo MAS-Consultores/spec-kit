@@ -4,7 +4,14 @@ import type { SessionStamp } from "./session.token.js";
 
 export interface AuthUserRecord extends SessionStamp {
   id: string;
-  passwordHash: string;
+  passwordHash: string | null;
+  /** Omitted on the skeleton user. `false` rejects the login after Argon2. */
+  active?: boolean;
+  /** `true` rejects the login after Argon2. `blocked` is the same gate. */
+  locked?: boolean;
+  blocked?: boolean;
+  /** `false` means a required email is missing or unverified. */
+  emailVerified?: boolean;
   permissions: { permission: { code: string } }[];
 }
 

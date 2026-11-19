@@ -42,39 +42,56 @@ function user(partial: Partial<AuthUserRecord> & Pick<AuthUserRecord, "passwordH
 const jwt = new JwtService({ secret: accessSecret });
 const config = new ConfigService({ JWT_REFRESH_SECRET: refreshSecret });
 
+function serviceFor(record: AuthUserRecord | null): AuthService {
+  return new AuthService(
+    { findUserByEmail: () => Promise.resolve(record) } as unknown as AuthRepository,
+    jwt,
+    config,
+  );
+}
+
+async function rejectedLogin(record: AuthUserRecord | null, password: string): Promise<UnauthorizedException> {
+  const error = await serviceFor(record)
+    .login({ email: "known@infra.test", password }, response())
+    .then(() => null)
+    .catch((caught: unknown) => caught);
+  expect(error).toBeInstanceOf(UnauthorizedException);
+  return error as UnauthorizedException;
+}
+
 describe("login existence", () => {
-  it("hides whether the account exists by verifying a fixed dummy hash", async () => {
-    const passwordHash = await argon2.hash("correct-password", { type: argon2.argon2id });
+  it("pays the Argon2 cost on every rejection path", async () => {
+    const passwordHash = await argon2.hash("correct-password", {
+      type: argon2.argon2id,
+      memoryCost: 65536,
+      timeCost: 3,
+      parallelism: 4,
+    });
     const verify = vi.spyOn(argon2, "verify");
-    const missing = new AuthService(
-      { findUserByEmail: () => Promise.resolve(null) } as unknown as AuthRepository,
-      jwt,
-      config,
-    );
-    const wrong = new AuthService(
-      { findUserByEmail: () => Promise.resolve(user({ passwordHash })) } as unknown as AuthRepository,
-      jwt,
-      config,
-    );
     const started = Date.now();
-    const missingError = await missing
-      .login({ email: "missing@infra.test", password: "wrong-password" }, response())
-      .then(() => null)
-      .catch((error: unknown) => error);
+    const missingError = await rejectedLogin(null, "wrong-password");
     const missingMs = Date.now() - started;
     const wrongStarted = Date.now();
-    const wrongError = await wrong
-      .login({ email: "known@infra.test", password: "wrong-password" }, response())
-      .then(() => null)
-      .catch((error: unknown) => error);
+    const wrongError = await rejectedLogin(user({ passwordHash }), "wrong-password");
     const wrongMs = Date.now() - wrongStarted;
-    expect(missingError).toBeInstanceOf(UnauthorizedException);
-    expect(wrongError).toBeInstanceOf(UnauthorizedException);
-    expect((missingError as UnauthorizedException).message).toBe((wrongError as UnauthorizedException).message);
+    const inactiveError = await rejectedLogin(user({ passwordHash, active: false }), "correct-password");
+    const lockedError = await rejectedLogin(user({ passwordHash, locked: true }), "correct-password");
+    const blockedError = await rejectedLogin(user({ passwordHash, blocked: true }), "correct-password");
+    const noCredential = await rejectedLogin(user({ passwordHash: null }), "wrong-password");
+    const unverifiedEmail = await rejectedLogin(user({ passwordHash, emailVerified: false }), "correct-password");
+    expect(missingError.message).toBe(wrongError.message);
+    expect(inactiveError.message).toBe(wrongError.message);
+    expect(lockedError.message).toBe(wrongError.message);
+    expect(blockedError.message).toBe(wrongError.message);
+    expect(noCredential.message).toBe(wrongError.message);
+    expect(unverifiedEmail.message).toBe(wrongError.message);
     expect(missingMs).toBeGreaterThan(20);
     expect(wrongMs).toBeGreaterThan(20);
     expect(verify).toHaveBeenCalledWith(DUMMY_PASSWORD_HASH, "wrong-password");
     expect(verify).toHaveBeenCalledWith(passwordHash, "wrong-password");
+    expect(verify).toHaveBeenCalledWith(passwordHash, "correct-password");
+    const dummyCalls = verify.mock.calls.filter((call) => call[0] === DUMMY_PASSWORD_HASH);
+    expect(dummyCalls.length).toBeGreaterThanOrEqual(2);
     verify.mockRestore();
   });
 

@@ -9,9 +9,31 @@ import { configString } from "../../config/read.js";
 import { AuthRepository, type AuthUserRecord } from "./auth.repository.js";
 import { businessScopes, refreshIssuedAfterPasswordChange } from "./session.token.js";
 
-/** Fixed Argon2id hash so a missing account still pays for a verify. */
+/** Argon2id (m=65536, t=3, p=4), the same parameters as real password hashes. */
 export const DUMMY_PASSWORD_HASH =
   "$argon2id$v=19$m=65536,t=3,p=4$i+7v1Y65Et9pQzNYgwqHlw$5tzWjRR6z6jn37Vtr+n0w5HuSE4sjifWd8r4yqclQ4Y";
+
+function storedPasswordHash(user: AuthUserRecord | null): string | null {
+  const hash = user?.passwordHash;
+  if (typeof hash !== "string" || !hash.startsWith("$argon2")) {
+    return null;
+  }
+  return hash;
+}
+
+/** Every login 401 is decided only after a real hash or the dummy hash was verified. */
+function loginRejected(user: AuthUserRecord | null, passwordValid: boolean): boolean {
+  if (!user || !passwordValid || storedPasswordHash(user) === null) {
+    return true;
+  }
+  if (user.active === false || user.locked === true || user.blocked === true) {
+    return true;
+  }
+  if (user.emailVerified === false) {
+    return true;
+  }
+  return false;
+}
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -28,8 +50,8 @@ export class AuthService {
   async login(body: unknown, res: Response): Promise<{ csrfToken: string }> {
     const input = loginSchema.parse(body);
     const user = await this.users.findUserByEmail(input.email);
-    const valid = await this.verifyPresentedPassword(user?.passwordHash ?? null, input.password);
-    if (!user || !valid) {
+    const valid = await this.verifyPresentedPassword(storedPasswordHash(user), input.password);
+    if (!user || loginRejected(user, valid)) {
       throw new UnauthorizedException();
     }
     await this.issue(res, user, randomUUID());

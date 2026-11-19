@@ -110,6 +110,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D11-03 | un refresh emitido antes de `password_changed_at` no emite otra sesión | `auth.service.spec.ts` (Unauthorized y `createRefresh` no se llama) |
 | D11-04 | un bypass de guard compara el path; una query que contiene `/mcp` no salta la autenticación | `jwt-auth.guard.spec.ts` y el fixture `mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) dentro de `pnpm lint` |
 | D11-05 | `minimatch` anterior a 11.0.1 no puede quedar en el lockfile | `pnpm audit --audit-level=high` del job `reference` queda en cero; el override `minimatch@<11.0.1` está en `pnpm-workspace.yaml` |
+| D11-06 | cada rechazo de login paga el coste Argon2; un 401 que no verifica un hash real verifica antes el Argon2id ficticio fijo (mismos parámetros) | `auth.service.spec.ts` cubre cuenta ausente, contraseña incorrecta, inactiva y bloqueada, dentro de `pnpm test` |
 
 ## Lint determinista del esqueleto
 
