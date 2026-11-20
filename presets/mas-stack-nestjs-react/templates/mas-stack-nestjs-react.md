@@ -131,6 +131,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
   - [ ] SMTP that carries secrets uses TLS (`secure` or `requireTLS`); plaintext only for a loopback dev mail catcher
   - [ ] Password change and session revocation reject access tokens and refresh tokens issued before `passwordChangedAt` or an older token version; refresh checks before issuing
   - [ ] Guard bypasses compare the parsed path only (`mas/no-url-includes-in-guards`); never `originalUrl.includes` or `url.includes`
+  - [ ] File uploads use `multipart/form-data` with `FileInterceptor` / `FilesInterceptor` / `FileFieldsInterceptor` / `AnyFilesInterceptor`, `limits.fileSize`, and a type check (`fileFilter` or `ParseFilePipe` with `FileTypeValidator` or a magic-byte validator). JSON base64 is only allowed at ≤ 1 MiB (`@MaxLength(1048576)` or `z.string().max(1048576)`) with `// eslint-disable-next-line mas/no-base64-file-upload -- <motivo>`. Rules: `mas/multipart-upload-limits`, `mas/no-base64-file-upload`, `mas/base64-upload-max-length`
 
 ### apps/web (Required)
 

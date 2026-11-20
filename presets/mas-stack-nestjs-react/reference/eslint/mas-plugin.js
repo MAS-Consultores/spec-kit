@@ -3,6 +3,7 @@ import { qualityRules } from "./quality-rules.js";
 import { iconColorRules } from "./icons-color.js";
 import { i18nRules } from "./i18n-rules.js";
 import { modularityRules } from "./modularity.js";
+import { uploadRules } from "./upload-rules.js";
 
 /** Teaching rules. The message is the fix, not only the ban. */
 
@@ -137,6 +138,7 @@ const masPlugin = {
     ...qualityRules,
     ...iconColorRules,
     ...i18nRules,
+    ...uploadRules,
     "require-disable-justification": {
       meta: {
         type: "problem",

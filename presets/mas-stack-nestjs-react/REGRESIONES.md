@@ -131,6 +131,13 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | L2-06 | `eslint-disable` exige justificación o ticket (`@eslint-community/eslint-plugin-eslint-comments` `require-description`). Desactivar `no-explicit-any` sigue prohibido aunque haya descripción | `apps/api/lint-fixtures/disable-without-reason.ts` y `disable-explicit-any.ts` |
 | L2-07 | un `*.guard.ts` no llama a `originalUrl.includes` ni a `url.includes` | `apps/api/lint-fixtures/mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) |
 
+## Subida de archivos
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D13-01 | un DTO transporta el archivo en base64 (`@IsBase64`, `fileContent`) sin tope, o con `@MaxLength` por encima de 1 MiB (`1_048_576`); un servicio hace `Buffer.from(fileContent, "base64")` | `base64-upload.dto.ts` falla `mas/no-base64-file-upload` y `mas/base64-upload-max-length`; `base64-upload-too-big.dto.ts` falla el tope; `base64-buffer.service.ts` falla el `Buffer.from`. Antes de registrar las reglas, el mismo ESLint de fixtures no emitía esos `ruleId`. Con las reglas, `pnpm lint:fixtures` exige el fallo y deja pasar el caso válido: `@MaxLength(1024)` más `eslint-disable-next-line mas/no-base64-file-upload -- motivo`. Un `refreshBase64Url` y `Buffer.from(secret, "base64")` no se marcan |
+| D13-02 | `FileInterceptor` / `FilesInterceptor` no declaran `limits.fileSize`, o `AnyFilesInterceptor` limita el tamaño pero el endpoint solo usa `MaxFileSizeValidator` | `upload-no-limit.controller.ts` y `upload-no-type.controller.ts` (`mas/multipart-upload-limits`) dentro de `pnpm lint`. El caso válido ( `limits.fileSize` y `FileTypeValidator`, o `fileFilter`) no dispara la regla. Sin la regla esos fixtures no producían `mas/multipart-upload-limits` |
+
 ## Código limpio y contratos
 
 | ID | Qué se rompió | Dónde se prueba |

@@ -138,6 +138,29 @@ const cases = [
     file: "apps/api/lint-fixtures/unknown-audit.controller.ts",
     expects: [{ ruleId: "mas/require-audit-on-mutations", includes: "catalog" }],
   },
+  {
+    file: "apps/api/lint-fixtures/base64-upload.dto.ts",
+    expects: [
+      { ruleId: "mas/no-base64-file-upload", includes: "multipart/form-data" },
+      { ruleId: "mas/base64-upload-max-length", includes: "1_048_576" },
+    ],
+  },
+  {
+    file: "apps/api/lint-fixtures/base64-upload-too-big.dto.ts",
+    expects: [{ ruleId: "mas/base64-upload-max-length", includes: "1_048_576" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/base64-buffer.service.ts",
+    expects: [{ ruleId: "mas/no-base64-file-upload", includes: "Buffer.from" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/upload-no-limit.controller.ts",
+    expects: [{ ruleId: "mas/multipart-upload-limits", includes: "limits.fileSize" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/upload-no-type.controller.ts",
+    expects: [{ ruleId: "mas/multipart-upload-limits", includes: "FileTypeValidator" }],
+  },
 ];
 
 const eslint = new ESLint({
@@ -179,6 +202,9 @@ const eslint = new ESLint({
         "mas/fetch-in-feature-data": "error",
         "mas/module-layout": "error",
         "mas/no-url-includes-in-guards": "error",
+        "mas/no-base64-file-upload": "error",
+        "mas/base64-upload-max-length": "error",
+        "mas/multipart-upload-limits": "error",
         "mas/icon-library": "error",
         "mas/no-literal-color": "error",
         "mas/no-i18n-mutation-in-render": "error",
@@ -338,6 +364,30 @@ const textCases = [
     filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.service.ts"),
     code: 'const logger = { error(_message: string) { return undefined; } };\nexport function read(parse: () => string): string {\n  try {\n    return parse();\n  } catch (error: unknown) {\n    logger.error("read failed");\n    throw error;\n  }\n}\n',
     forbid: ["mas/no-swallowed-catch", "no-useless-catch"],
+  },
+  {
+    name: "multipart upload declares fileSize and a type validator",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.controller.ts"),
+    code: 'function FileInterceptor(..._args: unknown[]): MethodDecorator { return () => undefined; }\nfunction ParseFilePipe(_options: unknown): ParameterDecorator { return () => undefined; }\nfunction FileTypeValidator(_options: unknown): object { return {}; }\nfunction MaxFileSizeValidator(_options: unknown): object { return {}; }\nexport class FilesController {\n  upload(\n    @UploadedFile(\n      new ParseFilePipe({\n        validators: [\n          new FileTypeValidator({ fileType: "image/png" }),\n          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),\n        ],\n      }),\n    )\n    _file: unknown,\n  ): { ok: true } {\n    return {\n      ok: true,\n      saved: FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }),\n    };\n  }\n}\nfunction UploadedFile(_pipe: unknown): ParameterDecorator { return () => undefined; }\n',
+    forbid: ["mas/multipart-upload-limits", "mas/no-base64-file-upload", "mas/base64-upload-max-length"],
+  },
+  {
+    name: "multipart upload uses a fileFilter",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.controller.ts"),
+    code: 'function FileInterceptor(..._args: unknown[]): MethodDecorator { return () => undefined; }\nexport function configured(): unknown {\n  return FileInterceptor("file", {\n    limits: { fileSize: 1024 * 1024 },\n    fileFilter(_req: unknown, _file: unknown, cb: (error: null, accept: boolean) => void) {\n      cb(null, true);\n    },\n  });\n}\n',
+    forbid: ["mas/multipart-upload-limits"],
+  },
+  {
+    name: "base64 JSON under 1 MiB with a justified suppression",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/avatar.dto.ts"),
+    code: 'function MaxLength(_max: number): PropertyDecorator { return () => undefined; }\nfunction IsBase64(): PropertyDecorator { return () => undefined; }\nexport class AvatarDto {\n  @MaxLength(1024)\n  @IsBase64()\n  // eslint-disable-next-line mas/no-base64-file-upload -- legado de 1 KB que el cliente aún manda en JSON\n  iconBase64!: string;\n}\n',
+    forbid: ["mas/no-base64-file-upload", "mas/base64-upload-max-length", "mas/require-disable-justification"],
+  },
+  {
+    name: "token base64url and a secret decode are not file uploads",
+    filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.service.ts"),
+    code: 'export class AuthService {\n  decode(secret: string): Buffer {\n    return Buffer.from(secret, "base64");\n  }\n}\nexport class SessionDto {\n  refreshBase64Url!: string;\n}\n',
+    forbid: ["mas/no-base64-file-upload", "mas/base64-upload-max-length"],
   },
   {
     name: "module index reexports the public class",

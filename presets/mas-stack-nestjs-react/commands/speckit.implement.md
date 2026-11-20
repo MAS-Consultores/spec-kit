@@ -24,6 +24,8 @@ A run that only has a few unit tests and a single Playwright spec does not meet 
 
 ## Modularidad estricta
 
+Follow **Subida de archivos** in the stack constitution. Uploads use multipart with `limits.fileSize` and a type or magic-byte validator. Do not finish while `mas/multipart-upload-limits`, `mas/no-base64-file-upload`, or `mas/base64-upload-max-length` fails.
+
 Follow **Bitácora de actividad** in the stack constitution. Each mutating handler uses `@Audit('event.key')` with a catalog key, or `@NoAudit('motivo')` when the spec records that exception. Do not finish while `mas/require-audit-on-mutations` fails.
 
 Follow **Modularidad estricta** in the stack constitution. New domains come from `pnpm gen:module <dominio>`. Do not register a domain by editing another domain. `pnpm lint` must stay at 0.
