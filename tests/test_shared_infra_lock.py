@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from specify_cli.shared_infra import _exclusive_project_lock
+from specify_cli.shared_infra import _exclusive_project_lock, _lock_attempt_is_contention
 from tests.lock_helpers import watch_lock_attempt
 
 LOCK_NAME = ".test-resource.lock"
@@ -59,6 +59,95 @@ def test_lock_blocks_second_holder_until_released(tmp_path, monkeypatch):
 
     assert not errors
     assert second_inside.is_set()
+
+
+def test_threads_stay_excluded_when_os_lock_does_not(tmp_path, monkeypatch):
+    """Same-process threads must not both enter when the OS lock is a no-op.
+
+    Windows file locks are process-owned, so ``msvcrt.locking`` does not
+    reliably keep two threads in this process out of the critical section.
+    """
+    if os.name == "nt":
+        import msvcrt
+
+        monkeypatch.setattr(msvcrt, "locking", lambda fd, operation, nbytes: None)
+    else:
+        import fcntl
+
+        monkeypatch.setattr(fcntl, "flock", lambda fd, operation: None)
+
+    first_inside = threading.Event()
+    release_first = threading.Event()
+    second_inside = threading.Event()
+    errors: list[BaseException] = []
+
+    def _hold(inside, release=None):
+        try:
+            with _exclusive_project_lock(tmp_path, LOCK_NAME, context="test"):
+                inside.set()
+                if release is not None and not release.wait(10):
+                    raise AssertionError("first holder was never released")
+        except BaseException as exc:  # noqa: BLE001 - surfaced below
+            errors.append(exc)
+
+    first = threading.Thread(
+        target=_hold, args=(first_inside, release_first), name="lock-first", daemon=True
+    )
+    second = threading.Thread(target=_hold, args=(second_inside,), name="lock-second", daemon=True)
+    first.start()
+    assert first_inside.wait(10)
+    second.start()
+    assert not second_inside.wait(0.4), "second holder entered while the first still held the lock"
+
+    release_first.set()
+    first.join(10)
+    second.join(10)
+
+    assert not errors
+    assert second_inside.is_set()
+
+
+def test_windows_lock_violation_with_other_errno_is_contention():
+    """Python 3.15 can report ERROR_LOCK_VIOLATION with errno other than EACCES."""
+    import errno
+
+    violation = OSError(errno.EINVAL, "lock violation")
+    violation.winerror = 33
+    assert _lock_attempt_is_contention(violation)
+    sharing = OSError(errno.EINVAL, "sharing violation")
+    sharing.winerror = 32
+    assert _lock_attempt_is_contention(sharing)
+    missing = OSError(errno.ENOENT, "missing")
+    assert not _lock_attempt_is_contention(missing)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows lock-violation errno mapping")
+def test_windows_lock_retries_contention_with_unexpected_errno(tmp_path, monkeypatch):
+    """Python 3.15 can report ERROR_LOCK_VIOLATION with errno other than EACCES."""
+    import errno
+    import msvcrt
+
+    real_locking = msvcrt.locking
+    calls = {"n": 0}
+
+    def _locking(fd, operation, nbytes):
+        calls["n"] += 1
+        if calls["n"] < 3 and operation == msvcrt.LK_NBLCK:
+            raise OSError(errno.EINVAL, "lock violation", None, 33)
+        return real_locking(fd, operation, nbytes)
+
+    monkeypatch.setattr(msvcrt, "locking", _locking)
+    entered = threading.Event()
+
+    def _enter():
+        with _exclusive_project_lock(tmp_path, LOCK_NAME, context="test"):
+            entered.set()
+
+    thread = threading.Thread(target=_enter, daemon=True)
+    thread.start()
+    thread.join(10)
+    assert entered.is_set()
+    assert calls["n"] >= 3
 
 
 def test_lock_is_released_when_body_raises(tmp_path):
