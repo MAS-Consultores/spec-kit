@@ -3,12 +3,17 @@ import { JwtService } from "@nestjs/jwt";
 import type { McpTokenVerifier } from "@nestjs/mcp";
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { SessionLookup, accessTokenStillValid, type AccessPayload } from "../auth/index.js";
+import type { Clock } from "../platform/index.js";
+
+const ACCESS_TTL_SECONDS = 900;
+const MILLISECONDS_PER_SECOND = 1000;
 
 @Injectable()
 export class BearerVerifier implements McpTokenVerifier {
   constructor(
     private readonly jwt: JwtService,
     private readonly sessions: SessionLookup,
+    private readonly clock: Clock,
   ) {}
 
   async verifyAccessToken(token: string): Promise<AuthInfo | null> {
@@ -22,7 +27,7 @@ export class BearerVerifier implements McpTokenVerifier {
         token,
         clientId: payload.sub,
         scopes: payload.scopes,
-        expiresAt: Math.floor(Date.now() / 1000) + 15 * 60,
+        expiresAt: Math.floor(this.clock.now() / MILLISECONDS_PER_SECOND) + ACCESS_TTL_SECONDS,
         resource: new URL("http://127.0.0.1/api/v1/mcp"),
       };
     } catch (error: unknown) {

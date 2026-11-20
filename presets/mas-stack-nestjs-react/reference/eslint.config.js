@@ -62,6 +62,23 @@ export default tseslint.config(
       "import-x/no-cycle": "error",
       "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
       "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+      "max-params": "off",
+      "mas/max-callable-params": ["error", { max: 3 }],
+      "mas/no-commented-code": "warn",
+      "mas/no-hidden-service-deps": "error",
+      "no-magic-numbers": [
+        "warn",
+        {
+          ignore: [-1, 0, 1, 200, 201, 204, 301, 302, 304, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreClassFieldInitialValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "mas/no-process-env": "error",
       "mas/require-disable-justification": "error",
       "mas/prisma-only-in-repositories": "error",
@@ -108,7 +125,6 @@ export default tseslint.config(
       "mas/barrel-exports-only-public": "error",
       complexity: ["error", { max: 10 }],
       "max-depth": ["error", 3],
-      "max-params": ["error", 3],
       "sonarjs/cognitive-complexity": ["error", 15],
       "no-nested-ternary": "error",
       "no-else-return": "error",
@@ -171,6 +187,15 @@ export default tseslint.config(
     rules: {
       "mas/no-process-env": "off",
       "mas/no-raw-process-env": "off",
+    },
+  },
+  {
+    files: ["**/*.spec.ts", "**/*.test.ts", "**/*.test.tsx", "**/*.e2e.ts", "**/e2e/**"],
+    rules: {
+      "max-lines-per-function": "off",
+      "mas/max-callable-params": "off",
+      "no-magic-numbers": "off",
+      "sonarjs/cognitive-complexity": "off",
     },
   },
   {

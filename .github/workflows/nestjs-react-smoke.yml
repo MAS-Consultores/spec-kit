@@ -16,6 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: gitleaks
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz" | tar -xz -C /tmp
+          /tmp/gitleaks detect --no-git --source presets/mas-stack-nestjs-react/reference --config presets/mas-stack-nestjs-react/reference/.gitleaks.toml --redact --exit-code 1
+
       - name: Restore ESLint cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -418,6 +425,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: gitleaks
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz" | tar -xz -C /tmp
+          /tmp/gitleaks detect --no-git --source presets/mas-stack-nestjs-react/reference --config presets/mas-stack-nestjs-react/reference/.gitleaks.toml --redact --exit-code 1
+
       - name: Restore ESLint cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -608,6 +622,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: gitleaks
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz" | tar -xz -C /tmp
+          /tmp/gitleaks detect --no-git --source presets/mas-stack-nestjs-react/reference --config presets/mas-stack-nestjs-react/reference/.gitleaks.toml --redact --exit-code 1
 
       - name: Restore ESLint cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4

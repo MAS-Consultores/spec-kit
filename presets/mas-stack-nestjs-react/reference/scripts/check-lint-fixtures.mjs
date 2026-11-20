@@ -9,6 +9,7 @@ import tseslint from "typescript-eslint";
 import importX from "eslint-plugin-import-x";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import sonarjs from "eslint-plugin-sonarjs";
 import mas, { boundaryElements, boundaryRule } from "../eslint/mas-plugin.js";
 import { restrictedImports } from "../eslint/package2-rules.js";
 
@@ -273,6 +274,7 @@ const eslint = new ESLint({
         "@eslint-community/eslint-comments": comments,
         "@typescript-eslint": tseslint.plugin,
         mas,
+        sonarjs,
       },
       settings: {
         "boundaries/elements": boundaryElements,
@@ -333,6 +335,11 @@ const eslint = new ESLint({
         "mas/zod-strict-writes": "error",
         "mas/no-swallowed-catch": "error",
         "mas/barrel-exports-only-public": "error",
+        "mas/max-callable-params": ["error", { max: 3 }],
+        "mas/no-commented-code": "warn",
+        "mas/no-hidden-service-deps": "error",
+        "no-magic-numbers": ["warn", { ignore: [-1, 0, 1] }],
+        "sonarjs/no-identical-functions": "error",
         "no-useless-catch": "error",
         "import-x/no-cycle": "error",
         "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
@@ -403,6 +410,26 @@ cases.push(
   {
     file: "apps/api/lint-fixtures/thin-math.controller.ts",
     expects: [{ ruleId: "mas/thin-controllers", includes: "calculate" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/too-many-params.ts",
+    expects: [{ ruleId: "mas/max-callable-params", includes: "F1" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/commented-code.ts",
+    expects: [{ ruleId: "mas/no-commented-code", includes: "C5", severity: "warn" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/magic-number.ts",
+    expects: [{ ruleId: "no-magic-numbers", severity: "warn" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/hidden-deps.service.ts",
+    expects: [{ ruleId: "mas/no-hidden-service-deps", includes: "Clock" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/identical-functions.ts",
+    expects: [{ ruleId: "sonarjs/no-identical-functions" }],
   },
 );
 
@@ -778,6 +805,24 @@ const textCases = [
     code: '// eslint-disable-next-line no-restricted-imports -- el mapa WebGL no cabe en Recharts\nimport "echarts";\nexport const chartLib = "echarts";\n',
     forbid: ["no-restricted-imports", "mas/require-disable-justification"],
   },
+  {
+    name: "nestjs constructor may take the injected collaborators",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: "class AuthRepository {}\nclass JwtService {}\nclass ConfigService {}\nclass SystemClock { now(): number { return 0; } }\nclass SystemIdGenerator { uuid(): string { return \"id\"; } }\nexport class AuthService {\n  constructor(\n    private readonly users: AuthRepository,\n    private readonly jwt: JwtService,\n    private readonly config: ConfigService,\n    private readonly clock: SystemClock,\n    private readonly ids: SystemIdGenerator,\n  ) {}\n}\n",
+    forbid: ["mas/max-callable-params"],
+  },
+  {
+    name: "allowed numeric literals are not magic",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: "export function shift(values: number[]): number {\n  return (values[0] ?? 0) + 1 - 1;\n}\n",
+    forbid: ["no-magic-numbers"],
+  },
+  {
+    name: "service uses the injected clock",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: "class Clock { now(): number { return 0; } }\nexport class HealthService {\n  constructor(private readonly clock: Clock) {}\n  stamp(): number {\n    return this.clock.now();\n  }\n}\n",
+    forbid: ["mas/no-hidden-service-deps"],
+  },
 ];
 for (const item of textCases) {
   const results = await eslint.lintText(item.code, { filePath: item.filePath });
@@ -840,6 +885,40 @@ try {
   console.error(cruiseText(error));
   console.error("dependency-cruiser rejected the valid module graph");
   process.exit(1);
+}
+
+const cleanOff = new ESLint({
+  cwd: cruiseRoot,
+  overrideConfigFile: true,
+  overrideConfig: [
+    {
+      files: ["**/*.ts"],
+      plugins: { mas, sonarjs },
+      languageOptions: { parser: tseslint.parser },
+      rules: {
+        "mas/max-callable-params": "off",
+        "mas/no-commented-code": "off",
+        "mas/no-hidden-service-deps": "off",
+        "no-magic-numbers": "off",
+        "sonarjs/no-identical-functions": "off",
+      },
+    },
+  ],
+});
+for (const [file, ruleId] of [
+  ["apps/api/lint-fixtures/too-many-params.ts", "mas/max-callable-params"],
+  ["apps/api/lint-fixtures/commented-code.ts", "mas/no-commented-code"],
+  ["apps/api/lint-fixtures/magic-number.ts", "no-magic-numbers"],
+  ["apps/api/lint-fixtures/hidden-deps.service.ts", "mas/no-hidden-service-deps"],
+  ["apps/api/lint-fixtures/identical-functions.ts", "sonarjs/no-identical-functions"],
+]) {
+  const results = await cleanOff.lintFiles([file]);
+  const hit = results.flatMap((result) => result.messages).find((message) => message.ruleId === ruleId);
+  if (hit) {
+    console.error(`rule off still emitted ${ruleId} for ${file}`);
+    process.exit(1);
+  }
+  console.log(`fixture off ok ${ruleId}`);
 }
 
 const thinOff = new ESLint({

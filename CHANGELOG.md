@@ -2,6 +2,14 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.3+mas.3] - 2026-11-20
+
+Clean code y quality gates del preset `nestjs-react`:
+
+- Reglas F1, G30, C5 y G25, con adopción por diff: lo existente en warn, lo nuevo en error (`scripts/check-diff-quality.mjs`). Knip, `sonarjs/no-identical-functions` y jscpd quedan en el trinquete `quality-baseline.json`.
+- Skill `clean-code-typescript`, adaptada de `ertugrul-dmr/clean-code-skills` (MIT, `skills/typescript`). Cubre N7, F3, G36, guard clauses y T5. G23 es sugerencia. T9 solo se menciona en unitarios. `/speckit.converge` y el quality loop (hasta 3 vueltas) reportan el código de regla y no terminan con hallazgos nuevos sin una excepción escrita.
+- Cobertura del diff al 80 % (líneas y ramas, sin umbral global), test de componente con Testing Library, `Clock` e `IdGenerator` inyectados, `exactOptionalPropertyTypes` y gitleaks en cada PR.
+
 ## [1.4.3+mas.2] - 2026-11-20
 
 Estándares nuevos del preset `nestjs-react`:

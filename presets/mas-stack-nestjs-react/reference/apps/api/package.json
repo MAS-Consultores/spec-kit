@@ -8,6 +8,7 @@
     "start:e2e": "nest build && node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
     "test:e2e": "vitest run --config vitest.e2e.ts test/api.e2e.ts test/throttle.e2e.ts",
     "test:mcp": "vitest run --config vitest.e2e.ts test/mcp.e2e.ts"
   },
@@ -53,6 +54,7 @@
     "prisma": "7.10.1",
     "supertest": "7.3.2",
     "tsx": "4.23.15",
+    "@vitest/coverage-v8": "5.1.0",
     "typescript": "6.0.3",
     "vitest": "5.1.0"
   }

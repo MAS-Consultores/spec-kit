@@ -4,6 +4,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { configString } from "../../config/read.js";
+import { PlatformModule } from "../platform/index.js";
 import { PrismaModule } from "../prisma/index.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthRepository } from "./auth.repository.js";
@@ -17,6 +18,7 @@ import { SessionLookup } from "./session.service.js";
 @Module({
   imports: [
     PrismaModule,
+    PlatformModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -35,7 +37,7 @@ import { SessionLookup } from "./session.service.js";
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
-  exports: [SessionLookup, JwtModule],
+  exports: [SessionLookup, JwtModule, PlatformModule],
 })
 export class AuthModule {
   readonly label = "auth";

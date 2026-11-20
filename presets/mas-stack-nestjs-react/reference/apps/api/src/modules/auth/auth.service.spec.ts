@@ -45,12 +45,19 @@ function user(partial: Partial<AuthUserRecord> & Pick<AuthUserRecord, "passwordH
 
 const jwt = new JwtService({ secret: accessSecret });
 const config = new ConfigService({ JWT_REFRESH_SECRET: refreshSecret });
+const clock = { now: (): number => Date.now() };
+const ids = {
+  uuid: (): string => "00000000-0000-4000-8000-000000000001",
+  bytes: (size: number): Buffer => Buffer.alloc(size, 1),
+};
 
 function serviceFor(record: AuthUserRecord | null): AuthService {
   return new AuthService(
     { findUserByEmail: () => Promise.resolve(record) } as unknown as AuthRepository,
     jwt,
     config,
+    clock,
+    ids,
   );
 }
 
@@ -114,6 +121,8 @@ describe("restricted session", () => {
       } as unknown as AuthRepository,
       jwt,
       config,
+      clock,
+      ids,
     );
     const res = response();
     await service.login({ email: knownEmail, password: knownPassword }, res);
@@ -158,6 +167,8 @@ describe("refresh", () => {
       ),
       jwt,
       config,
+      clock,
+      ids,
     );
     const res = response();
     await service.refresh(refresh, res);
@@ -173,6 +184,8 @@ describe("refresh", () => {
       refreshDoubles(user({ passwordHash, passwordChangedAt: new Date(Date.now() + 60_000) }), created),
       jwt,
       config,
+      clock,
+      ids,
     );
     await expect(service.refresh(refresh, response())).rejects.toBeInstanceOf(UnauthorizedException);
     expect(created).toEqual([]);
@@ -191,6 +204,8 @@ describe("logout", () => {
       } as unknown as AuthRepository,
       jwt,
       config,
+      clock,
+      ids,
     );
     await service.logout("user-1", response());
     expect(calls).toEqual(["user-1"]);
