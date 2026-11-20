@@ -28,7 +28,11 @@ agent and its installed mode:
 | Codex, Command Code, ZCode skills | `$speckit-specify` | `$speckit-bug-assess` |
 | Kimi skills | `/skill:speckit-specify` | `/skill:speckit-bug-assess` |
 
-Use the form exposed by your agent. See the
+Use the form exposed by your agent. In skills-backed integrations, generated
+core, extension, and preset skills include hook-command guidance translating
+dotted hook command names (such as `speckit.git.commit`) into the active
+integration's hyphenated skill invocation (such as `/speckit-git-commit` or
+`$speckit-git-commit`). See the
 [GitHub Copilot guide](copilot.md) for its skills and commands
 layouts, or choose another agent from the [integration directory](index.md).
 
@@ -209,7 +213,7 @@ specify integration switch <key>
 | Option                   | Description                                                              |
 | ------------------------ | ------------------------------------------------------------------------ |
 | `--script sh\|ps\|py`    | Script type: `sh` (bash/zsh), `ps` (PowerShell), or `py` (Python)        |
-| `--force`                | Force removal of modified files during uninstall; when the target is already installed, overwrite customized shared infrastructure |
+| `--force`                | Force removal of modified files during uninstall; when the target is already installed, overwrite customized shared infrastructure. Also overwrites modified or unowned extension [skill resource](../extensions/developing.md#skill-resources) copies when the target's skills are rendered |
 | `--refresh-shared-infra` | Overwrite customized shared scripts, page templates, and `.specify/.gitignore`, including for installed targets and the current default |
 | `--integration-options`  | Options for the target integration when it is not already installed      |
 | `--trust-integration` | Authorize downloading and executing a reviewed external adapter without the interactive trust prompt |
@@ -266,7 +270,7 @@ specify integration upgrade [<key>]
 
 | Option                   | Description                                                              |
 | ------------------------ | ------------------------------------------------------------------------ |
-| `--force`                | Overwrite files even if they have been modified                          |
+| `--force`                | Overwrite files even if they have been modified; when upgrading the active integration, also overwrite modified or unowned extension [skill resource](../extensions/developing.md#skill-resources) copies |
 | `--script sh\|ps\|py`    | Script type: `sh` (bash/zsh), `ps` (PowerShell), or `py` (Python)        |
 | `--integration-options`  | Options for the integration                                              |
 | `--trust-integration`    | Authorize downloading/importing the reviewed replacement external adapter |
