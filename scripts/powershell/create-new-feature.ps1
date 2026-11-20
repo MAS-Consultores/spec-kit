@@ -335,21 +335,32 @@ if (-not $DryRun) {
     [Console]::Error.WriteLine("# To persist: $featureAssignment")
     [Console]::Error.WriteLine("#              $directoryAssignment")
 
+    # Continue past a missing ref. PowerShell 7 treats a native exit 1 as
+    # terminating when $ErrorActionPreference is Stop, which the legacy
+    # stdout harness sets.
+    $branchPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     git rev-parse --is-inside-work-tree > $null 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        git show-ref --verify --quiet "refs/heads/$branchName"
+    $inside = $LASTEXITCODE
+    if ($inside -eq 0) {
+        git show-ref --verify --quiet "refs/heads/$branchName" > $null 2>&1
         if ($LASTEXITCODE -eq 0) {
             git checkout --quiet $branchName
         } else {
             git checkout --quiet -b $branchName
         }
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        if ($LASTEXITCODE -ne 0) {
+            $ErrorActionPreference = $branchPreference
+            exit $LASTEXITCODE
+        }
         $headRef = git symbolic-ref --quiet HEAD
         if ($headRef -ne "refs/heads/$branchName") {
             [Console]::Error.WriteLine("ERROR: HEAD is '$headRef', expected refs/heads/$branchName")
+            $ErrorActionPreference = $branchPreference
             exit 1
         }
     }
+    $ErrorActionPreference = $branchPreference
 }
 
 if ($Json) {

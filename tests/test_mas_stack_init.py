@@ -1258,4 +1258,3 @@ def test_upstream_init_stack_helper_leaves_explicit_stack_logic_alone():
     assert _with_upstream_init_stack("init proj") == (
         f"init --stack {UPSTREAM_INIT_STACK} proj --skip-external-skills"
     )
-
