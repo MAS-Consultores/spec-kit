@@ -16,6 +16,12 @@ interface Viewport {
   height: number;
 }
 
+function showsIcon(pair: Pair): boolean {
+  if (pair.hasIcon === true) return true;
+  const raw: unknown = pair;
+  return typeof raw === "object" && raw !== null && "icon" in raw && raw.icon === true;
+}
+
 interface Pair {
   prototype: string;
   app: string;
@@ -517,7 +523,7 @@ function iconGap(input: {
   app: Record<string, StateVisual & { isMissing: boolean }>;
 }): string[] {
   const { label, pair, prototype, app } = input;
-  if (pair.hasIcon !== true) return [];
+  if (!showsIcon(pair)) return [];
   const prototypeIcon = prototype["rest"]?.icon ?? "";
   const appIcon = app["rest"]?.icon ?? "";
   if (prototypeIcon === appIcon) return [];
@@ -631,7 +637,7 @@ async function pairFailures(input: {
   const viewport = pair.viewport ?? { width: 1280, height: 800 };
   await prototypePage.setViewportSize(viewport);
   await appPage.setViewportSize(viewport);
-  if ((pair.states?.length ?? 0) > 0 || pair.hasIcon === true) {
+  if ((pair.states?.length ?? 0) > 0 || showsIcon(pair)) {
     return interactiveFailures({ pair, prototypePage, appPage, tolerances });
   }
   const names = pair.kind === "logo" ? [] : cssNames(pair.properties ?? DEFAULT_PROPERTIES);
