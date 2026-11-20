@@ -7,7 +7,7 @@
     ".dependency-cruiser.fixtures.cjs",
     "templates/**"
   ],
-  "ignoreDependencies": ["@tanstack/react-table", "zod", "@nestjs/testing", "@nestjs/schematics"],
+  "ignoreDependencies": ["@tanstack/react-table", "zod", "@nestjs/testing", "@nestjs/schematics", "lint-staged"],
   "workspaces": {
     "apps/api": {
       "entry": [

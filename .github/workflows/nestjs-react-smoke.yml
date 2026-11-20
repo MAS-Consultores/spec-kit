@@ -16,6 +16,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Restore ESLint cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint
+          key: eslint-nestjs-react-${{ runner.os }}-${{ hashFiles('presets/mas-stack-nestjs-react/reference/pnpm-lock.yaml', 'presets/mas-stack-nestjs-react/reference/eslint.config.js', 'presets/mas-stack-nestjs-react/reference/eslint/**') }}
+          restore-keys: |
+            eslint-nestjs-react-${{ runner.os }}-
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -410,6 +418,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Restore ESLint cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint
+          key: eslint-nestjs-react-${{ runner.os }}-${{ hashFiles('presets/mas-stack-nestjs-react/reference/pnpm-lock.yaml', 'presets/mas-stack-nestjs-react/reference/eslint.config.js', 'presets/mas-stack-nestjs-react/reference/eslint/**') }}
+          restore-keys: |
+            eslint-nestjs-react-${{ runner.os }}-
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -480,6 +496,12 @@ jobs:
           cp -a "$work/.specify/reference/." "$work/"
           cd "$work"
           pnpm install --frozen-lockfile
+          eslint_cache_src="${GITHUB_WORKSPACE}/presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint"
+          eslint_cache_dst="${work}/node_modules/.cache/eslint"
+          if [ -d "$eslint_cache_src" ]; then
+            mkdir -p "$eslint_cache_dst"
+            cp -a "$eslint_cache_src/." "$eslint_cache_dst/"
+          fi
           bash scripts/ensure-postgres.sh
           pnpm db:generate
           deploy_out="$(pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
@@ -499,6 +521,10 @@ jobs:
           pnpm db:seed
           pnpm db:seed
           pnpm verify
+          if [ -d "$eslint_cache_dst" ]; then
+            mkdir -p "$eslint_cache_src"
+            cp -a "$eslint_cache_dst/." "$eslint_cache_src/"
+          fi
           pnpm build
           api_pid=""
           cleanup_api() {
@@ -583,6 +609,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Restore ESLint cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint
+          key: eslint-nestjs-react-${{ runner.os }}-${{ hashFiles('presets/mas-stack-nestjs-react/reference/pnpm-lock.yaml', 'presets/mas-stack-nestjs-react/reference/eslint.config.js', 'presets/mas-stack-nestjs-react/reference/eslint/**') }}
+          restore-keys: |
+            eslint-nestjs-react-${{ runner.os }}-
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -655,10 +689,20 @@ jobs:
           cp -a "$work/.specify/reference/." "$work/"
           cd "$work"
           pnpm install --frozen-lockfile
+          eslint_cache_src="${GITHUB_WORKSPACE}/presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint"
+          eslint_cache_dst="${work}/node_modules/.cache/eslint"
+          if [ -d "$eslint_cache_src" ]; then
+            mkdir -p "$eslint_cache_dst"
+            cp -a "$eslint_cache_src/." "$eslint_cache_dst/"
+          fi
           bash scripts/ensure-postgres.sh
           pnpm db:generate
           pnpm --filter @demo/contracts build
           pnpm lint
+          if [ -d "$eslint_cache_dst" ]; then
+            mkdir -p "$eslint_cache_src"
+            cp -a "$eslint_cache_dst/." "$eslint_cache_src/"
+          fi
           DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/upgrade" \
             node scripts/upgrade-on-data.mjs --split-last
           DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/upgrade_reject" \

@@ -102,6 +102,14 @@ Plugins en la última estable usada por el esqueleto: `eslint-plugin-sonarjs`, `
 
 Un `eslint-disable` sigue exigiendo `--` y un motivo. No hay excepciones globales.
 
+## ESLint más rápido, mismas reglas
+
+Sigue siendo ESLint 10.15.0 (última estable; ya trae `--concurrency`). No se usa Oxlint ni Oxfmt. `parserOptions.projectService` ya estaba en `true` en `eslint.config.js`; no hay un `project` aparte.
+
+`pnpm lint` llama a ESLint con `--cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto`. La caché vive bajo `node_modules/`, que git ignora. El contenido del archivo es la clave, así que un cambio de texto invalida esa entrada aunque la fecha no cambie. Los jobs `reference` y `skeleton-boot` restauran esa carpeta con `actions/cache` y la copian al árbol temporal antes del lint completo. El gate de CI sigue siendo `pnpm lint` / `pnpm verify` sobre todo el esqueleto.
+
+En un proyecto donde este esqueleto es la raíz de git, `pnpm install` deja `core.hooksPath` en `.githooks`. El pre-commit corre `lint-staged` y ESLint solo sobre los archivos cambiados. Si el esqueleto está dentro de otro repositorio, el hook no se instala. `knip` ignora la dependencia `lint-staged` porque no hay un import: la usa el hook.
+
 ## Known warnings that do not fail CI
 
 Prisma 7 prints that Node majors above 24 are outside its narrow preinstall table. The Active LTS (26) is inside `engines.node` (`>=24`) and the warning is not a failure. pnpm may warn that some Nest packages declare peers up to Nest 11. Those peers are allowed in `pnpm-workspace.yaml` `peerDependencyRules`. Do not use `pnpm approve --all`.
