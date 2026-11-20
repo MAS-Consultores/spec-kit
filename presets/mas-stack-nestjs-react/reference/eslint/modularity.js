@@ -29,6 +29,17 @@ const FETCH_PLACE =
 const LAYOUT =
   "Each Nest domain lives in apps/api/src/modules/<kebab-domain>/ with index.ts and <domain>.module.ts. Each web feature lives in apps/web/src/features/<kebab-feature>/ with index.ts. File names use the allowed suffixes (module, controller, service, repository, guard, strategy, decorators, interceptor, token, ability, permissions, spec).";
 
+const THIN_PRISMA =
+  "Controllers delegate to a service. Do not import @prisma/client, PrismaService, or the Prisma module.";
+const THIN_REPOSITORY =
+  "Controllers delegate to a service. Do not import or inject a repository.";
+const THIN_LOOP =
+  "Controllers delegate to a service. Do not put business loops in the controller.";
+const THIN_BRANCH =
+  "Controllers delegate to a service. A conditional is allowed only to reject a missing input (throw). Business branches belong in the service. Pipes and DTO validation stay.";
+const THIN_MATH =
+  "Controllers delegate to a service. Do not calculate in the controller.";
+
 const ROLE =
   "(?:module|controller|service|repository|guard|strategy|decorators|interceptor|token|ability|permissions|spec)";
 const NEST_FILE = new RegExp(`^(?:index\\.ts|[a-z0-9]+(?:-[a-z0-9]+)*(?:\\.${ROLE})+\\.ts)$`);
@@ -116,6 +127,37 @@ function isPublicIndex(file) {
 
 function report(context, node, messageId) {
   context.report({ node, messageId });
+}
+
+function isController(filename) {
+  return rel(filename).endsWith(".controller.ts");
+}
+
+function isNullish(node) {
+  if (!node) return false;
+  if (node.type === "Literal" && node.value === null) return true;
+  if (node.type === "Identifier" && node.name === "undefined") return true;
+  return false;
+}
+
+function isMissingCheck(test) {
+  if (!test) return false;
+  if (test.type === "UnaryExpression" && test.operator === "!") return true;
+  if (test.type === "BinaryExpression" && ["==", "===", "!=", "!=="].includes(test.operator)) {
+    return isNullish(test.left) || isNullish(test.right);
+  }
+  return false;
+}
+
+function isThrowOnly(statement) {
+  if (!statement) return false;
+  if (statement.type === "ThrowStatement") return true;
+  if (statement.type === "BlockStatement") return statement.body.every((item) => item.type === "ThrowStatement");
+  return false;
+}
+
+function isStringLiteral(node) {
+  return node.type === "Literal" && typeof node.value === "string";
 }
 
 export const modularityRules = {
@@ -296,6 +338,70 @@ export const modularityRules = {
                 ? callee.property.name
                 : "";
           if (name === "fetch") report(context, node, "banned");
+        },
+      };
+    },
+  },
+  "thin-controllers": {
+    meta: {
+      type: "problem",
+      docs: { description: THIN_BRANCH },
+      schema: [],
+      messages: {
+        prisma: THIN_PRISMA,
+        repository: THIN_REPOSITORY,
+        loop: THIN_LOOP,
+        branch: THIN_BRANCH,
+        math: THIN_MATH,
+      },
+    },
+    create(context) {
+      if (!isController(context.filename)) return {};
+      return {
+        ImportDeclaration(node) {
+          const source = node.source.value;
+          if (typeof source !== "string") return;
+          if (prismaImport(source) || source.includes("/modules/prisma/")) {
+            report(context, node, "prisma");
+            return;
+          }
+          if (source.includes(".repository")) report(context, node, "repository");
+        },
+        Identifier(node) {
+          if (node.parent.type === "ImportSpecifier" || node.parent.type === "ImportDefaultSpecifier") return;
+          if (node.name === "PrismaService" || node.name === "PrismaClient") {
+            report(context, node, "prisma");
+            return;
+          }
+          if (/Repository$/.test(node.name) && node.parent.type === "TSTypeAnnotation") {
+            report(context, node.parent, "repository");
+          }
+        },
+        NewExpression(node) {
+          if (node.callee.type === "Identifier" && node.callee.name === "PrismaClient") {
+            report(context, node, "prisma");
+          }
+        },
+        "ForStatement, ForInStatement, ForOfStatement, WhileStatement, DoWhileStatement"(node) {
+          report(context, node, "loop");
+        },
+        IfStatement(node) {
+          if (isMissingCheck(node.test) && isThrowOnly(node.consequent) && (!node.alternate || isThrowOnly(node.alternate))) {
+            return;
+          }
+          report(context, node, "branch");
+        },
+        SwitchStatement(node) {
+          report(context, node, "branch");
+        },
+        BinaryExpression(node) {
+          if (!["+", "-", "*", "/", "%"].includes(node.operator)) return;
+          if (node.operator === "+" && (isStringLiteral(node.left) || isStringLiteral(node.right))) return;
+          if (node.left.type === "Literal" && node.right.type === "Literal") return;
+          report(context, node, "math");
+        },
+        UpdateExpression(node) {
+          report(context, node, "math");
         },
       };
     },

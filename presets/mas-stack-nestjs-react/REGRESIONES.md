@@ -165,6 +165,15 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D14-17 | la plantilla MJML del preset no compila en strict, o la rota sí compila | `scripts/check-mjml.mjs` dentro de `pnpm lint`: `fixtures/email/welcome.mjml` sale HTML; `fixtures/email/broken.mjml` falla con `validationLevel: 'strict'` |
 | D14-18 | una imagen de entrada no es PNG o JPG, o la variante no aplica la orientación, no quita el EXIF o no mide el tamaño fijo | `apps/api/src/images/normalize-image.spec.ts` en `pnpm test`: un JPEG con orientación EXIF 6 (rojo a la izquierda, azul a la derecha) se acepta, un WebP se rechaza, y la variante avatar 128 sale en 128×128, sin `orientation` ni `exif`, con los mismos píxeles que `.rotate().resize({ fit: 'cover', position: 'centre' }).jpeg({ quality: 80 })`. El original no se devuelve |
 
+## Modularidad verificable
+
+| ID | Qué no puede volver | Dónde se prueba |
+| --- | --- | --- |
+| D15-01 | un módulo importa internals de otro (solo el `index` público) | `apps/api/lint-fixtures/depcruise/bad-internal` falla dependency-cruiser `no-foreign-module-internals` dentro de `pnpm lint`. `depcruise/valid` (import del `index.ts`, Prisma solo en el repositorio) pasa |
+| D15-02 | un ciclo de módulos | `apps/api/lint-fixtures/depcruise/bad-cycle` falla `no-circular`. El grafo `depcruise/valid` no tiene ciclo |
+| D15-03 | un controller importa Prisma (`@prisma/client` o `PrismaService`) | `apps/api/lint-fixtures/depcruise/bad-controller` falla `no-controller-prisma`. En `depcruise/valid` el controller importa el service y el repositorio importa `prisma.service` |
+| D15-04 | un controller importa o inyecta un repositorio, hace un bucle, un condicional de negocio o un cálculo | `thin-repository.controller.ts`, `thin-loop.controller.ts`, `thin-branch.controller.ts`, `thin-math.controller.ts` y `thin-prisma.controller.ts` fallan `mas/thin-controllers` dentro de `pnpm lint:fixtures`. Con la regla en `off` no emiten ese `ruleId`. Pasa un controller que delega al service y solo hace `if (!body) throw` |
+
 ## Código limpio y contratos
 
 | ID | Qué se rompió | Dónde se prueba |

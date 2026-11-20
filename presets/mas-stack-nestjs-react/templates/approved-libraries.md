@@ -6,6 +6,8 @@ Este archivo viaja con el preset. `specify init --stack nestjs-react` copia el d
 
 No se escribe un parser ni un lector a mano para un formato estándar. Si esta lista no nombra una librería, el plan la consulta o la justifica. No se inventa una aprobación.
 
+Importar tablas, subir archivos o imágenes y enviar correo son capacidades transversales. Van a un módulo común, con las guías de esqueleto `templates/common-modules/tabular-import.md`, `file-upload.md` y `mail.md`. El plan lo decide en la sección **Reutilización**.
+
 Una excepción en código lleva `// eslint-disable-next-line mas/no-handrolled-format-parsers -- <motivo>`. `mas/require-disable-justification` exige el motivo.
 
 ## Excel / xlsx

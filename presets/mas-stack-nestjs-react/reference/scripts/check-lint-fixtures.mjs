@@ -299,6 +299,7 @@ const eslint = new ESLint({
         "mas/lazy-feature-routes": "error",
         "mas/fetch-in-feature-data": "error",
         "mas/module-layout": "error",
+        "mas/thin-controllers": "error",
         "mas/no-url-includes-in-guards": "error",
         "mas/no-base64-file-upload": "error",
         "mas/base64-upload-max-length": "error",
@@ -382,6 +383,26 @@ cases.push(
   {
     file: "apps/api/lint-fixtures/modules/ledger/index.ts",
     expects: [{ ruleId: "mas/barrel-exports-only-public", includes: "public API" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-prisma.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "PrismaService" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-repository.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "repository" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-loop.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "business loops" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-branch.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "Business branches" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-math.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "calculate" }],
   },
 );
 
@@ -746,6 +767,12 @@ const textCases = [
     forbid: ["no-console"],
   },
   {
+    name: "thin controller delegates and may reject a missing input",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.controller.ts"),
+    code: 'function Controller(_path: string): ClassDecorator { return () => undefined; }\nfunction Post(_path: string): MethodDecorator { return () => undefined; }\nfunction Body(): ParameterDecorator { return () => undefined; }\nclass BadRequestException extends Error {}\nclass HealthService { create(_body: unknown): { id: string } { return { id: "1" }; } }\n@Controller("health")\nexport class HealthController {\n  constructor(private readonly health: HealthService) {}\n  @Post()\n  create(@Body() body: unknown): { id: string } {\n    if (!body) throw new BadRequestException("missing");\n    if (body == null) throw new BadRequestException("missing");\n    return this.health.create(body);\n  }\n}\n',
+    forbid: ["mas/thin-controllers", "mas/prisma-only-in-repositories"],
+  },
+  {
     name: "echarts only with a justified suppression",
     filePath: join(referenceRoot, "apps/web/src/features/home/components/home-page.tsx"),
     code: '// eslint-disable-next-line no-restricted-imports -- el mapa WebGL no cabe en Recharts\nimport "echarts";\nexport const chartLib = "echarts";\n',
@@ -771,40 +798,75 @@ for (const item of textCases) {
 
 const cruiseRoot = new URL("..", import.meta.url).pathname;
 const cruiseBin = join(cruiseRoot, "node_modules/.bin/depcruise");
+
+function cruiseText(error) {
+  const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
+  const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+  return `${stdout}\n${stderr}`;
+}
+
+function expectCruiseFailure(target, ruleName) {
+  try {
+    execFileSync(cruiseBin, [target, "--config", ".dependency-cruiser.fixtures.cjs"], {
+      cwd: cruiseRoot,
+      stdio: "pipe",
+    });
+    console.error(`dependency-cruiser accepted ${target}`);
+    process.exit(1);
+  } catch (error) {
+    const text = cruiseText(error);
+    if (!text.includes(ruleName)) {
+      console.error(text);
+      console.error(`dependency-cruiser did not report ${ruleName} for ${target}`);
+      process.exit(1);
+    }
+    console.log(`fixture ok dependency-cruiser ${ruleName} ${target}`);
+  }
+}
+
+expectCruiseFailure("apps/api/lint-fixtures/cycle", "no-circular");
+expectCruiseFailure("apps/api/lint-fixtures/spec-cycle", "no-circular");
+expectCruiseFailure("apps/api/lint-fixtures/depcruise/bad-internal", "no-foreign-module-internals");
+expectCruiseFailure("apps/api/lint-fixtures/depcruise/bad-cycle", "no-circular");
+expectCruiseFailure("apps/api/lint-fixtures/depcruise/bad-controller", "no-controller-prisma");
+
 try {
-  execFileSync(cruiseBin, ["apps/api/lint-fixtures/cycle", "--config", ".dependency-cruiser.fixtures.cjs"], {
+  execFileSync(cruiseBin, ["apps/api/lint-fixtures/depcruise/valid", "--config", ".dependency-cruiser.fixtures.cjs"], {
     cwd: cruiseRoot,
     stdio: "pipe",
   });
-  console.error("dependency-cruiser accepted a module cycle");
-  process.exit(1);
+  console.log("fixture ok dependency-cruiser valid");
 } catch (error) {
-  const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
-  const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
-  const text = `${stdout}\n${stderr}`;
-  if (!text.includes("no-circular") && !text.includes("circular")) {
-    console.error(text);
-    console.error("dependency-cruiser did not report the cycle fixture");
+  console.error(cruiseText(error));
+  console.error("dependency-cruiser rejected the valid module graph");
+  process.exit(1);
+}
+
+const thinOff = new ESLint({
+  cwd: cruiseRoot,
+  overrideConfigFile: true,
+  overrideConfig: [
+    {
+      files: ["**/*.controller.ts"],
+      plugins: { mas },
+      languageOptions: { parser: tseslint.parser },
+      rules: { "mas/thin-controllers": "off" },
+    },
+  ],
+});
+for (const file of [
+  "apps/api/lint-fixtures/thin-prisma.controller.ts",
+  "apps/api/lint-fixtures/thin-repository.controller.ts",
+  "apps/api/lint-fixtures/thin-loop.controller.ts",
+  "apps/api/lint-fixtures/thin-branch.controller.ts",
+  "apps/api/lint-fixtures/thin-math.controller.ts",
+]) {
+  const results = await thinOff.lintFiles([file]);
+  const hit = results.flatMap((result) => result.messages).find((message) => message.ruleId === "mas/thin-controllers");
+  if (hit) {
+    console.error(`rule off still emitted mas/thin-controllers for ${file}`);
     process.exit(1);
   }
-  console.log("fixture ok dependency-cruiser cycle");
 }
-try {
-  execFileSync(cruiseBin, ["apps/api/lint-fixtures/spec-cycle", "--config", ".dependency-cruiser.fixtures.cjs"], {
-    cwd: cruiseRoot,
-    stdio: "pipe",
-  });
-  console.error("dependency-cruiser accepted a spec cycle");
-  process.exit(1);
-} catch (error) {
-  const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
-  const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
-  const text = `${stdout}\n${stderr}`;
-  if (!text.includes("no-circular") && !text.includes("circular")) {
-    console.error(text);
-    console.error("dependency-cruiser did not report the spec cycle");
-    process.exit(1);
-  }
-  console.log("fixture ok dependency-cruiser spec cycle");
-}
+console.log("fixture ok mas/thin-controllers off");
 console.log("lint-fixtures ok");

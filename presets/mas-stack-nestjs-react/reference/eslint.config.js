@@ -73,6 +73,7 @@ export default tseslint.config(
       "mas/lazy-feature-routes": "error",
       "mas/fetch-in-feature-data": "error",
       "mas/module-layout": "error",
+      "mas/thin-controllers": "error",
       "mas/no-url-includes-in-guards": "error",
       "mas/no-base64-file-upload": "error",
       "mas/base64-upload-max-length": "error",

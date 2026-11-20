@@ -206,7 +206,7 @@ The skeleton keeps generic infrastructure only: health, guards, CASL wiring, the
 Todo proyecto generado con este preset MUST cumplir estas reglas. Cada una nombra el control que la hace fallar (`pnpm lint` ejecuta ESLint, dependency-cruiser y los fixtures negativos).
 
 - MUST haber un módulo Nest por dominio en `apps/api/src/modules/<dominio>/`, con `index.ts` público y `<dominio>.module.ts`. `AppModule` solo compone: registra el módulo con un `import` en `imports`. MUST NOT importar archivos internos de otro módulo; solo su `index.ts`. Reglas: `mas/module-layout`, `mas/public-module-api`. dependency-cruiser: `no-foreign-module-internals`
-- MUST respetar controller → service de caso de uso → `*.repository.ts`. Solo los repositorios y `apps/api/src/modules/prisma` importan Prisma o `PrismaService`. `PrismaModule` MUST NOT ser `@Global()`. `@Global()` y `global: true` solo en `apps/api/src/config`. `AuthBridgeModule` puede reexportar auth, y además `McpModule.forRoot` MUST importar `AuthModule` (`imports: [AuthModule]`) porque el verifier se construye dentro del módulo dinámico y un reexport global no le entrega `JwtService`. El seed y los `*.e2e.ts` pueden abrir un cliente porque no atienden requests. Reglas: `mas/prisma-only-in-repositories`, `mas/no-global-module`
+- MUST respetar controller → service de caso de uso → `*.repository.ts`. Solo los repositorios y `apps/api/src/modules/prisma` importan `@prisma/client` o `PrismaService`. Un controller MUST NOT importar Prisma ni un repositorio, y MUST NOT contener bucles, cálculos ni condicionales de negocio: solo delega al service. Un `if` que rechaza un input ausente (`throw`) sí puede quedar; la validación de forma vive en pipes y DTO. `PrismaModule` MUST NOT ser `@Global()`. `@Global()` y `global: true` solo en `apps/api/src/config`. `AuthBridgeModule` puede reexportar auth, y además `McpModule.forRoot` MUST importar `AuthModule` (`imports: [AuthModule]`) porque el verifier se construye dentro del módulo dinámico y un reexport global no le entrega `JwtService`. El seed y los `*.e2e.ts` pueden abrir un cliente porque no atienden requests. Reglas: `mas/prisma-only-in-repositories`, `mas/thin-controllers`, `mas/no-global-module`. dependency-cruiser: `no-controller-prisma`
 - MUST NOT pasar de 300 líneas por archivo ni de 60 por función (sin contar vacías ni comentarios). Una excepción MUST llevar `eslint-disable` con justificación tras `--`. Reglas: `max-lines`, `max-lines-per-function`, `mas/require-disable-justification`
 - MUST NOT haber estado mutable de módulo (`let`, `var`, `new Map`, `new Set`, arrays mutables en el top-level de `apps/`). Los contadores y el rate limit viven en Postgres (`rate_limit_buckets`), no en memoria. Regla: `mas/no-module-state`
 - Un guard MUST NOT decidir un bypass con `originalUrl.includes` ni `url.includes`. Compara solo el path parseado. Regla: `mas/no-url-includes-in-guards`
@@ -256,6 +256,18 @@ El mismo archivo de librerías aprobadas nombra el resto del stack. No se agrega
 - `packages/ui` MUST ser solo primitivas genéricas: no importa contracts, rutas ni código de apps. `packages/contracts/src/<dominio>/index.ts` es la entrada pública de ese dominio (`@demo/contracts/<dominio>`). MUST NOT importar internos de otro contrato. Reglas: `boundaries/dependencies`, `mas/contracts-public-index`, dependency-cruiser `ui-primitives-only` y `contracts-are-leaf`
 - Un repositorio MUST usar solo los delegates Prisma de su dominio (`eslint/model-ownership.js`). El acceso cruzado pasa por el service exportado del otro módulo. Regla: `mas/own-models-only`
 - Agregar un dominio MUST tocar solo la línea de `imports` en `AppModule`, el registro en `feature-routes.ts` y el mapa de ownership. El resto lo crea `pnpm gen:module <dominio>` (módulo, feature, `packages/contracts/<dominio>`, `prisma/schema/<dominio>.prisma`). El esquema Prisma MUST ser multi-archivo bajo `prisma/schema/` (generador solo en `base.prisma`; `prisma` y `@prisma/client` en 7.10.1). Eso no cabe en ESLint: lo cubren `scripts/check-prisma-layout.mjs` y `scripts/check-gen-fitness.mjs` (genera dos dominios, corre lint, typecheck, test y build, exige que el diff no salga de esos archivos y los borra)
+
+### Reutilización
+
+Una capacidad transversal MUST vivir en un módulo común, no dentro del módulo de negocio que la usa. El plan MUST incluir la sección **Reutilización**: revisa los módulos comunes que ya existen y decide si la capacidad es genérica (módulo común) o propia de la feature.
+
+Quedan como guías de esqueleto, no como código de negocio, en `.specify/presets/mas-stack-nestjs-react/templates/common-modules/`:
+
+- `tabular-import.md`: pipeline parse → normalizar → validar → reconciliar → aplicar por lotes, independiente de si la fuente es un archivo o un webservice. xlsx con `exceljs`, CSV con `csv-parse`
+- `file-upload.md`: multipart, `file-type` y `sharp`, con los estándares de subida e imágenes
+- `mail.md`: plantillas MJML compiladas en strict e interpolación Handlebars
+
+`/speckit.analyze` MUST marcar **CRITICAL** si importar archivos tabulares, subir archivos o imágenes, o enviar correo queda implementado en un módulo de negocio, o si `plan.md` omite **Reutilización**.
 
 ### Migraciones seguras sobre datos existentes
 

@@ -13,6 +13,8 @@ contains.
 
 Read `.specify/memory/stack-context.md` and apply every item under "Mandatory Auth Phase", "pnpm verify tasks", and "Mandatory Setup Tasks".
 
+When the feature imports tabular data, uploads files or images, or sends mail, `tasks.md` MUST schedule that work in the common module from `.specify/presets/mas-stack-nestjs-react/templates/common-modules/` (`tabular-import.md`, `file-upload.md`, `mail.md`), not inside the business module. The tasks MUST point at the **Reutilización** section of `plan.md`. Tabular import uses the pipeline parse → normalize → validate → reconcile → apply in batches, with `exceljs` and `csv-parse`. File upload uses multipart, `file-type`, and `sharp`. Mail uses MJML and Handlebars.
+
 When `apps/api` has no `AuthModule`, `tasks.md` MUST contain a blocking auth phase before user stories: login, HttpOnly cookies, CSRF, rotating refresh tokens with reuse detection, roles, and a user seed.
 
 When the feature includes authentication (login, account recovery, one-time passwords or tokens, session issuance, password change, or mail that carries auth secrets), `tasks.md` MUST include a task for each authentication security rule, including the test that covers it. Mark a rule not applicable only with a reason. The rules are:
