@@ -248,6 +248,16 @@ Every relevant action MUST be audited—this is foundational, not optional:
 - Audit write in same `$transaction` as business operation or via outbox pattern
 - Sensitive data masked; retention via monthly partitions
 
+### Bitácora de actividad
+
+MUST: cada caso de uso que crea, modifica o elimina datos, cambia configuración, permisos, idioma, marca o sesión, o es un evento de seguridad (inicio de sesión, fallo, bloqueo, recuperación, impersonación) registra un evento append-only. El evento lleva actor, persona afectada cuando aplica, tipo de evento, resultado, timestamp y metadatos sin secretos. Nunca se persisten contraseñas, hashes ni tokens.
+
+Los tipos de evento se declaran en el catálogo extensible `packages/contracts/src/audit/index.ts` (`AUDIT_CATALOG`): clave, clave i18n presente en todos los idiomas declarados, y tono (`neutral`, `success`, `warning`, `danger`). Ese catálogo alimenta el filtro de tipos de la pantalla Actividad. Registrar un tipo que no está en el catálogo falla en tiempo de ejecución (`requireAuditEventKey`).
+
+Las lecturas puras no se registran, salvo que la spec lo pida. La única excepción es explícita y justificada (`@NoAudit('motivo')` en el handler y la misma justificación en la spec).
+
+El handler Nest que usa `@Post`, `@Put`, `@Patch` o `@Delete` MUST llevar `@Audit('clave')` con una clave del catálogo, o ese opt-out. `mas/require-audit-on-mutations` dentro de `pnpm lint` rechaza el handler sin uno de los dos y rechaza una clave no declarada. El caso que se escapó: cambiar el idioma en admin no dejaba fila en la bitácora ni aparecía en Actividad.
+
 ### Soft Delete by Default
 
 Soft delete is mandatory for all business entities:

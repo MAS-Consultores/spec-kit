@@ -4,5 +4,14 @@
   "rutLabel": "RUT",
   "dateLabel": "Fecha",
   "numberLabel": "Número",
-  "logout": "Salir"
+  "logout": "Salir",
+  "activity": {
+    "events": {
+      "auth": {
+        "login": "Inicio de sesión",
+        "refresh": "Renovación de sesión",
+        "logout": "Cierre de sesión"
+      }
+    }
+  }
 }

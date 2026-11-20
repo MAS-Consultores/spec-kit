@@ -130,6 +130,14 @@ const cases = [
     file: "apps/web/lint-fixtures/i18n/jsx-literal.tsx",
     expects: [{ ruleId: "mas/no-literal-copy", includes: "locales/*.json" }],
   },
+  {
+    file: "apps/api/lint-fixtures/missing-audit.controller.ts",
+    expects: [{ ruleId: "mas/require-audit-on-mutations", includes: "@Audit" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/unknown-audit.controller.ts",
+    expects: [{ ruleId: "mas/require-audit-on-mutations", includes: "catalog" }],
+  },
 ];
 
 const eslint = new ESLint({
@@ -176,6 +184,7 @@ const eslint = new ESLint({
         "mas/no-i18n-mutation-in-render": "error",
         "mas/no-module-translation": "error",
         "mas/no-literal-copy": "error",
+        "mas/require-audit-on-mutations": "error",
         "import-x/no-cycle": "error",
         "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
         "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
@@ -249,6 +258,18 @@ const textCases = [
     filePath: join(referenceRoot, "apps/web/src/i18n/locale.tsx"),
     code: 'import { useEffect } from "react";\nconst i18n = { language: "es-CL", changeLanguage(_l: string) { return Promise.resolve(); } };\nexport function useApplyLocale(next: string): void {\n  useEffect(() => {\n    if (i18n.language !== next) void i18n.changeLanguage(next);\n  }, [next]);\n}\n',
     forbid: ["mas/no-i18n-mutation-in-render"],
+  },
+  {
+    name: "mutation handler with a catalog audit key",
+    filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.controller.ts"),
+    code: 'import { Controller, Post } from "@nestjs/common";\nfunction Audit(_key: string): MethodDecorator { return () => undefined; }\n@Controller("auth")\nexport class AuthController {\n  @Post("login")\n  @Audit("auth.login")\n  login(): { ok: true } {\n    return { ok: true };\n  }\n}\n',
+    forbid: ["mas/require-audit-on-mutations"],
+  },
+  {
+    name: "mutation handler with an explicit audit opt-out",
+    filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.controller.ts"),
+    code: 'import { Controller, Post } from "@nestjs/common";\nfunction NoAudit(_reason: string): MethodDecorator { return () => undefined; }\n@Controller("auth")\nexport class AuthController {\n  @Post("probe")\n  @NoAudit("health probe writes no business state")\n  probe(): { ok: true } {\n    return { ok: true };\n  }\n}\n',
+    forbid: ["mas/require-audit-on-mutations"],
   },
   {
     name: "t() during render and labelKey navigation",

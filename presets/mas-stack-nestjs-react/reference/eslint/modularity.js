@@ -27,10 +27,10 @@ const FETCH_PLACE =
   "fetch belongs in a feature hooks/ or api/ file. Shell and layout components receive actions through props. Feature components and route components do not call fetch.";
 
 const LAYOUT =
-  "Each Nest domain lives in apps/api/src/modules/<kebab-domain>/ with index.ts and <domain>.module.ts. Each web feature lives in apps/web/src/features/<kebab-feature>/ with index.ts. File names use the allowed suffixes (module, controller, service, repository, guard, strategy, decorators, token, ability, permissions, spec).";
+  "Each Nest domain lives in apps/api/src/modules/<kebab-domain>/ with index.ts and <domain>.module.ts. Each web feature lives in apps/web/src/features/<kebab-feature>/ with index.ts. File names use the allowed suffixes (module, controller, service, repository, guard, strategy, decorators, interceptor, token, ability, permissions, spec).";
 
 const ROLE =
-  "(?:module|controller|service|repository|guard|strategy|decorators|token|ability|permissions|spec)";
+  "(?:module|controller|service|repository|guard|strategy|decorators|interceptor|token|ability|permissions|spec)";
 const NEST_FILE = new RegExp(`^(?:index\\.ts|[a-z0-9]+(?:-[a-z0-9]+)*(?:\\.${ROLE})+\\.ts)$`);
 const FEATURE_FILE = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(?:ts|tsx)$/;
 const DOMAIN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;

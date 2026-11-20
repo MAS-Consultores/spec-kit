@@ -74,6 +74,7 @@ export default tseslint.config(
       "mas/no-i18n-mutation-in-render": "error",
       "mas/no-module-translation": "error",
       "mas/no-literal-copy": "error",
+      "mas/require-audit-on-mutations": "error",
     },
   },
   {

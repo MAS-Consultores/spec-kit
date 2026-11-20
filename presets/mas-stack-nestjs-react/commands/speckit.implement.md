@@ -24,6 +24,8 @@ A run that only has a few unit tests and a single Playwright spec does not meet 
 
 ## Modularidad estricta
 
+Follow **Bitácora de actividad** in the stack constitution. Each mutating handler uses `@Audit('event.key')` with a catalog key, or `@NoAudit('motivo')` when the spec records that exception. Do not finish while `mas/require-audit-on-mutations` fails.
+
 Follow **Modularidad estricta** in the stack constitution. New domains come from `pnpm gen:module <dominio>`. Do not register a domain by editing another domain. `pnpm lint` must stay at 0.
 
 Follow **Migraciones seguras sobre datos existentes**. Do not edit a migration that is already on the base branch. Add a new migration. Do not add `NOT NULL` without `DEFAULT` or a backfill, and do not `UPDATE` a column to NULL while it is still `NOT NULL`. Destructive SQL needs `-- mas:allow-destructive <motivo>`. `pnpm db:seed` does not deploy production.

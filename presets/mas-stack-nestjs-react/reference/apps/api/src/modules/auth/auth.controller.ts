@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { readCookie } from "../../http.js";
+import { Audit } from "../audit/index.js";
 import { AuthService } from "./auth.service.js";
 import { Authenticated, Public } from "./auth.decorators.js";
 import type { AccessPayload } from "./jwt-auth.guard.js";
@@ -11,12 +12,14 @@ export class AuthController {
 
   @Public()
   @Post("login")
+  @Audit("auth.login")
   login(@Body() body: unknown, @Res({ passthrough: true }) res: Response): Promise<{ csrfToken: string }> {
     return this.auth.login(body, res);
   }
 
   @Public()
   @Post("refresh")
+  @Audit("auth.refresh")
   refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) res: Response,
@@ -26,6 +29,7 @@ export class AuthController {
 
   @Authenticated()
   @Post("logout")
+  @Audit("auth.logout")
   logout(
     @Req() request: Request & { user?: AccessPayload },
     @Res({ passthrough: true }) res: Response,

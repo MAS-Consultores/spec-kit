@@ -1,3 +1,4 @@
+import { auditRules } from "./audit-rules.js";
 import { iconColorRules } from "./icons-color.js";
 import { i18nRules } from "./i18n-rules.js";
 import { modularityRules } from "./modularity.js";
@@ -131,6 +132,7 @@ const masPlugin = {
       },
     },
     ...modularityRules,
+    ...auditRules,
     ...iconColorRules,
     ...i18nRules,
     "require-disable-justification": {

@@ -76,6 +76,8 @@ When the feature includes authentication (login, account recovery, one-time pass
 - [ ] Guard bypasses compare the parsed path only and never use `originalUrl.includes` or `url.includes`
 - [ ] Tests cover every rule that applies
 
+`plan.md` MUST include a section titled **Eventos de bitácora**. For each event in the spec, name where it is recorded: the Nest handler, `@Audit('event.key')` (or `@NoAudit('motivo')` with the spec's reason), the catalog entry, and the write in the same transaction as the business change. Metadata MUST omit passwords, hashes, and tokens. Pure reads are not planned as audit events unless the spec lists them.
+
 Do not plan an example slice. The reference has no notes or widgets module, no demonstration screen, and no `example.com` seed. Identity tables in the skeleton are generic auth infrastructure and stay empty until a feature defines accounts. Domain models, screens, and seeds come from the feature spec.
 
 Database names stay English. Prisma models are PascalCase singular. Physical tables are snake_case plural through `@@map` and physical columns are snake_case through `@map`. Do not plan Spanglish identifiers or Spanish enum values in the schema. A field that must match an external source system 1:1 may keep that source name on the model; its column is still snake_case and the plan records the exception.

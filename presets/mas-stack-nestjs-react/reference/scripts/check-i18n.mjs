@@ -38,11 +38,13 @@ function referencedKeys(files) {
     const text = readFileSync(file, "utf8");
     for (const match of text.matchAll(/\bt\(\s*["']([^"']+)["']/g)) used.add(match[1]);
     for (const match of text.matchAll(/\blabelKey\s*[:=]\s*["']([^"']+)["']/g)) used.add(match[1]);
+    for (const match of text.matchAll(/\bi18nKey\s*:\s*["']([^"']+)["']/g)) used.add(match[1]);
   }
   return used;
 }
 
 export function auditLocales(localesDir, sourceDir) {
+  const sourceDirs = Array.isArray(sourceDir) ? sourceDir : [sourceDir];
   const errors = [];
   if (!existsSync(localesDir)) {
     errors.push(`${localesDir}: no locales directory`);
@@ -58,7 +60,7 @@ export function auditLocales(localesDir, sourceDir) {
       if (!keys.has(key)) errors.push(`${name}: missing key ${key}`);
     }
   }
-  const used = referencedKeys(walk(sourceDir));
+  const used = referencedKeys(sourceDirs.flatMap((dir) => walk(dir)));
   for (const key of used) {
     for (const [name, keys] of bundles) {
       if (!keys.has(key)) errors.push(`${name}: missing key ${key} referenced in source`);
@@ -102,7 +104,8 @@ function runFixtures() {
 }
 
 const webSrc = new URL("../apps/web/src/", import.meta.url).pathname;
-const project = auditLocales(join(webSrc, "locales"), webSrc);
+const contractsSrc = new URL("../packages/contracts/src/", import.meta.url).pathname;
+const project = auditLocales(join(webSrc, "locales"), [webSrc, contractsSrc]);
 const template = readFileSync(new URL("../templates/i18n-login.spec.ts", import.meta.url), "utf8");
 if (!template.includes("RESPOND_MS") || template.includes("page.screenshot") || template.includes("toHaveScreenshot")) {
   project.push("templates/i18n-login.spec.ts must assert a response budget and must not take screenshots");

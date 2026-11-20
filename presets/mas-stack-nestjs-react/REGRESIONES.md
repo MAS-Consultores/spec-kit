@@ -115,6 +115,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D11-08 | con el esquema en `prisma/schema/`, `prisma migrate deploy` imprime `No migration found in prisma/migrations` y sale 0 si `migrations.path` no es absoluto | `apps/api/prisma.config.ts` fija `schema` y `migrations.path` con `import.meta.dirname`; el job `skeleton-boot` falla si la salida contiene `No migration found` |
 | D11-09 | `pnpm lint` con el cliente Prisma sin generar reporta cientos de errores de módulo ausente | `pnpm lint` ejecuta `scripts/ensure-prisma-client.mjs` (`prisma generate`) antes de ESLint; el job `skeleton-boot` corre `pnpm lint` tras generate |
 | D11-10 | el CI de humo no levantaba la API como proceso ni trataba `No migration found` como fallo, así que un Postgres limpio y el DI de MCP pasaban | el job `skeleton-boot` (Postgres 16) hace generate, `migrate deploy`, seed, arranque real con healthcheck, `pnpm test:e2e:api` y Playwright |
+| D11-11 | cambiar el idioma en admin no dejaba fila en la bitácora ni aparecía en Actividad; un handler `@Post`/`@Put`/`@Patch`/`@Delete` sin `@Audit('clave')` del catálogo (o `@NoAudit('motivo')`) no registra actor, persona afectada, tipo, resultado ni timestamp | `apps/api/lint-fixtures/missing-audit.controller.ts` y `unknown-audit.controller.ts` (`mas/require-audit-on-mutations`) dentro de `pnpm lint`; `audit.spec.ts` exige `auth.login` en `activityTypeFilter` y que `language.changed` lance `undeclared audit event` |
 
 ## Lint determinista del esqueleto
 

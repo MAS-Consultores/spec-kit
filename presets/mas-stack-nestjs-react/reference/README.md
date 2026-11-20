@@ -69,6 +69,15 @@ Vite proxies `/api` to `API_PROXY_TARGET` for `dev` and `preview`. Playwright op
 
 Playwright does not download browsers during `pnpm install`. If chromium is missing, `node scripts/ensure-playwright.mjs` (from `apps/web`) exits 1 and tells you to run `pnpm exec playwright install chromium`. Dev servers do not assume ports 3000, 4173, or 5432 are free. Playwright binds a free port and reuses a saved pair only when both ports are free or both servers still answer. A dead listener is discarded, so two Playwright runs in a row do not share it. If 5432 is busy, point `DATABASE_URL` and `SEED_DATABASE_URL` at the port that is listening.
 
+## Bitácora de actividad
+
+Cada mutación y cada evento de seguridad escribe en `audit_logs` y se filtra en Actividad. Para agregar un tipo:
+
+1. Añade la clave en `packages/contracts/src/audit/index.ts` (`AUDIT_CATALOG`) con `i18nKey` y `tone` (`neutral`, `success`, `warning` o `danger`).
+2. Traduce esa `i18nKey` en cada archivo de `apps/web/src/locales/`. El filtro de tipos de Actividad sale de `activityTypeFilter()`.
+3. Marca el handler con `@Audit('clave')`. Un opt-out solo vale con `@NoAudit('motivo')` y la misma justificación en la spec.
+4. No guardes contraseñas, hashes ni tokens en los metadatos. Una clave ausente del catálogo falla al registrar y también en `pnpm lint` (`mas/require-audit-on-mutations`).
+
 ## Known warnings that do not fail CI
 
 Prisma 7 prints that Node majors above 24 are outside its narrow preinstall table. The Active LTS (26) is inside `engines.node` (`>=24`) and the warning is not a failure. pnpm may warn that some Nest packages declare peers up to Nest 11. Those peers are allowed in `pnpm-workspace.yaml` `peerDependencyRules`. Do not use `pnpm approve --all`.
