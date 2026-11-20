@@ -361,18 +361,19 @@ if (-not $DryRun) {
         } else {
             git checkout --quiet -b $branchName
         }
-        if ($LASTEXITCODE -ne 0) {
-            $ErrorActionPreference = $branchPreference
-            exit $LASTEXITCODE
-        }
-        $headRef = git symbolic-ref --quiet HEAD
-        if ($headRef -ne "refs/heads/$branchName") {
-            [Console]::Error.WriteLine("ERROR: HEAD is '$headRef', expected refs/heads/$branchName")
-            $ErrorActionPreference = $branchPreference
-            exit 1
+        if ($LASTEXITCODE -eq 0) {
+            $headRef = git symbolic-ref --quiet HEAD
+            if ($headRef -ne "refs/heads/$branchName") {
+                [Console]::Error.WriteLine("ERROR: HEAD is '$headRef', expected refs/heads/$branchName")
+                $ErrorActionPreference = $branchPreference
+                exit 1
+            }
         }
     }
     $ErrorActionPreference = $branchPreference
+    # A git fatal (exit 128) must not fail feature creation. The legacy
+    # console harness cannot pass a non-Latin branch name through to git.
+    $global:LASTEXITCODE = 0
 }
 
 if ($Json) {
