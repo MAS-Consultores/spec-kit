@@ -72,7 +72,7 @@ writeFileSync(
 
 writeFileSync(
   join(featureDir, "components", `${name}-page.tsx`),
-  `import type { ReactElement } from "react";\nimport { useTranslation } from "react-i18next";\nimport { load${pascal}s } from "../api/${name}-api";\n\nexport function ${pascal}Page(): ReactElement {\n  const { t } = useTranslation();\n  void load${pascal}s;\n  return (\n    <main>\n      <h1>{t("title")}</h1>\n    </main>\n  );\n}\n`,
+  `import type { ReactElement } from "react";\nimport { useTranslation } from "react-i18next";\nimport { load${pascal}s } from "../api/${name}-api";\n\nexport function ${pascal}Page(): ReactElement {\n  const { t } = useTranslation();\n  return (\n    <main data-loader={load${pascal}s.name}>\n      <h1>{t("title")}</h1>\n    </main>\n  );\n}\n`,
 );
 
 writeFileSync(
