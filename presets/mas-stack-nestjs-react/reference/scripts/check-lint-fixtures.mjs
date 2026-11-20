@@ -161,6 +161,26 @@ const cases = [
     file: "apps/api/lint-fixtures/upload-no-type.controller.ts",
     expects: [{ ruleId: "mas/multipart-upload-limits", includes: "FileTypeValidator" }],
   },
+  {
+    file: "apps/api/lint-fixtures/import-xlsx.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "exceljs" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/zlib-inflate.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "inflateRaw" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/sheet-xml.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "sheetData" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/csv-split.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "csv-parse" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/pdf-handrolled.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "pdf-lib" }],
+  },
 ];
 
 const eslint = new ESLint({
@@ -205,6 +225,7 @@ const eslint = new ESLint({
         "mas/no-base64-file-upload": "error",
         "mas/base64-upload-max-length": "error",
         "mas/multipart-upload-limits": "error",
+        "mas/no-handrolled-format-parsers": "error",
         "mas/icon-library": "error",
         "mas/no-literal-color": "error",
         "mas/no-i18n-mutation-in-render": "error",
@@ -294,6 +315,37 @@ for (const item of cases) {
   }
 }
 if (failed) process.exit(1);
+
+const formatOff = new ESLint({
+  cwd: new URL("..", import.meta.url).pathname,
+  overrideConfigFile: true,
+  overrideConfig: [
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: { mas },
+      languageOptions: { parser: tseslint.parser },
+      rules: { "mas/no-handrolled-format-parsers": "off" },
+    },
+  ],
+});
+const formatFixtures = [
+  "apps/api/lint-fixtures/import-xlsx.service.ts",
+  "apps/api/lint-fixtures/zlib-inflate.service.ts",
+  "apps/api/lint-fixtures/sheet-xml.service.ts",
+  "apps/api/lint-fixtures/csv-split.service.ts",
+  "apps/api/lint-fixtures/pdf-handrolled.service.ts",
+];
+for (const file of formatFixtures) {
+  const results = await formatOff.lintFiles([file]);
+  const hit = results
+    .flatMap((result) => result.messages)
+    .find((message) => message.ruleId === "mas/no-handrolled-format-parsers");
+  if (hit) {
+    console.error(`rule off still emitted mas/no-handrolled-format-parsers for ${file}`);
+    process.exit(1);
+  }
+  console.log(`fixture off ok ${file}`);
+}
 
 const referenceRoot = new URL("..", import.meta.url).pathname;
 const central = join(referenceRoot, "apps/web/src/icons/index.ts");
@@ -388,6 +440,48 @@ const textCases = [
     filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.service.ts"),
     code: 'export class AuthService {\n  decode(secret: string): Buffer {\n    return Buffer.from(secret, "base64");\n  }\n}\nexport class SessionDto {\n  refreshBase64Url!: string;\n}\n',
     forbid: ["mas/no-base64-file-upload", "mas/base64-upload-max-length"],
+  },
+  {
+    name: "exceljs streaming reader",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { stream } from "exceljs";\nexport async function readSheet(input: AsyncIterable<unknown>): Promise<void> {\n  const reader = new stream.xlsx.WorkbookReader(input, {});\n  for await (const worksheet of reader) {\n    for await (const row of worksheet) {\n      void row;\n    }\n  }\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "csv-parse reads a csv",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { parse } from "csv-parse";\nexport function readCsv(csvText: string): void {\n  parse(csvText, { columns: true }, () => undefined);\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "justified suppression for a legacy csv line",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'export function legacy(fileText: string): string[] {\n  const line = fileText;\n  // eslint-disable-next-line mas/no-handrolled-format-parsers -- el plan documenta este CSV de una sola columna heredada\n  return line.split(",");\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers", "mas/require-disable-justification"],
+  },
+  {
+    name: "gzip and a header split are not format parsers",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { gzipSync } from "node:zlib";\nexport function pack(body: Buffer, header: string): { packed: Buffer; parts: string[] } {\n  return { packed: gzipSync(body), parts: header.split(",") };\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "pdf-lib loads a pdf",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { PDFDocument } from "pdf-lib";\nexport async function merge(bytes: Uint8Array): Promise<Uint8Array> {\n  const doc = await PDFDocument.load(bytes);\n  return doc.save();\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "unpdf extracts text",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { extractText } from "unpdf";\nexport async function textOf(data: Uint8Array): Promise<unknown> {\n  return extractText(data);\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "playwright page.pdf renders html",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'type Page = { pdf: (options: { format: "A4" }) => Promise<Uint8Array> };\nexport function certificate(page: Page): Promise<Uint8Array> {\n  return page.pdf({ format: "A4" });\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
   },
   {
     name: "module index reexports the public class",

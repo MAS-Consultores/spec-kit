@@ -76,6 +76,26 @@ export default tseslint.config(
       "mas/no-base64-file-upload": "error",
       "mas/base64-upload-max-length": "error",
       "mas/multipart-upload-limits": "error",
+      "mas/no-handrolled-format-parsers": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "xlsx",
+              message:
+                "The npm package xlsx (SheetJS) is forbidden. Read and write xlsx with exceljs. See approved-libraries.md.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["xlsx/*"],
+              message:
+                "The npm package xlsx (SheetJS) is forbidden. Read and write xlsx with exceljs. See approved-libraries.md.",
+            },
+          ],
+        },
+      ],
       "mas/icon-library": "error",
       "mas/no-literal-color": "error",
       "mas/no-i18n-mutation-in-render": "error",

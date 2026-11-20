@@ -132,6 +132,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
   - [ ] Password change and session revocation reject access tokens and refresh tokens issued before `passwordChangedAt` or an older token version; refresh checks before issuing
   - [ ] Guard bypasses compare the parsed path only (`mas/no-url-includes-in-guards`); never `originalUrl.includes` or `url.includes`
   - [ ] File uploads use `multipart/form-data` with `FileInterceptor` / `FilesInterceptor` / `FileFieldsInterceptor` / `AnyFilesInterceptor`, `limits.fileSize`, and a type check (`fileFilter` or `ParseFilePipe` with `FileTypeValidator` or a magic-byte validator). JSON base64 is only allowed at ≤ 1 MiB (`@MaxLength(1048576)` or `z.string().max(1048576)`) with `// eslint-disable-next-line mas/no-base64-file-upload -- <motivo>`. Rules: `mas/multipart-upload-limits`, `mas/no-base64-file-upload`, `mas/base64-upload-max-length`
+  - [ ] Standard formats use `.specify/presets/mas-stack-nestjs-react/templates/approved-libraries.md` (copied by `specify init --stack nestjs-react`): `exceljs` for xlsx, `csv-parse` for CSV, Playwright `page.pdf()` / `pdf-lib` / `unpdf` for PDF. The npm package `xlsx` is forbidden. ZIP and XML have no approved library until the plan consults or justifies one. Rule: `mas/no-handrolled-format-parsers`
 
 ### apps/web (Required)
 
