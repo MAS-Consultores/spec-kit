@@ -108,7 +108,7 @@ Sigue siendo ESLint 10.15.0 (última estable; ya trae `--concurrency`). No se us
 
 `pnpm lint` llama a ESLint con `--cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto`. La caché vive bajo `node_modules/`, que git ignora. El contenido del archivo es la clave, así que un cambio de texto invalida esa entrada aunque la fecha no cambie. Los jobs `reference` y `skeleton-boot` restauran esa carpeta con `actions/cache` y la copian al árbol temporal antes del lint completo. El gate de CI sigue siendo `pnpm lint` / `pnpm verify` sobre todo el esqueleto.
 
-En un proyecto donde este esqueleto es la raíz de git, `pnpm install` deja `core.hooksPath` en `.githooks`. El pre-commit corre `lint-staged` y ESLint solo sobre los archivos cambiados. Si el esqueleto está dentro de otro repositorio, el hook no se instala. `knip` ignora la dependencia `lint-staged` porque no hay un import: la usa el hook.
+En un proyecto donde este esqueleto es la raíz de git, `pnpm install` deja `core.hooksPath` en `.githooks`. El pre-commit corre `lint-staged` y ESLint solo sobre los archivos cambiados. Si el esqueleto está dentro de otro repositorio, el hook no se instala. El snapshot de `check-gen-fitness.mjs` usa `--no-verify`: es un commit desechable y el `pnpm lint` que sigue cubre el árbol completo. `knip` ignora la dependencia `lint-staged` porque no hay un import: la usa el hook.
 
 ## Known warnings that do not fail CI
 

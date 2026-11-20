@@ -19,7 +19,7 @@ function output(command, args) {
 }
 
 run("git", ["add", "-A"]);
-run("git", ["commit", "-m", "fitness snapshot", "--allow-empty"]);
+run("git", ["commit", "-m", "fitness snapshot", "--allow-empty", "--no-verify"]);
 
 try {
   for (const domain of domains) run("node", ["scripts/gen-module.mjs", domain]);
