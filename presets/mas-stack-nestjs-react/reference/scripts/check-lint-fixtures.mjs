@@ -239,7 +239,7 @@ cases.push(
     expects: [{ ruleId: "no-useless-catch" }],
   },
   {
-    file: "apps/api/lint-fixtures/modules/notes/index.ts",
+    file: "apps/api/lint-fixtures/modules/ledger/index.ts",
     expects: [{ ruleId: "mas/barrel-exports-only-public", includes: "public API" }],
   },
 );

@@ -15,7 +15,7 @@
     "env:check": "node scripts/check-env-example.mjs",
     "proxy:check": "node scripts/check-dev-proxy.mjs",
     "ports:check": "node --experimental-strip-types apps/web/e2e/ports.ts --self-test",
-    "lint": "node scripts/ensure-prisma-client.mjs && eslint . && depcruise apps packages --config .dependency-cruiser.cjs && node scripts/check-lint-fixtures.mjs && node scripts/check-duplicate-contract-types.mjs && node scripts/check-duplicate-contract-fixtures.mjs && DATABASE_URL=postgresql://user:pass@127.0.0.1:5432/demo knip && node scripts/check-colors.mjs && node scripts/check-i18n.mjs && node scripts/check-settings-card.mjs && node scripts/lint-migrations.mjs && node scripts/check-migration-fixtures.mjs",
+    "lint": "node scripts/ensure-prisma-client.mjs && eslint . && depcruise apps packages --config .dependency-cruiser.cjs && node scripts/check-lint-fixtures.mjs && node scripts/check-duplicate-contract-types.mjs && node scripts/check-duplicate-contract-fixtures.mjs && node scripts/run-knip.mjs && node scripts/check-colors.mjs && node scripts/check-i18n.mjs && node scripts/check-settings-card.mjs && node scripts/lint-migrations.mjs && node scripts/check-migration-fixtures.mjs",
     "lint:fixtures": "node scripts/check-lint-fixtures.mjs",
     "gen:module": "node scripts/gen-module.mjs",
     "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
