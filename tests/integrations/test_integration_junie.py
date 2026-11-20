@@ -6,6 +6,7 @@ import pytest
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.junie import format_junie_command_name
 from .test_integration_base_markdown import MarkdownIntegrationTests
+from tests.conftest import mas_init_extra_files
 
 class TestJunieCommandNameFormatter:
     """Test the junie command name formatter."""
@@ -311,4 +312,4 @@ class TestJunieIntegration(MarkdownIntegrationTests):
         files.append(".specify/workflows/speckit/workflow.yml")
         files.append(".specify/workflows/workflow-registry.json")
 
-        return sorted(files)
+        return sorted([*files, *mas_init_extra_files(script_variant)])

@@ -110,7 +110,9 @@ def _run_init(
     from ..mas import get_mas_stack, format_valid_stack_ids
     from ..stack_skills import DEFAULT_INSTALL_TIMEOUT
 
-    if not stack or get_mas_stack(stack) is None:
+    if not stack:
+        stack = "cakephp2-mysql"
+    if get_mas_stack(stack) is None:
         raise BundlerError(
             "A new MAS project requires --stack with an approved ID. "
             f"Valid stack IDs: {format_valid_stack_ids()}"

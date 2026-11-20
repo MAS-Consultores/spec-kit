@@ -3676,7 +3676,7 @@ def test_registration_keeps_requested_project_hooks(tmp_path, server, monkeypatc
             return scoped_registrar
 
         monkeypatch.setattr(manager, "_command_registrar", snapshot_then_interleave)
-        manifest = SimpleNamespace(id="sample", templates=[{
+        manifest = SimpleNamespace(id="sample", version="1.0.0", templates=[{
             "type": "command", "name": "speckit.sample", "file": "command.md",
         }])
         manager._register_commands(manifest, source)
@@ -3760,7 +3760,7 @@ def test_registration_pins_hooks_and_lazy_imports_during_another_thread_load(tmp
         )
     else:
         manager = PresetManager(first)
-        manifest = SimpleNamespace(id="sample", templates=[{
+        manifest = SimpleNamespace(id="sample", version="1.0.0", templates=[{
             "type": "command", "name": "speckit.sample", "file": "command.md",
         }])
         manager._register_commands(manifest, source)
@@ -4518,6 +4518,11 @@ def test_builtin_manifest_cleanup_does_not_follow_symlinked_stale_parent(tmp_pat
 def test_external_init_package_directories_follow_late_commit_rollback(
     tmp_path, server, monkeypatch, package_kind, original, failure, windows_encoding,
 ):
+    if package_kind in {"preset", "both"}:
+        pytest.skip(
+            "MAS fork: specify init rejects --preset because --stack is required "
+            "and the two options are mutually exclusive"
+        )
     from specify_cli.integrations import installer
 
     publish(server)
@@ -4626,6 +4631,11 @@ def test_external_init_package_directories_follow_late_commit_rollback(
 def test_package_post_copy_failure_restores_original_state(
     tmp_path, server, monkeypatch, package_kind, failure, route, original,
 ):
+    if route == "init" and package_kind == "preset":
+        pytest.skip(
+            "MAS fork: specify init rejects --preset because --stack is required "
+            "and the two options are mutually exclusive"
+        )
     from specify_cli._assets import get_speckit_version
     from specify_cli.extensions import ExtensionManager, ExtensionRegistry
     from specify_cli.integration_state import try_read_integration_json
@@ -4767,6 +4777,11 @@ def test_forced_adapter_recovery_handles_owned_package_leaves_without_following(
 
 @pytest.mark.parametrize("package_kind", ["preset", "extension"])
 def test_builtin_init_keeps_optional_install_failures_best_effort(tmp_path, monkeypatch, package_kind):
+    if package_kind == "preset":
+        pytest.skip(
+            "MAS fork: specify init rejects --preset because --stack is required "
+            "and the two options are mutually exclusive"
+        )
     from specify_cli.extensions import ExtensionManager
     from specify_cli.presets import PresetManager
 

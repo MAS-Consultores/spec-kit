@@ -221,15 +221,27 @@ def _merge_impact_lines(project_path: Path) -> list[str]:
     if len(names) > 25:
         preview = f"{preview} (+{len(names) - 25} more)"
     lines = [
-        "Merge impact (this is what --force skips confirming):",
+        "Merge impact (this is what the force flag skips confirming):",
         "- Overwrites Spec Kit files that already exist: templates, commands, skills, and .specify/memory for the selected stack.",
         "- Leaves unrelated project files in place. Init does not delete files.",
         "- Does not rewrite .git, commit history, branches, or remotes.",
-        "- A directory whose only entry is .git does not need --force.",
+        "- A directory whose only entry is .git does not need the force flag.",
     ]
     if preview:
         lines.append(f"- Existing top-level entries: {preview}")
     return lines
+
+
+def ensure_constitution_from_template(project_path: Path, tracker: Any | None = None) -> None:
+    """Materialize the resolved constitution template into project memory.
+
+    The implementation lives on the package so init and other commands share
+    one resolver. This wrapper keeps the historical ``command_init`` import
+    path used by callers and tests.
+    """
+    from . import ensure_constitution_from_template as materialize
+
+    materialize(project_path, tracker)
 
 
 def _shell_quote_arg(value: str) -> str:
@@ -877,6 +889,21 @@ def register(app: typer.Typer) -> None:
                     continuing="MAS presets were installed, but manifest hashes may be stale.",
                 )
 
+                # Preset registration rewrites wrapped commands after the
+                # integration manifest snapshot. Re-hash only the files whose
+                # bytes changed so a fresh init is not reported as modified.
+                from .integrations._helpers import _resync_manifest_after_registration
+
+                _resync_manifest_after_registration(
+                    manifest,
+                    resolved_integration.key,
+                    unmodified_files=set(manifest.files),
+                    continuing=(
+                        "MAS presets were installed, but integration manifest"
+                        " hashes may be stale."
+                    ),
+                )
+
                 # Install external skills from stack
                 tracker.start("stack-skills")
                 ai_skills_enabled = bool(init_opts.get("ai_skills"))
@@ -1165,8 +1192,10 @@ def register(app: typer.Typer) -> None:
         )
 
         codex_skill_mode = selected_ai == "codex" and _is_skills_integration
+        zcode_skill_mode = selected_ai == "zcode" and _is_skills_integration
         claude_skill_mode = selected_ai == "claude" and _is_skills_integration
         kimi_skill_mode = selected_ai == "kimi"
+        mcode_skill_mode = selected_ai == "mcode" and _is_skills_integration
         agy_skill_mode = selected_ai == "agy" and _is_skills_integration
         trae_skill_mode = selected_ai == "trae"
         cursor_agent_skill_mode = (
@@ -1174,21 +1203,38 @@ def register(app: typer.Typer) -> None:
         )
         copilot_skill_mode = selected_ai == "copilot" and _is_skills_integration
         devin_skill_mode = selected_ai == "devin"
+        zed_skill_mode = selected_ai == "zed" and _is_skills_integration
+        muse_skill_mode = selected_ai == "muse" and _is_skills_integration
+        grok_skill_mode = selected_ai == "grok" and _is_skills_integration
+        dsh_skill_mode = selected_ai == "dsh" and _is_skills_integration
+        bob_skill_mode = selected_ai == "bob" and _is_skills_integration
         native_skill_mode = (
             codex_skill_mode
+            or zcode_skill_mode
             or claude_skill_mode
             or kimi_skill_mode
+            or mcode_skill_mode
             or agy_skill_mode
             or trae_skill_mode
             or cursor_agent_skill_mode
             or copilot_skill_mode
             or devin_skill_mode
+            or zed_skill_mode
+            or muse_skill_mode
+            or grok_skill_mode
+            or dsh_skill_mode
+            or bob_skill_mode
             or _is_skills_integration
         )
 
         if codex_skill_mode:
             steps_lines.append(
                 f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
+            )
+            step_num += 1
+        if zcode_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start ZCode in this project directory; spec-kit skills were installed to [cyan].zcode/skills[/cyan]"
             )
             step_num += 1
         if claude_skill_mode:
@@ -1206,12 +1252,36 @@ def register(app: typer.Typer) -> None:
                 f"{step_num}. Start Devin in this project directory; spec-kit skills were installed to [cyan].devin/skills[/cyan]"
             )
             step_num += 1
-        for key, name, directory in (("dsh", "DSH with `dsh web`", ".dsh/skills"), ("grok", "Grok Build", ".grok/skills"), ("mcode", "MiniMax Code", ".minimax/skills")):
-            if selected_ai == key and _is_skills_integration:
-                steps_lines.append(
-                    f"{step_num}. Start {name} in this project directory; spec-kit skills were installed to [cyan]{directory}[/cyan]"
-                )
-                step_num += 1
+        if zed_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Zed in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
+            )
+            step_num += 1
+        if muse_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Muse Code in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
+            )
+            step_num += 1
+        if grok_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Grok Build in this project directory; spec-kit skills were installed to [cyan].grok/skills[/cyan]"
+            )
+            step_num += 1
+        if dsh_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start DSH ([cyan]dsh web[/cyan]) in this project directory; spec-kit skills were installed to [cyan].dsh/skills[/cyan]"
+            )
+            step_num += 1
+        if bob_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Bob in this project directory; spec-kit skills were installed to [cyan].bob/skills[/cyan]"
+            )
+            step_num += 1
+        if mcode_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start MiniMax Code in this project directory; spec-kit skills were installed to [cyan].minimax/skills[/cyan]"
+            )
+            step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
 
         invoke_prefix = _invoke_prefix_for_integration(
@@ -1235,7 +1305,7 @@ def register(app: typer.Typer) -> None:
             "plan": "Create implementation plan",
             "tasks": "Generate actionable tasks",
             "implement": "Execute implementation",
-            "converge": "Verify implementation against the specification",
+            "converge": "Assess the codebase and append remaining work as tasks",
         }
         steps_lines.append(
             f"{step_num}. Start using {usage_label} with your coding agent:"
@@ -1245,7 +1315,8 @@ def register(app: typer.Typer) -> None:
                 "   Project principles are already in [cyan].specify/memory/constitution.md[/cyan] from the selected stack."
             )
         for index, name in enumerate(
-            init_followup_commands(mas_stack=mas_stack is not None), start=1
+            init_followup_commands(mas_stack=getattr(mas_stack, "id", None) == "nestjs-react"),
+            start=1,
         ):
             steps_lines.append(
                 f"   {step_num}.{index} [cyan]{_display_cmd(name)}[/] - {summaries[name]}"

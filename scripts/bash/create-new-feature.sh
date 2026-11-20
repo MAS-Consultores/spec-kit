@@ -471,18 +471,19 @@ if [ "$DRY_RUN" != true ]; then
     printf '# To persist: export SPECIFY_FEATURE=%s\n' "$(shell_quote "$BRANCH_NAME")" >&2
     printf '#              export SPECIFY_FEATURE_DIRECTORY=%s\n' "$(shell_quote "$FEATURE_DIR")" >&2
 
-    # Leave HEAD on the feature branch. `git checkout -b` also works when the
-    # repository has no commits yet (HEAD is a symbolic ref and no branch
-    # object exists). An empty initial commit is unnecessary.
-    if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-        git checkout --quiet "$BRANCH_NAME"
-    else
-        git checkout --quiet -b "$BRANCH_NAME"
-    fi
-    head_ref="$(git symbolic-ref --quiet HEAD || true)"
-    if [ "$head_ref" != "refs/heads/$BRANCH_NAME" ]; then
-        echo "ERROR: HEAD is '$head_ref', expected refs/heads/$BRANCH_NAME" >&2
-        exit 1
+    # MAS leaves HEAD on the feature branch, including a repo with no commits.
+    # Outside a work tree the upstream script still exits 0.
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+            git checkout --quiet "$BRANCH_NAME"
+        else
+            git checkout --quiet -b "$BRANCH_NAME"
+        fi
+        head_ref="$(git symbolic-ref --quiet HEAD || true)"
+        if [ "$head_ref" != "refs/heads/$BRANCH_NAME" ]; then
+            echo "ERROR: HEAD is '$head_ref', expected refs/heads/$BRANCH_NAME" >&2
+            exit 1
+        fi
     fi
 fi
 

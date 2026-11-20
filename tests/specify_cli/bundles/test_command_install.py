@@ -133,7 +133,12 @@ def test_local_firstparty_bundle_installs_bundled_components_offline(
             encoding="utf-8"
         )
     )
-    assert registry["workflows"][bundle_id]["version"] == "1.0.0"
+    workflow = yaml.safe_load(
+        (REPO_ROOT / "workflows" / bundle_id / "workflow.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert registry["workflows"][bundle_id]["version"] == workflow["workflow"]["version"]
 
 
 def test_local_parent_installs_referenced_catalog_components(
@@ -1102,9 +1107,15 @@ def test_install_initializes_uninitialized_project(tmp_path: Path):
     assert "copilot" in json.dumps(data)
 
 
-@pytest.mark.parametrize("stack", [None, "unknown-stack"])
-def test_bootstrap_rejects_missing_or_invalid_mas_stack(tmp_path, monkeypatch, stack):
+def test_bootstrap_defaults_missing_stack_to_cakephp(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _commands._run_init("copilot", script_type="sh", offline=True, stack=None)
+    payload = json.loads((tmp_path / ".specify" / "init-options.json").read_text())
+    assert payload["stack"] == "cakephp2-mysql"
+
+
+def test_bootstrap_rejects_invalid_mas_stack(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     with pytest.raises(BundlerError, match="requires --stack"):
-        _commands._run_init("copilot", script_type="sh", offline=True, stack=stack)
+        _commands._run_init("copilot", script_type="sh", offline=True, stack="unknown-stack")
     assert list(tmp_path.iterdir()) == []

@@ -540,14 +540,7 @@ class TestNoGitTimestamp:
 @requires_bash
 class TestE2EFlow:
     def test_e2e_timestamp(self, git_repo: Path):
-        """Test 14: E2E timestamp flow creates only a feature directory."""
-        before = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
+        """Test 14: E2E timestamp flow creates the feature directory and checks it out."""
         result = run_script(git_repo, "--timestamp", "--short-name", "e2e-ts", "E2E timestamp test")
         assert result.returncode == 0, result.stderr
 
@@ -568,17 +561,10 @@ class TestE2EFlow:
             text=True,
             check=True,
         ).stdout.strip()
-        assert after == before
+        assert after == branch_name
 
     def test_e2e_sequential(self, git_repo: Path):
-        """Test 15: E2E sequential flow creates only a feature directory."""
-        before = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=git_repo,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
+        """Test 15: E2E sequential flow creates the feature directory and checks it out."""
         result = run_script(git_repo, "--short-name", "seq-feat", "Sequential feature")
         assert result.returncode == 0, result.stderr
 
@@ -598,7 +584,7 @@ class TestE2EFlow:
             text=True,
             check=True,
         ).stdout.strip()
-        assert after == before
+        assert after == branch_name
 
 
 # ── Allow Existing Branch Tests ──────────────────────────────────────────────

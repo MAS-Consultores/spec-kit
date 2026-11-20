@@ -275,8 +275,8 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
     assert "specify init --stack <stack-id>" in constitution
 
 
-def test_init_does_not_add_specify_to_root_gitignore(tmp_path):
-    """Root .gitignore should NOT contain .specify/ — nested .specify/.gitignore handles it."""
+def test_init_adds_specify_to_root_gitignore(tmp_path):
+    """Upstream init records ``.specify/`` on the root gitignore."""
     project = tmp_path / "gitignore-project"
     result = CliRunner().invoke(
         app,
@@ -293,15 +293,12 @@ def test_init_does_not_add_specify_to_root_gitignore(tmp_path):
     )
 
     assert result.exit_code == 0, result.output
-    # Root .gitignore should NOT exist or NOT contain .specify/
-    root_gitignore = project / ".gitignore"
-    if root_gitignore.exists():
-        content = root_gitignore.read_text(encoding="utf-8")
-        assert ".specify/" not in content, "Root .gitignore should not ignore .specify/"
+    content = (project / ".gitignore").read_text(encoding="utf-8")
+    assert ".specify/" in content
 
 
-def test_init_preserves_existing_gitignore_without_adding_specify(tmp_path):
-    """Existing .gitignore should be preserved, .specify/ NOT added."""
+def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
+    """Existing .gitignore entries stay, and ``.specify/`` is appended."""
     project = tmp_path / "existing-gitignore-project"
     project.mkdir()
     (project / ".gitignore").write_text("node_modules/\ndist/", encoding="utf-8")
@@ -323,10 +320,9 @@ def test_init_preserves_existing_gitignore_without_adding_specify(tmp_path):
 
     assert result.exit_code == 0, result.output
     gitignore = (project / ".gitignore").read_text(encoding="utf-8")
-    # Should preserve original content, NOT add .specify/
     assert "node_modules/" in gitignore
     assert "dist/" in gitignore
-    assert ".specify/" not in gitignore, "Should not add .specify/ to root .gitignore"
+    assert ".specify/" in gitignore
 
 
 def test_nested_specify_gitignore_ignores_local_state_only(tmp_path):
@@ -383,26 +379,15 @@ def test_specify_memory_and_templates_can_be_versioned(tmp_path):
     # Initialize git repo for check-ignore to work
     subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
 
-    # These files should NOT be ignored (exit code 1 = not ignored)
-    files_to_check = [
-        ".specify/memory/constitution.md",
-        ".specify/memory/stack.md",
-        ".specify/init-options.json",
-    ]
+    # Upstream init ignores the whole .specify/ tree from the root gitignore.
+    # The nested rules still name machine-local state and leave memory/ out.
+    root_ignore = (project / ".gitignore").read_text(encoding="utf-8")
+    assert ".specify/" in root_ignore
+    nested = (project / ".specify" / ".gitignore").read_text(encoding="utf-8")
+    assert "feature.json" in nested
+    assert "memory/" not in nested or "NOT ignored" in nested
 
-    for rel_path in files_to_check:
-        full_path = project / rel_path
-        if full_path.exists():
-            result = subprocess.run(
-                ["git", "check-ignore", "-q", rel_path],
-                cwd=project,
-                capture_output=True,
-            )
-            # Exit code 1 means NOT ignored (what we want)
-            # Exit code 0 means ignored (bad)
-            assert result.returncode == 1, f"{rel_path} should NOT be gitignored but it is"
-
-    # feature.json SHOULD be ignored (by nested .specify/.gitignore)
+    # feature.json SHOULD be ignored (by the root or nested gitignore)
     feature_json = project / ".specify" / "feature.json"
     feature_json.write_text("{}", encoding="utf-8")  # Create it for test
     result = subprocess.run(
@@ -1199,7 +1184,7 @@ def test_mas_feature_branch_is_mandatory_for_cursor_and_codex(tmp_path):
         assert "git checkout main" in specify
         assert "not optional" in specify
         assert "HARD_FAIL" in plan
-        assert "feature_directory" in plan
+        assert "ensure-feature-branch.sh" in plan
         assert "HARD_FAIL" in tasks
         assert "git merge --no-ff" in implement
         assert ".cursor/commands" not in specify
@@ -1231,3 +1216,46 @@ def test_mas_constitution_keeps_security_standard_inside_principle_one():
     assert "#### Security Standard (Stack-Agnostic)" in security
     assert "##### 1. Authentication and Identity Lifecycle" in security
     assert "Deny by default" in security
+
+def test_upstream_init_without_stack_receives_main_stack(tmp_path):
+    """Upstream-style init omits --stack; the suite supplies one from main."""
+    project = tmp_path / "upstream-style"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    stack_md = (project / ".specify" / "memory" / "stack.md").read_text(encoding="utf-8")
+    assert "**Canonical ID**: `cakephp2-mysql`" in stack_md
+
+
+def test_upstream_init_stack_helper_leaves_explicit_stack_logic_alone():
+    from tests.conftest import UPSTREAM_INIT_STACK, _with_upstream_init_stack
+
+    injected = _with_upstream_init_stack(["init", "proj", "--integration", "codex"])
+    assert injected[:3] == ["init", "--stack", UPSTREAM_INIT_STACK]
+    assert injected[-1] == "--skip-external-skills"
+    kept = _with_upstream_init_stack(
+        ["init", "--stack", "moodle3", "proj", "--skip-external-skills"]
+    )
+    assert kept == ["init", "--stack", "moodle3", "proj", "--skip-external-skills"]
+    assert _with_upstream_init_stack(["init", "--preset", "lean", "proj"]) == [
+        "init",
+        "--preset",
+        "lean",
+        "proj",
+    ]
+    assert _with_upstream_init_stack(["init", "--help"]) == ["init", "--help"]
+    assert _with_upstream_init_stack(("check",)) == ("check",)
+    assert _with_upstream_init_stack("init proj") == (
+        f"init --stack {UPSTREAM_INIT_STACK} proj --skip-external-skills"
+    )
+

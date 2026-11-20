@@ -14,6 +14,7 @@ import yaml
 from specify_cli import app  # noqa: F401
 from tests.conftest import strip_ansi  # noqa: F401
 from tests.specify_cli.integrations._helpers import (
+    _remove_mas_presets,
     _copy_project_template,  # noqa: F401
     _init_project,  # noqa: F401
     _integration_list_row_cells,  # noqa: F401
@@ -139,6 +140,7 @@ class TestIntegrationUninstall:
     def test_uninstall_preserves_modified_files(self, tmp_path, retain_frontmatter):
         """Full lifecycle: install → modify → uninstall → modified file kept."""
         project = _init_project(tmp_path, "claude")
+        _remove_mas_presets(project)
         plan_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
         assert plan_file.exists()
 

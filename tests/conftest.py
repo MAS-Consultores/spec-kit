@@ -2,9 +2,11 @@
 
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+from contextvars import ContextVar
 from pathlib import Path
 
 import pytest
@@ -62,8 +64,10 @@ def _has_working_bash() -> bool:
     return True
 
 
+HAS_BASH = _has_working_bash()
+
 requires_bash = pytest.mark.skipif(
-    not _has_working_bash(), reason="working bash not available"
+    not HAS_BASH, reason="working bash not available"
 )
 
 
@@ -148,6 +152,136 @@ def _isolate_auth_config(monkeypatch):
     # Also clear the per-process cache so tests that unset _config_override
     # won't see a previously cached real-file result.
     monkeypatch.setattr(_auth_http, "_config_cache", None)
+
+
+# Stack shipped on MAS main. Upstream tests call ``specify init`` without
+# ``--stack``; the fork rejects that. Injection is test-only and does not
+# change the CLI. Tests that assert the missing-stack rejection opt out.
+UPSTREAM_INIT_STACK = "cakephp2-mysql"
+# Files a stack-aware init adds on top of the upstream project tree when the
+# suite supplies ``cakephp2-mysql``. Inventory tests append this list.
+MAS_INIT_EXTRA_FILES = [
+    ".gitignore",
+    ".specify/memory/language-policy.md",
+    ".specify/memory/security-guidelines.md",
+    ".specify/memory/stack-context.md",
+    ".specify/memory/stack.md",
+    ".specify/presets/.registry",
+    ".specify/presets/mas-core/.composed/speckit.checklist.md",
+    ".specify/presets/mas-core/.composed/speckit.clarify.md",
+    ".specify/presets/mas-core/.composed/speckit.implement.md",
+    ".specify/presets/mas-core/.composed/speckit.plan.md",
+    ".specify/presets/mas-core/.composed/speckit.specify.md",
+    ".specify/presets/mas-core/.composed/speckit.tasks.md",
+    ".specify/presets/mas-core/commands/speckit.checklist.md",
+    ".specify/presets/mas-core/commands/speckit.clarify.md",
+    ".specify/presets/mas-core/commands/speckit.implement.md",
+    ".specify/presets/mas-core/commands/speckit.plan.md",
+    ".specify/presets/mas-core/commands/speckit.specify.md",
+    ".specify/presets/mas-core/commands/speckit.tasks.md",
+    ".specify/presets/mas-core/preset.yml",
+    ".specify/presets/mas-core/stack-skills.yml",
+    ".specify/presets/mas-core/templates/constitution-template.md",
+    ".specify/presets/mas-core/templates/plan-template.md",
+    ".specify/presets/mas-core/templates/spec-template-append.md",
+    ".specify/presets/mas-core/templates/tasks-template.md",
+    ".specify/presets/mas-stack-cakephp2-mysql/preset.yml",
+    ".specify/presets/mas-stack-cakephp2-mysql/stack-skills.yml",
+    ".specify/presets/mas-stack-cakephp2-mysql/templates/mas-stack-cakephp2-mysql.md",
+]
+
+
+def mas_init_extra_files(script: str) -> list[str]:
+    """Stack files plus the branch scripts for the selected script flavor."""
+    branch_scripts = {
+        "sh": [
+            ".specify/scripts/bash/ensure-feature-branch.sh",
+            ".specify/scripts/bash/finish-feature.sh",
+        ],
+        "ps": [
+            ".specify/scripts/powershell/ensure-feature-branch.ps1",
+            ".specify/scripts/powershell/finish-feature.ps1",
+        ],
+    }
+    return [*MAS_INIT_EXTRA_FILES, *branch_scripts[script]]
+_SKIP_DEFAULT_STACK_TESTS = frozenset({
+    "test_init_rejects_missing_stack_before_side_effects",
+    "test_missing_or_invalid_stack_fails_before_creating_project",
+    "test_missing_stack_still_fails_before_writing",
+})
+_INJECT_UPSTREAM_INIT_STACK: ContextVar[bool] = ContextVar(
+    "inject_upstream_init_stack", default=True
+)
+
+
+def _with_upstream_init_stack(args):
+    """Return ``args`` with a valid MAS ``--stack`` when ``init`` omitted one.
+
+    ``--preset`` is left untouched: the fork treats it as mutually exclusive
+    with ``--stack``. ``--help`` is left untouched so help snapshots stay stable.
+    """
+    if args is None:
+        return args
+    as_string = isinstance(args, str)
+    try:
+        tokens = shlex.split(args) if as_string else list(args)
+    except (TypeError, ValueError):
+        return args
+    if not tokens or tokens[0] != "init":
+        return args
+    if "--help" in tokens or "-h" in tokens:
+        return args
+    if "--stack" not in tokens and "--preset" not in tokens:
+        tokens = [tokens[0], "--stack", UPSTREAM_INIT_STACK, *tokens[1:]]
+    # Upstream init does not opt out of stack skill installs. When npx is on
+    # PATH those installs reach the network and do not exercise the assertion.
+    # Tests of the skill installer keep the real flag.
+    if "--skip-external-skills" not in tokens and "--preset" not in tokens:
+        tokens = [*tokens, "--skip-external-skills"]
+    injected = tokens
+    if as_string:
+        return shlex.join(injected)
+    if isinstance(args, tuple):
+        return tuple(injected)
+    return injected
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _supply_stack_to_upstream_init():
+    """Give upstream ``specify init`` invocations a stack from main.
+
+    The patch is session-scoped so module-scoped project templates, which
+    initialize before function fixtures, receive it too. MAS tests that
+    already pass ``--stack`` are unchanged. Tests that assert the missing
+    stack, or that install external skills, turn injection off.
+    """
+    from typer.testing import CliRunner
+
+    original = CliRunner.invoke
+
+    def invoke(self, cli, args=None, *invoke_args, **invoke_kwargs):
+        if _INJECT_UPSTREAM_INIT_STACK.get():
+            args = _with_upstream_init_stack(args)
+        return original(self, cli, args, *invoke_args, **invoke_kwargs)
+
+    CliRunner.invoke = invoke
+    yield
+    CliRunner.invoke = original
+
+
+@pytest.fixture(autouse=True)
+def _skip_upstream_init_stack_injection(request):
+    if request.node.originalname in _SKIP_DEFAULT_STACK_TESTS:
+        token = _INJECT_UPSTREAM_INIT_STACK.set(False)
+        yield
+        _INJECT_UPSTREAM_INIT_STACK.reset(token)
+        return
+    if getattr(request.node, "path", None) and request.node.path.name == "test_stack_external_skills.py":
+        token = _INJECT_UPSTREAM_INIT_STACK.set(False)
+        yield
+        _INJECT_UPSTREAM_INIT_STACK.reset(token)
+        return
+    yield
 
 
 @pytest.fixture(autouse=True)

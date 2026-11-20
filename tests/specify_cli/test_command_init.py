@@ -363,7 +363,10 @@ def test_init_force_keeps_recovered_markers(tmp_path, monkeypatch):
     project = tmp_path / "proj"
     integration_class = type(get_integration("codex"))
     original_setup = integration_class.setup
-    rel = ".agents/skills/speckit-plan/SKILL.md"
+    # mas-core re-registers plan and implement on --force, so those skills are
+    # rewritten and their recovered markers are cleared. speckit-analyze is not
+    # a MAS preset override; it stays the unchanged file this guard covers.
+    rel = ".agents/skills/speckit-analyze/SKILL.md"
 
     def setup_with_recovered_file(self, project_root, manifest, *args, **kwargs):
         created = original_setup(self, project_root, manifest, *args, **kwargs)

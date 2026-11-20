@@ -33,6 +33,17 @@ def _init_project(tmp_path, integration="copilot", integration_options=None):
     assert result.exit_code == 0, f"init failed: {result.output}"
     return project
 
+def _remove_mas_presets(project):
+    """Drop stack presets so an upstream layout migration can proceed.
+
+    ``mas-core`` wraps commands. Upstream refuses command-directory and
+    command/skill layout changes while those overrides are installed.
+    """
+    for preset_id in ("mas-stack-cakephp2-mysql", "mas-core"):
+        result = _run_in_project(project, ["preset", "remove", preset_id])
+        assert result.exit_code == 0, result.output
+
+
 def _run_in_project(project, args):
     """Run a CLI command from inside a generated project."""
     old_cwd = os.getcwd()

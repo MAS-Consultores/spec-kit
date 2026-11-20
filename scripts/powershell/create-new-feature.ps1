@@ -54,8 +54,8 @@ function Get-HighestNumberFromSpecs {
     param([string]$SpecsDir)
 
     [long]$highest = 0
-    if (Test-Path $SpecsDir) {
-        Get-ChildItem -Path $SpecsDir -Directory | ForEach-Object {
+    if (Test-Path -LiteralPath $SpecsDir) {
+        Get-ChildItem -LiteralPath $SpecsDir -Directory | ForEach-Object {
             # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
             if ($_.Name -match '^(\d{3,})-' -and $_.Name -notmatch '^\d{8}-\d{6}-') {
                 [long]$num = 0
@@ -139,7 +139,7 @@ function Get-FittedBranchName {
 # Use common.ps1 functions which prioritize .specify
 $repoRoot = Get-RepoRoot
 
-Set-Location $repoRoot
+Set-Location -LiteralPath $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
 if (-not $DryRun) {
@@ -297,7 +297,7 @@ if (-not $DryRun) {
         exit 1
     }
 
-    $needsSpec = -not (Test-Path -PathType Leaf $specFile)
+    $needsSpec = -not (Test-Path -LiteralPath $specFile -PathType Leaf)
     $content = $null
     if ($needsSpec) {
         $content = Resolve-TemplateContent -TemplateName 'spec-template' -RepoRoot $repoRoot
@@ -335,18 +335,20 @@ if (-not $DryRun) {
     [Console]::Error.WriteLine("# To persist: $featureAssignment")
     [Console]::Error.WriteLine("#              $directoryAssignment")
 
-    # Leave HEAD on the feature branch, including a repo with no commits.
-    git show-ref --verify --quiet "refs/heads/$branchName"
+    git rev-parse --is-inside-work-tree > $null 2>&1
     if ($LASTEXITCODE -eq 0) {
-        git checkout --quiet $branchName
-    } else {
-        git checkout --quiet -b $branchName
-    }
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    $headRef = git symbolic-ref --quiet HEAD
-    if ($headRef -ne "refs/heads/$branchName") {
-        [Console]::Error.WriteLine("ERROR: HEAD is '$headRef', expected refs/heads/$branchName")
-        exit 1
+        git show-ref --verify --quiet "refs/heads/$branchName"
+        if ($LASTEXITCODE -eq 0) {
+            git checkout --quiet $branchName
+        } else {
+            git checkout --quiet -b $branchName
+        }
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $headRef = git symbolic-ref --quiet HEAD
+        if ($headRef -ne "refs/heads/$branchName") {
+            [Console]::Error.WriteLine("ERROR: HEAD is '$headRef', expected refs/heads/$branchName")
+            exit 1
+        }
     }
 }
 
@@ -359,7 +361,7 @@ if ($Json) {
     if ($DryRun) {
         $obj | Add-Member -NotePropertyName 'DRY_RUN' -NotePropertyValue $true
     }
-    $obj | ConvertTo-Json -Compress
+    $obj | ConvertTo-AsciiJson
 } else {
     Write-Output "BRANCH_NAME: $branchName"
     Write-Output "SPEC_FILE: $specFile"
