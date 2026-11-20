@@ -3,6 +3,7 @@
   "includeEntryExports": false,
   "ignore": [
     "scripts/**",
+    ".specify/**",
     ".dependency-cruiser.fixtures.cjs",
     "templates/**"
   ],
