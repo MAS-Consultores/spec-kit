@@ -3,6 +3,7 @@ import { qualityRules } from "./quality-rules.js";
 import { iconColorRules } from "./icons-color.js";
 import { i18nRules } from "./i18n-rules.js";
 import { modularityRules } from "./modularity.js";
+import { package2Rules } from "./package2-rules.js";
 import { uploadRules } from "./upload-rules.js";
 import { formatParserRules } from "./format-parser-rules.js";
 
@@ -140,6 +141,7 @@ const masPlugin = {
     ...iconColorRules,
     ...i18nRules,
     ...uploadRules,
+    ...package2Rules,
     ...formatParserRules,
     "require-disable-justification": {
       meta: {

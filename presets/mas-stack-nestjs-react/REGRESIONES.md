@@ -140,6 +140,31 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D13-03 | un parser casero de un formato estándar: import o `require` de `xlsx` / `xlsx/*`, `inflateRaw` de `node:zlib`, una regex sobre `<sheetData` / `<row` / `<c` / `sheet1.xml`, o un CSV de archivo partido con `.split(',')` / `.split(';')` | `import-xlsx.service.ts`, `zlib-inflate.service.ts`, `sheet-xml.service.ts` y `csv-split.service.ts` (`mas/no-handrolled-format-parsers`) dentro de `pnpm lint:fixtures`. Con la regla en `off` el mismo ESLint no emite ese `ruleId`; con `error` sí. Pasan el lector en streaming de `exceljs`, `csv-parse`, `gzipSync`, un `header.split(',')` y la supresión `eslint-disable-next-line mas/no-handrolled-format-parsers -- motivo`. `scripts/check-prerelease.mjs` rechaza el paquete `xlsx` en un `package.json` o en el lockfile |
 | D13-04 | un PDF escrito a mano (`%PDF-`, `obj` / `endobj`, `xref`, `trailer`, `startxref`) en vez de Playwright `page.pdf()`, `pdf-lib` o `unpdf` | `pdf-handrolled.service.ts` (`mas/no-handrolled-format-parsers`, mensaje `pdf-lib`). Con la regla en `off` no emite el `ruleId`; con `error` sí. Los casos válidos importan `pdf-lib`, llaman a `extractText` de `unpdf` y a `page.pdf()` sin disparar la regla |
 
+## Librerías de producto
+
+`pnpm lint:fixtures` enciende cada regla en su severidad y, en un segundo pase, la deja en `off`. En `off` el `ruleId` no aparece. El esqueleto no trae un demo de dashboard ni de subida: axe por ruta, el PDF de impresión, el EXIF y el video viven en la feature. El CI del preset sí compila MJML (`scripts/check-mjml.mjs` dentro de `pnpm lint`).
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D14-01 | un `replace` borra tags HTML | `regex-sanitize.service.ts` (`mas/no-regex-html-sanitize`, error, mensaje `DOMPurify`). En `off` no emite el `ruleId`. Un `replace(/-/g, "")` no se marca |
+| D14-02 | `dangerouslySetInnerHTML` recibe HTML crudo | `dangerous-html.tsx` (`mas/no-dangerous-html-unsanitized`, error). En `off` no emite. `DOMPurify.sanitize` no se marca |
+| D14-03 | el correo arma `<html` / `<table` / `<body` a mano, o interpola con `{{{` | `email/handmade-mail.ts` y `email/triple-stash.ts` (`mas/no-handmade-email-html`, error, mensaje `mjml2html` o `{{{`). En `off` no emiten. Pasa `mjml2html(..., { validationLevel: "strict" })` y un `{{{` con `eslint-disable` justificado. No se usa react-email |
+| D14-04 | `setInterval` o un `setTimeout` de 1000 ms o más en la API | `timer-schedule.service.ts` (`mas/no-timer-scheduling`, warn, mensaje `approved-libraries.md`, sin recomendar BullMQ). En `off` no emite. Un `setTimeout` de 50 ms no se marca. Colas y cron siguen pendientes (BullMQ+Redis o pg-boss); `@nestjs/schedule`, `node-cron` y `agenda` no están en `no-restricted-imports` |
+| D14-05 | un gráfico calcula un `<svg>` o llama a `getContext('2d')` | `charts/handmade-chart.tsx` (`mas/no-handmade-charts`, warn, mensaje `Recharts`). En `off` no emite. Un `<path d="M2 2h4v4H2z">` de ícono no se marca |
+| D14-06 | `getTime() + 86400000` o `setDate(getDate() + 1)` | `date-math.service.ts` (`mas/no-manual-date-math`, warn, mensaje `date-fns`). En `off` no emite. `addDays` no se marca |
+| D14-07 | el tipo del archivo se decide por `originalname` o `mimetype` | `trust-mimetype.controller.ts` (`mas/no-client-file-type-trust`, error, mensaje `file-type`). En `off` no emite. No dispara `mas/multipart-upload-limits`. Con `fileTypeFromBuffer` el MIME puede quedar. El video no pide duración ni ffprobe: peso (`limits.fileSize`) y `file-type` |
+| D14-08 | `fetch` a `/v1/chat/completions` | `llm-fetch.service.ts` (`mas/no-direct-llm-fetch`, error). En `off` no emite. Un import del SDK `ai` no se marca |
+| D14-09 | `VITE_OPENAI_API_KEY` en `apps/web` | `vite-secret.ts` (`mas/no-secret-in-client`, error). En `off` no emite. `VITE_API_ORIGIN` no se marca |
+| D14-10 | `process.env` fuera del módulo de config | `reads-env.service.ts` también falla `mas/no-raw-process-env` (error, mensaje `.env.example`). En `off` no emite ese `ruleId`. La lista blanca sigue siendo `apps/api/src/config`, Prisma, scripts y e2e |
+| D14-11 | `console.log` en la API | `console-log.service.ts` (`no-console`, error). En `off` no emite. Un logger al estilo `nestjs-pino` no se marca |
+| D14-12 | el login no tiene `@Throttle` ni `SensitiveThrottle` | `login-no-throttle.controller.ts` (`mas/require-throttle-sensitive`, error). En `off` no emite. El esqueleto marca login, refresh, logout y me con `SensitiveThrottle` para no pisar `LOGIN_THROTTLE_LIMIT` |
+| D14-13 | `main.ts` no llama a `helmet()` | `api-main.ts` (`mas/require-helmet`, error). En `off` no emite. `apps/api/src/main.ts` del esqueleto sí llama a `helmet()` |
+| D14-14 | un formulario guarda el error del campo en `useState` | `form-errors.tsx` (`mas/no-manual-form-errors`, error, mensaje `react-hook-form`). En `off` no emite. `useForm` no se marca |
+| D14-15 | `canvas-confetti` sin `prefers-reduced-motion` | `confetti.tsx` (`mas/reduced-motion-animations`, error). En `off` no emite. El caso con `matchMedia` no se marca |
+| D14-16 | imports de `moment`, `dayjs`, `chart.js`, `react-chartjs-2`, `echarts`, `socket.io` y `ws`, incluidas subrutas | `banned-imports.ts` (`no-restricted-imports`, error, al menos 13 hallazgos). En `off` no emite. `echarts` con supresión justificada no se marca. No se prohíbe `@nestjs/schedule`, `node-cron` ni `agenda` |
+| D14-17 | la plantilla MJML del preset no compila en strict, o la rota sí compila | `scripts/check-mjml.mjs` dentro de `pnpm lint`: `fixtures/email/welcome.mjml` sale HTML; `fixtures/email/broken.mjml` falla con `validationLevel: 'strict'` |
+| D14-18 | una imagen de entrada no es PNG o JPG, o la variante no aplica la orientación, no quita el EXIF o no mide el tamaño fijo | `apps/api/src/images/normalize-image.spec.ts` en `pnpm test`: un JPEG con orientación EXIF 6 (rojo a la izquierda, azul a la derecha) se acepta, un WebP se rechaza, y la variante avatar 128 sale en 128×128, sin `orientation` ni `exif`, con los mismos píxeles que `.rotate().resize({ fit: 'cover', position: 'centre' }).jpeg({ quality: 80 })`. El original no se devuelve |
+
 ## Código limpio y contratos
 
 | ID | Qué se rompió | Dónde se prueba |

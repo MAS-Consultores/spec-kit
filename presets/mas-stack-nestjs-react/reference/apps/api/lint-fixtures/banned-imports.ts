@@ -1,0 +1,13 @@
+import "moment";
+import "moment/locale/es";
+import "dayjs";
+import "dayjs/plugin/utc";
+import "chart.js";
+import "chart.js/auto";
+import "react-chartjs-2";
+import "echarts";
+import "echarts/core";
+import "socket.io";
+import "socket.io/dist/index.js";
+import "ws";
+import "ws/lib/websocket.js";

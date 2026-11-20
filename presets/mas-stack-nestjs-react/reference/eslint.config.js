@@ -6,6 +6,7 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
+import { restrictedImports } from "./eslint/package2-rules.js";
 import mas, { boundaryElements, boundaryRule, envAllowFiles } from "./eslint/mas-plugin.js";
 
 export default tseslint.config(
@@ -77,25 +78,21 @@ export default tseslint.config(
       "mas/base64-upload-max-length": "error",
       "mas/multipart-upload-limits": "error",
       "mas/no-handrolled-format-parsers": "error",
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "xlsx",
-              message:
-                "The npm package xlsx (SheetJS) is forbidden. Read and write xlsx with exceljs. See approved-libraries.md.",
-            },
-          ],
-          patterns: [
-            {
-              group: ["xlsx/*"],
-              message:
-                "The npm package xlsx (SheetJS) is forbidden. Read and write xlsx with exceljs. See approved-libraries.md.",
-            },
-          ],
-        },
-      ],
+      "mas/no-regex-html-sanitize": "error",
+      "mas/no-dangerous-html-unsanitized": "error",
+      "mas/no-handmade-email-html": "error",
+      "mas/no-timer-scheduling": "warn",
+      "mas/no-handmade-charts": "warn",
+      "mas/no-manual-date-math": "warn",
+      "mas/no-client-file-type-trust": "error",
+      "mas/no-direct-llm-fetch": "error",
+      "mas/no-secret-in-client": "error",
+      "mas/no-raw-process-env": "error",
+      "mas/require-throttle-sensitive": "error",
+      "mas/require-helmet": "error",
+      "mas/no-manual-form-errors": "error",
+      "mas/reduced-motion-animations": "error",
+      "no-restricted-imports": ["error", restrictedImports],
       "mas/icon-library": "error",
       "mas/no-literal-color": "error",
       "mas/no-i18n-mutation-in-render": "error",
@@ -172,6 +169,7 @@ export default tseslint.config(
     files: envAllowFiles,
     rules: {
       "mas/no-process-env": "off",
+      "mas/no-raw-process-env": "off",
     },
   },
   {

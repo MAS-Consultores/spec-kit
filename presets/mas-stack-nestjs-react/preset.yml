@@ -26,7 +26,7 @@ provides:
     - type: "template"
       name: "approved-libraries"
       file: "templates/approved-libraries.md"
-      description: "Approved libraries for standard file formats"
+      description: "Approved libraries for formats, product UI, mail (MJML), and uploads"
     - type: "command"
       name: "speckit.specify"
       file: "commands/speckit.specify.md"
