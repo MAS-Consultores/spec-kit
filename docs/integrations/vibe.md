@@ -53,10 +53,10 @@ the model does not see or invoke it automatically.
   Mistral Vibe: commands that install, remove or update presets (including
   `specify bundle` commands that carry presets), `specify integration use vibe`,
   and `specify integration switch vibe` when Mistral Vibe is installed but not
-  the default. To reapply the option, run `specify integration upgrade vibe
-  --force` while Mistral Vibe is the default integration (`--force` is needed
-  because those commands modify installed skill files, and it overwrites local
-  edits to Spec Kit-managed files).
+  the default. To reapply the option, run `specify integration upgrade vibe`
+  while it is the default integration. Preset installation and removal refresh
+  hashes for previously unmodified managed files. Use `--force` only when you
+  intend to overwrite local edits to Spec Kit-managed files.
 
 ## Runtime Events
 

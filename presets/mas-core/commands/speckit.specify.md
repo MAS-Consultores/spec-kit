@@ -27,4 +27,79 @@ language, then record the resolved requirement in English.
 If `.specify/memory/language-policy.md` is missing, default to `artifact_language: en`
 and `product_locale: es-ES`.
 
+## MAS Feature Branch (mandatory)
+
+This section **replaces** the core outline steps "Branch creation (optional, via hook)"
+and "Create the spec feature directory". Branch creation is not optional for MAS and
+does not depend on the git extension, `.specify/extensions.yml`, or a `before_specify`
+hook. If that hook also runs, still perform the steps below. Do not write `spec.md`
+until the feature branch exists and is checked out.
+
+1. From the repository root, confirm this is a git work tree:
+   `git rev-parse --is-inside-work-tree`. If it fails, stop and report the error.
+2. Base the feature on `main`:
+   - If `git rev-parse --verify main` succeeds, `git checkout main`.
+   - If `main` does not exist and `git rev-parse --verify HEAD` fails (unborn
+     repository), stay on the unborn branch and continue. The next `git checkout -b`
+     names that first branch.
+   - Otherwise stop. Do not create the feature branch from another branch.
+3. Build a 2-4 word English short name (action-noun when possible).
+4. Run the bundled script and require exit code 0. On Windows PowerShell use the
+   `.ps1` script; otherwise use Bash. Stop on any failure and show stderr. Do not
+   create the spec directory by hand as a fallback.
+   - Bash: `.specify/scripts/bash/create-new-feature.sh --json --short-name "<short-name>" "<feature description>"`
+   - PowerShell: `.specify/scripts/powershell/create-new-feature.ps1 -Json -ShortName "<short-name>" "<feature description>"`
+5. Parse `BRANCH_NAME` from the JSON. It must look like `NNN-short-name` (sequential
+   prefix unless `.specify/init-options.json` sets `feature_numbering` to `timestamp`).
+6. The script checks out `BRANCH_NAME` itself, including when the repository has
+   no commits yet (`git checkout -b` moves the symbolic HEAD off `main`). Do not
+   run a second `git checkout -b` when that branch is already current. If HEAD is
+   not `BRANCH_NAME`, stop and do not write the spec.
+7. Confirm the branch with `git symbolic-ref --short HEAD` (Bash and PowerShell).
+   It must equal `BRANCH_NAME`, and `git symbolic-ref HEAD` must be
+   `refs/heads/<BRANCH_NAME>`. Do not use `git rev-parse --abbrev-ref HEAD`:
+   in a repository with no commits that command exits 128. The script already created
+   `specs/<BRANCH_NAME>/spec.md` and `.specify/feature.json`. Fill that spec
+   file. Do not create a second feature directory.
+
+## Empty repository commits
+
+When the git repository has no commits, `main` is only a symbolic HEAD. After
+`create-new-feature`, HEAD is the feature branch and there is still no commit
+object. `/speckit.specify` and `/speckit.clarify` commit on that feature branch.
+Those commits are the first history of the repository. Do not try to create an
+initial commit on `main` first. Do not run `git branch main` from the feature
+tip: that makes a later `--no-ff` merge report "Already up to date". `main`
+becomes a real branch only when `/speckit.implement` runs `finish-feature`,
+which points `main` at the root commit (`git rev-list --max-parents=0 HEAD`)
+and then merges the feature with `--no-ff`. `/speckit.plan` and
+`/speckit.tasks` stay on the feature branch and do not create `main`.
+`/speckit.analyze` does not commit.
+
+## Phase commit (mandatory)
+
+After `spec.md` is written, commit it on the current feature branch. This commit
+is required and is the repository root when the repository was born empty.
+`finish-feature` later points `main` at that root (`git rev-list --max-parents=0 HEAD`).
+Do not rely on `.specify/extensions.yml` or `speckit.git.commit`. Do not create
+`main`. Do not run `git branch`.
+
+1. `git symbolic-ref --short HEAD` must be the feature branch (`NNN-short-name`).
+2. If `git status --porcelain` is empty, stop this section.
+3. Otherwise run the commands for the current shell and require exit code 0.
+
+Bash:
+
+```bash
+git add -A
+git commit -m "speckit.specify"
+```
+
+PowerShell:
+
+```powershell
+git add -A
+git commit -m "speckit.specify"
+```
+
 {CORE_TEMPLATE}

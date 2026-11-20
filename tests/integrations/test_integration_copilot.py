@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 import typer
 
-from tests.conftest import MAS_INIT_EXTRA_FILES
+from tests.conftest import mas_init_extra_files
 import yaml
 
 from specify_cli.integrations import get_integration
@@ -363,7 +363,7 @@ class TestCopilotCommandsMode:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
-        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
+        expected = sorted([*expected, *mas_init_extra_files("sh")])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -428,7 +428,7 @@ class TestCopilotCommandsMode:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
-        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
+        expected = sorted([*expected, *mas_init_extra_files("ps")])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -945,7 +945,7 @@ class TestCopilotSkillsMode:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ])
-        expected = sorted([*expected, *MAS_INIT_EXTRA_FILES])
+        expected = sorted([*expected, *mas_init_extra_files("sh")])
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -1245,12 +1245,11 @@ class TestCopilotNoModelInvocationOption:
         # preset commands start honouring the option.
         assert "disable-model-invocation" not in fm
 
-        # The docs say ``--force`` is needed here: preset add modified
-        # installed skill files, so a plain upgrade refuses.
+        # Preset writes refresh managed hashes; a plain upgrade can reapply
+        # the option without treating generated content as a user edit.
         result = _run_in_project(project, ["integration", "upgrade", "copilot"])
-        assert result.exit_code != 0
-        assert "modified since installation" in result.output
-        assert "disable-model-invocation" not in _skill_frontmatter(skill_file)
+        assert result.exit_code == 0, result.output
+        assert _skill_frontmatter(skill_file)["disable-model-invocation"] is True
 
         get_integration("copilot")._disable_model_invocation = False
         result = _run_in_project(project, ["integration", "upgrade", "copilot", "--force"])

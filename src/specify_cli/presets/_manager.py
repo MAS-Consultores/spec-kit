@@ -14,6 +14,7 @@ from .._download_security import safe_extract_archive
 from .._init_options import is_ai_skills_enabled, resolve_active_agent_for_registration
 from .._install_ignore import load_install_ignore
 from .._utils import version_satisfies
+from ..integrations._registration import refresh_manifest_hashes
 from ..extensions import REINSTALL_COMMAND, normalize_priority
 from ..shared_infra import (
     _ensure_safe_shared_destination,
@@ -361,6 +362,7 @@ class PresetManager(_PresetCommandMethods, _PresetSkillMethods):
 
         return unmet
 
+    @refresh_manifest_hashes
     def install_from_directory(
         self,
         source_dir: Path,
@@ -669,6 +671,7 @@ class PresetManager(_PresetCommandMethods, _PresetSkillMethods):
             expected_version=expected_version,
         )
 
+    @refresh_manifest_hashes
     def remove(self, pack_id: str) -> bool:
         """Remove an installed preset.
 

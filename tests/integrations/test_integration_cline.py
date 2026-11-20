@@ -10,7 +10,7 @@ from specify_cli.integrations.cline import (
     hyphenate_command_refs,
 )
 from .test_integration_base_markdown import MarkdownIntegrationTests
-from tests.conftest import MAS_INIT_EXTRA_FILES
+from tests.conftest import mas_init_extra_files
 
 
 class TestClineCommandNameFormatter:
@@ -466,4 +466,4 @@ class TestClineIntegration(MarkdownIntegrationTests):
         files.append(".specify/workflows/speckit/workflow.yml")
         files.append(".specify/workflows/workflow-registry.json")
 
-        return sorted([*files, *MAS_INIT_EXTRA_FILES])
+        return sorted([*files, *mas_init_extra_files(script_variant)])

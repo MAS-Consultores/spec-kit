@@ -1,0 +1,188 @@
+# MAS Stack Scaffold: NestJS + React (API + SPA)
+
+This document defines the mandatory structure and checklist for NestJS + React
+monorepo projects. The stack produces a decoupled architecture with `apps/api`
+(NestJS + Prisma + PostgreSQL) and `apps/web` (React + Vite + TypeScript)
+communicating over HTTP.
+
+## Getting Started
+
+Initialize a new project with the NestJS + React stack. You MUST specify the
+`--integration` flag — without it, your coding tool is not configured.
+
+### Cursor
+
+```bash
+specify init . --stack nestjs-react --integration cursor-agent
+```
+
+- **Key**: `cursor-agent` (not `cursor`)
+- **Skills location**: `.cursor/skills/speckit-*/SKILL.md` (not `.cursor/commands`)
+- **Invocation**: `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, etc.
+- Run commands from Cursor's chat panel, not the terminal.
+
+### Codex CLI
+
+```bash
+specify init . --stack nestjs-react --integration codex
+```
+
+- **Key**: `codex`
+- **Skills location**: `.agents/skills/speckit-*/SKILL.md`
+- **Invocation**: `$speckit-specify`, `$speckit-plan`, `$speckit-tasks`, etc.
+  (dollar prefix)
+- Run commands from Codex's chat interface.
+
+### Claude Code
+
+```bash
+specify init . --stack nestjs-react --integration claude
+```
+
+- **Key**: `claude`
+- **Skills location**: `.claude/skills/speckit-*/SKILL.md`
+- **Invocation**: `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, etc.
+- Run commands from Claude Code's chat panel.
+
+## Architecture Overview
+
+- **`apps/api`**: NestJS backend with Prisma ORM, PostgreSQL database, REST API
+  with OpenAPI documentation
+- **`apps/web`**: React SPA built with Vite, consuming typed API clients
+  generated from OpenAPI
+- **`packages/contracts`**: Shared Zod schemas and types; the single source of
+  truth for validation and the only coupling between `apps/api` and `apps/web`
+- **`packages/ui`**: Shared Tailwind CSS + shadcn/ui primitives consumed by
+  `apps/web`
+
+## Key Differences from Laravel + Inertia + React
+
+This stack is a **decoupled API + SPA** architecture, not a server-rendered
+monolith. The API and frontend are independent applications with explicit HTTP
+contracts, enabling independent deployment and scaling.
+
+## Mandatory Structure Checklist
+
+The following structure MUST be present for a valid `nestjs-react` project:
+
+### Monorepo Root (Required)
+
+- [ ] `pnpm-workspace.yaml` with `packages: [apps/*, packages/*]` and an explicit `allowBuilds` map: `true` for `prisma`, `@prisma/engines`, `argon2`, `esbuild`, `@swc/core`, and `msw`; `false` for `@scarf/scarf`. pnpm 12 fails when an install script is omitted. Add new packages by hand (`true` only if the script is required). `pnpm approve-builds --all` writes `false`; do not use it as the source of truth.
+- [ ] Copy `package.json` and `pnpm-lock.yaml` from `.specify/reference/`. Do not run `npm view` to pick versions. TypeScript stays the lockfile pin (typescript-eslint peer exception).
+- [ ] `pnpm-lock.yaml` committed (NOT `package-lock.json` or `yarn.lock`)
+- [ ] Root `package.json` with:
+  - `packageManager: 'pnpm@X.Y.Z'` (exact pnpm pin)
+  - `engines: { node: '>=<Active LTS major>' }` (example as of 2026-11-13: `>=26`; the major comes from the index, not from memory)
+  - `scripts.verify` (chains all offline checks)
+- [ ] `.nvmrc` is mandatory and contains the exact Active LTS version (example as of 2026-11-13: `26.13.1`, codename Lithium). Node 22 is Maintenance, not Active.
+- [ ] Node version resolved only from `https://nodejs.org/dist/index.json`: first entry whose `lts` is not `false` (the file is newest-first; that entry is the highest Active LTS semver). Never Current, odd, or alpha/beta/rc, and never a version from memory or from nodejs.org prose pages. Same major in `@types/node`, CI, Docker (`node:<major>-alpine@sha256:<digest>`), and the README.
+- [ ] One-liner (prints exact version, then major): `curl -s https://nodejs.org/dist/index.json | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const hit=JSON.parse(s).find(e=>e.lts!==false);if(!hit){console.error("no Active LTS");process.exit(1)}const exact=hit.version.replace(/^v/,"");console.log(exact);console.log(exact.split(".")[0])})'`
+- [ ] Corepack is not bundled on Node 25+ (the `node-v26.13.1` tarball has no `bin/corepack`; Node 24 still does). Enable pnpm with `npm i -g corepack@latest && corepack enable`, or install the exact `pnpm@X.Y.Z` globally.
+- [ ] Prisma 7.x stable `engines.node` includes the Active LTS major (`>=24.0` on 7.10.1). The CLI warning for majors above 24 is expected and must not fail the build. Do not install Prisma 8 prereleases.
+- [ ] `tsconfig.base.json` (shared TypeScript config)
+- [ ] Flat `eslint.config.js` (not `.eslintrc.cjs`) with `eslint-plugin-boundaries`: `apps/api` and `apps/web` never import each other; `apps/api` does not import `@demo/ui`; `packages/contracts` imports no app. Shared types and schemas live in `packages/contracts`. `madge` still detects cycles
+- [ ] Controllers and MCP tools do not import `PrismaClient`, `@prisma/client`, the generated client, or `PrismaService`. Queries go through the domain service
+- [ ] Nest `ConfigModule` with Zod validation in `apps/api/src/config`. `process.env` and `requiredEnv` are read only there (plus `prisma.config.ts`, `prisma/database-url.ts`, scripts, and e2e configs, including `vite.config.ts` for `API_PROXY_TARGET`). The lint message says to add the variable to the config module and `.env.example`
+- [ ] No `useEffect` in product code. Allowed only in `apps/web/src/shared/hooks/**`. Server state goes through TanStack Query
+- [ ] No `eslint-disable` without a justification or ticket after `--`. No `@ts-ignore` or `@ts-expect-error` without a description. Disabling `no-explicit-any` is forbidden outright
+- [ ] `.swcrc` with `legacyDecorator: true` and `decoratorMetadata: true`
+- [ ] `apps/api/nest-cli.json` with `compilerOptions.builder: "swc"` and `compilerOptions.typeCheck: true`
+- [ ] API scripts: `dev` is `nest start --watch`; `build` is `nest build`; `start:e2e` is `nest build && node dist/main.js`; `openapi:generate` builds with SWC and sets `OPENAPI_GENERATE=1` before importing compiled `main`. Never `tsx src/main.ts` for the Nest process (`tsx` is only for `prisma.seed`)
+
+### apps/api (Required)
+
+- [ ] `package.json` with `"type": "module"` (NestJS 12 ESM)
+- [ ] `src/main.ts` — NestJS bootstrap with:
+  - Global prefix `/api` with health exclude
+  - Swagger setup at `/docs`
+  - Helmet, CORS, cookie-parser
+  - `app.enableShutdownHooks()`
+- [ ] `src/app.module.ts` — Root module importing all feature modules
+- [ ] `src/modules/` — Domain modules (one per bounded context)
+- [ ] `src/common/` — Infrastructure modules:
+  - `PrismaModule` (exports `ExtendedPrismaClient`)
+  - `ConfigModule` (Zod env validation)
+  - `AuthModule` (`@nestjs/passport` + `@nestjs/jwt`)
+  - `AuthzModule` (custom `@Can()` + `PermissionsGuard`)
+  - `AuditModule` (append-only logging)
+  - `ClsModule` (`nestjs-cls` for context)
+  - `I18nModule` (`nestjs-i18n`)
+  - `HealthModule` (`@nestjs/terminus`)
+- [ ] `prisma/schema/` with one Prisma 7.10.1 file per domain (`base.prisma` holds the generator only):
+  - `generator client { provider = "prisma-client" output = "../src/generated/prisma" moduleFormat = "esm" importFileExtension = "js" }`
+  - `datasource db { provider = "postgresql" }` (no url; use prisma.config.ts)
+  - Models in English, PascalCase, singular. Physical tables in English, snake_case, plural via `@@map` (`users`, `refresh_tokens`, `audit_logs`). Physical columns in snake_case via `@map`. No Spanglish and no persisted enum codes in Spanish (the UI translates). A field that must match an external source 1:1 may keep that name on the model; its column stays snake_case and the exception is commented
+- [ ] No example domain. The reference ships health, generic auth infrastructure, Prisma, an empty web shell, `packages/ui`, and `packages/contracts`. It does not ship a notes or widgets module, a demonstration screen, a demonstration seed, or an `example.com` account. Domain code comes from a Spec Kit feature. `scripts/check-no-example-slice.mjs` fails if an example slice or `example.com` account reappears
+- [ ] `apps/api/prisma.config.ts` (package root, not `prisma/prisma.config.ts`) with `schema: 'prisma/schema'` and `migrations.path` of `prisma/migrations`, both absolute via `import.meta.dirname`
+- [ ] `tsconfig.json` includes src and tests (editor + ESLint `projectService`); `tsconfig.build.json` includes only `src` for `nest build` (`rootDir: src` → `dist/generated/prisma/client.js`)
+- [ ] Seed script: `node --import tsx prisma/seed.ts` (`tsx` dependency). Do not use `node --experimental-strip-types` for the seed. `pnpm db:setup` migrates then seeds. If `SEED_DATABASE_URL` is unset, both commands use `DATABASE_URL` only when the host is `127.0.0.1`, `localhost`, or `::1`. A remote host is refused. If `SEED_DATABASE_URL` is set, it must differ from `DATABASE_URL` (CI and e2e). The seed is not a production deploy
+- [ ] `scripts/lint-migrations.mjs` runs inside `pnpm lint`, with negative fixtures under `apps/api/prisma/migration-lint-fixtures/`. Copy `.github/workflows/upgrade-on-data.yml` from this reference into the project so pull requests migrate the base, seed, then `prisma migrate deploy`
+- [ ] Test DB reset: `prisma migrate deploy` + `TRUNCATE`, never `prisma migrate reset`
+- [ ] `prisma/migrations/` — Migration files (run `prisma migrate deploy` pre-deploy)
+- [ ] `src/generated/prisma/` — Generated Prisma client (gitignored, SWC compiles to dist)
+- [ ] `vitest.config.ts` (Vitest for NestJS 12 ESM)
+- [ ] `.env.example` at the repo root (copied by `specify init` from the reference) documenting every variable the app reads (`DATABASE_URL`, `SEED_DATABASE_URL`, JWT secrets, `PORT`, `API_PROXY_TARGET`, `CORS_ORIGIN`, `TRUST_PROXY`, and any later `process.env` name). Placeholders only. `scripts/check-env-example.mjs` fails when a read name is missing
+- [ ] Authentication security rules for any auth feature, each with tests (mark not applicable only with a reason):
+  - [ ] One-time passwords and tokens are single-use: atomic consume on first success, invalidated by a later successful login or password change
+  - [ ] Recovery and login do not reveal account existence or why a login was rejected (same status, body, and similar latency; every rejection path pays the Argon2 cost, with a fixed dummy Argon2id hash — same parameters as real hashes — on every 401 that does not verify a real hash; hashing, writes, and email do not change the response)
+  - [ ] Lockout and rate-limit counters update in one transaction (per-key lock or atomic upsert). Never read-then-write or count-then-insert. Reject inside the transaction, purge expired rows there, and add a concurrency test
+  - [ ] Client IP comes from `request.ip`; `X-Forwarded-For` only via an explicit validated `TRUST_PROXY` (`loopback` or a hop count, never `true`)
+  - [ ] A restricted or must-change-password session has no business scopes; guards allow only change-password, logout, and me; refresh does not reissue scopes
+  - [ ] SMTP that carries secrets uses TLS (`secure` or `requireTLS`); plaintext only for a loopback dev mail catcher
+  - [ ] Password change and session revocation reject access tokens and refresh tokens issued before `passwordChangedAt` or an older token version; refresh checks before issuing
+  - [ ] Guard bypasses compare the parsed path only (`mas/no-url-includes-in-guards`); never `originalUrl.includes` or `url.includes`
+
+### apps/web (Required)
+
+- [ ] `package.json` with `"type": "module"`
+- [ ] `src/main.tsx` — React entry point with providers
+- [ ] `src/routes/` — TanStack Router file-based routes
+- [ ] `src/features/` — Feature modules (one per domain)
+- [ ] `src/shared/` — App shell and layout only
+- [ ] `vite.config.ts` with TanStack Router plugin
+- [ ] `vitest.config.ts` for component tests
+- [ ] `e2e/` — Playwright E2E tests
+- [ ] `vite.config.ts` proxies `/api` for dev and preview to `API_PROXY_TARGET`. Playwright uses the web origin and calls `/api` through the proxy
+- [ ] `playwright.config.ts` with `screenshot: 'off'`, `video: 'off'`, and
+  `trace: 'off'` (no screenshots in tests: no `page.screenshot()`, no
+  `toHaveScreenshot()`)
+- [ ] AI agents MUST NOT take, generate, or save ad hoc screenshots during
+  `/speckit.implement`, demos, or pilots—not with Playwright, not with a
+  browser, and not with scripts. Visual review is performed by a human
+  (revisión visual humana). Playwright + axe-core gates, including computed
+  Tailwind style verification, remain mandatory and MUST run without
+  screenshots (`screenshot: 'off'`; no `toHaveScreenshot()`; no
+  `page.screenshot()`)
+- [ ] `tailwind.config.ts`
+
+### packages/contracts (Required)
+
+- [ ] `src/` — Shared Zod schemas
+- [ ] `src/pagination.schema.ts` — Standard pagination
+- [ ] `src/rfc9457.schema.ts` — RFC 9457 error schema
+- [ ] `src/index.ts` — Barrel export
+- [ ] `package.json` with a real build and `exports` pointing at compiled `.js` (not `.ts`). Specifiers inside the package use `.js`. `dev`, `start:e2e`, and `openapi:generate` build this package before the API process starts
+
+### packages/ui (Required)
+
+- [ ] Source-only package: `exports` map `./components/*` → `./src/components/*.tsx` (no `dist` build)
+- [ ] `components.json` aliases use the workspace package name (not the npm package `cn`)
+- [ ] Direct dependency `radix-ui`; `cn` imported from the local utils module
+- [ ] `apps/web/src/index.css` has `@theme inline`, `@import "tw-animate-css"`, `@import "shadcn/tailwind.css"`, and `@source` for `packages/ui/src`
+- [ ] `--destructive` meets WCAG 2.1 AA; sonner does not use `richColors`
+- [ ] `apps/web/src/routeTree.gen.ts` is committed (excluded from ESLint only, not from git)
+
+### scripts/ (Required)
+
+- [ ] `scripts/permissions-sync.ts` — `pnpm permissions:sync`
+- [ ] `scripts/openapi-generate.ts` — `pnpm openapi:generate`
+- [ ] `scripts/check-casl.ts` — copy `templates/check-casl.ts` from this preset (TypeScript AST, not regex) and wire it into `pnpm verify` with `openapi:generate` and `api-client:generate`
+- [ ] `pnpm verify` and quickstart commands use `pnpm --filter` with the `name` from each `package.json` (for example `@demo/api`), not the directory name alone
+- [ ] `pnpm dev` at the repo root loads `.env` and starts `@demo/api` and `@demo/web` together. `quickstart.md` documents that command
+- [ ] **Eventos de bitácora**: `spec.md` lists one event per state-changing story, `plan.md` says where it is recorded, and `tasks.md` has an implementation task and a test per event. Handlers use `@Audit('event.key')` from `packages/contracts/src/audit/index.ts` or `@NoAudit('motivo')`. `pnpm lint` runs `mas/require-audit-on-mutations`
+- [ ] When a feature ports an HTML prototype, follow **Prototype fidelity** in the constitution: `prototype-tokens.json`, brand manifest, self-hosted fonts, the prototype icon library via `apps/web/ui.icons.json` and `apps/web/src/icons/index.ts` (no CDN, no second library), literal motion, shell design, `pnpm lint` as the primary icon and color gate, and `pnpm test:fidelity` (computed color, hover, active, `data-icon`, axe contrast; no screenshots)
+
+### docker/ (Recommended)
+
+- [ ] `Dockerfile` — Multi-stage, non-root user
+- [ ] `docker-compose.yml` — Local PostgreSQL + Mailpit

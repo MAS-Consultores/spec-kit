@@ -71,6 +71,7 @@ Only the following stack IDs are valid:
 - `moodle5-plugin`
 - `moodle5-portal`
 - `laravel-inertia-react`
+- `nestjs-react`
 
 Validation must be exact, case-sensitive, and based on the canonical catalog in
 [Stack Catalog](stack-catalog.md). If a user supplies an invalid value, init must
@@ -93,6 +94,7 @@ The implementation must map each stack ID to this preset composition:
 | `moodle5-plugin` | `mas-core` + `mas-stack-moodle5-plugin` |
 | `moodle5-portal` | `mas-core` + `mas-stack-moodle5-portal` |
 | `laravel-inertia-react` | `mas-core` + `mas-stack-laravel-inertia-react` |
+| `nestjs-react` | `mas-core` + `mas-stack-nestjs-react` |
 
 The exact preset IDs above are the Phase 2 implementation contract. They are
 explicit, namespaced, and do not conflict with the shorter stack IDs used by
@@ -132,7 +134,14 @@ When `--stack` is valid, init should execute this conceptual flow:
 13. Install the bundled `speckit` workflow and any default extensions using
     existing behavior.
 14. Print next steps that show the selected stack and remind the user that
-    `speckit-plan` will validate against it.
+    `speckit-plan` will validate against it. Do not recommend running
+    `speckit.constitution` or `speckit-constitution`: the constitution is
+    already written from the stack during init. The follow-up list for a
+    caller without a stack still starts with `constitution`. This fork
+    rejects `specify init` without `--stack` before that panel, so upstream
+    tests that omit `--stack` fail at validation and do not exercise the
+    panel. That rejection is intentional; those inherited tests are not
+    rewritten.
 
 ## Invalid Stack Flow
 
@@ -181,6 +190,13 @@ A recommended shape is:
 
 The Markdown files remain the primary agent-readable memory surface.
 
+## Integration command files
+
+`--integration cursor-agent` installs Spec Kit commands as
+`.cursor/skills/speckit-*/SKILL.md`. It does not install `.cursor/commands`.
+Other skills-mode integrations use their own skills directory (for example
+`.agents/skills/` for Codex and `.claude/skills/` for Claude).
+
 ## User-Configurable At Init
 
 Users may configure:
@@ -190,7 +206,7 @@ Users may configure:
 - integration-specific options;
 - shell script type through `--script`;
 - branch numbering;
-- normal `--force` behavior for merging into existing directories;
+- normal `--force` behavior for merging into directories that already contain project files. A directory whose only entry is `.git` (the usual `git init` then `specify init .` flow) does not require `--force`;
 - `--skip-external-skills` to skip `npx skills` installation during init;
 - `--strict-external-skills` to require every declared external skill to
   install successfully (default is fail-soft when `npx` or the network is

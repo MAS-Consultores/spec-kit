@@ -126,7 +126,7 @@ specs/[###-feature]/
 |-- plan.md              # This file (__SPECKIT_COMMAND_PLAN__ command output)
 |-- research.md          # Phase 0 output (__SPECKIT_COMMAND_PLAN__ command)
 |-- data-model.md        # Phase 1 output (__SPECKIT_COMMAND_PLAN__ command)
-|-- quickstart.md        # Phase 1 output (__SPECKIT_COMMAND_PLAN__ command)
+|-- quickstart.md        # Phase 1 output (__SPECKIT_COMMAND_PLAN__ command). For nestjs-react, every `pnpm --filter` uses the `name` field from that workspace package.json (for example `@demo/api`), never the directory name alone. Resolve locale scope against spec.md: if the spec requires only es-CL, do not plan `en.json` or a language switcher, and record that decision in MAS Stack Validation.
 |-- contracts/           # Phase 1 output (__SPECKIT_COMMAND_PLAN__ command)
 `-- tasks.md             # Phase 2 output (__SPECKIT_COMMAND_TASKS__ command - NOT created by __SPECKIT_COMMAND_PLAN__)
 ```

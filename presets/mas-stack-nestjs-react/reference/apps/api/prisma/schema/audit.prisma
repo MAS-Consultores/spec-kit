@@ -1,0 +1,13 @@
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  actorId   String   @map("actor_id")
+  subjectId String?  @map("subject_id")
+  result    String   @default("success")
+  metadata  Json     @default("{}")
+  at        DateTime @default(now())
+
+  @@map("audit_logs")
+}

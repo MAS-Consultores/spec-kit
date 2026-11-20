@@ -98,6 +98,8 @@ def test_bundle_init_delegates_without_refresh(project, monkeypatch, bundle):
             integration=None,
             offline=True,
             refresh=False,
+            mas_stack=None,
+            skip_external_skills=False,
         )
 
 

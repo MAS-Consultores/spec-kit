@@ -1220,7 +1220,7 @@ class TestSelfTestPreset:
         self, project_dir, temp_dir
     ):
         """Removing a convention layer does not overwrite edited generated content."""
-        from specify_cli.command_init import ensure_constitution_from_template
+        from specify_cli import ensure_constitution_from_template
 
         templates_dir = project_dir / ".specify" / "templates"
         (templates_dir / "constitution-template.md").write_text("# Core Constitution\n")

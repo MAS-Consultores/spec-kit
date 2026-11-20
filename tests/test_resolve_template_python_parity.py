@@ -1072,6 +1072,14 @@ def test_all_variants_honor_speckit_python_override_when_yaml_missing(
         tmp_path / "no-yaml-python3-shim", no_yaml_exe
     )
 
+    # Shadow every fallback candidate, not only python3. Otherwise PowerShell
+    # correctly finds a PyYAML-equipped host python and the negative control
+    # depends on the runner PATH.
+    for name in ("python", "py"):
+        shutil.copy2(no_yaml_python3_shim / "python3", no_yaml_python3_shim / name)
+        if os.name == "nt":
+            shutil.copy2(no_yaml_python3_shim / "python3.cmd", no_yaml_python3_shim / f"{name}.cmd")
+
     py_script = repo / ".specify" / "scripts" / "python" / "resolve_template.py"
 
     baseline_env = clean_env()

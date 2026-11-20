@@ -207,3 +207,158 @@ Plan should validate:
 - validation covers all input surfaces;
 - Inertia props are reviewed for sensitive data leakage;
 - report/export controls are explicit.
+
+### `nestjs-react`
+
+Security profile:
+
+NestJS/Prisma/React applications with decoupled API and SPA architecture
+concentrate backend security at NestJS guards, pipes, interceptors, cookie-based
+authentication, and CSRF validation. The React SPA must treat all authorization
+as advisory; the API enforces access control. Prisma prevents SQL injection when
+used correctly, but raw queries and exposed model fields remain risks.
+
+Required guidelines (API — `apps/api`):
+
+- Apply a global `AuthGuard` that denies by default; mark public routes with `@Public()`.
+- Implement session-based authentication with HttpOnly, Secure, SameSite=Lax cookies.
+- Generate and validate CSRF tokens for all state-changing requests.
+
+Authorization (Custom `AuthzModule` + CASL):
+
+- Custom `AuthzModule` with `@Can()` decorator on every endpoint and MCP tool; deny-by-default. Do NOT use `@nestjs/authorization`.
+- Use CASL (`@casl/ability`) as the permission engine; build abilities per user from database-stored permissions.
+- Organize permissions by CATEGORY (one per domain: 'Usuarios', 'Pedidos') with individually restrictable ACTIONS.
+- Use `category:action` format (e.g., `usuarios:listar`, `pedidos:aprobar`); code checks permissions, NEVER role names.
+- Each domain module declares a permission manifest in `<domain>.permissions.ts` with category, actions, descriptions.
+- Run `pnpm permissions:sync` on deploy/seed to upsert manifests; removed permissions are flagged, not deleted.
+- CI test MUST fail if: `@Can()` references undeclared permission, OR manifest action is unused.
+- Apply record-level conditions (tenant, owner, status) via `@casl/prisma` `accessibleBy()` in all list queries.
+- Apply field-level permissions to response serialization and update DTO filtering; never return or accept restricted fields.
+- Store permissions in PostgreSQL: `PermissionCategory`, `Permission` (with category ref, action code, description, conditions JSON, fields JSON), `RolePermission`, `UserRole`, optional `UserPermission`.
+- Central `AuthzModule` aggregates manifests from all domain modules; admin UI groups permissions by category.
+- Audit all permission changes (role assignments, grants, revokes) with timestamp and actor.
+- Test both allowed and denied authorization cases for every endpoint and MCP tool.
+
+Validation (Both Sides, Single Source):
+
+- Shared Zod schemas in `packages/contracts` are the SINGLE SOURCE OF TRUTH for all validation.
+- EVERYTHING validated on BOTH frontend (UX) and backend (authoritative); frontend-only validation is a security hole.
+- Backend: Zod v4.2+ with `nestjs-zod` + `ZodValidationPipe` for ALL inputs (body, query, params, headers, file metadata, MCP inputs).
+- Frontend: React Hook Form + `zodResolver` for forms; TanStack Router `validateSearch` for route search params.
+- Business-rule validations (DB-dependent) live in services; return RFC 9457 with field-level `errors` array.
+- Frontend maps RFC 9457 `errors` to form fields via `setError()`.
+- No duplicated hand-written validation rules; all validation derives from shared schemas.
+
+Data Access:
+
+- Use Prisma Client exclusively; never use `$queryRawUnsafe()` with interpolation.
+- Use `select` or `omit` in Prisma queries to avoid exposing sensitive fields.
+- Apply `prisma migrate deploy` for shared environments; never use `db push` outside local development.
+- Hash passwords with Argon2id; never store plaintext credentials.
+- Apply `@nestjs/throttler` on login, password reset, and sensitive endpoints.
+- Enable Helmet; configure CORS with explicit origin allowlist—never `origin: '*'` with credentials.
+- Validate uploads server-side with MIME allowlist and size limits.
+- Use a global exception filter hiding stack traces in production.
+
+Soft Delete:
+
+- Soft delete is mandatory: models include `deletedAt DateTime?` (optionally `deletedBy String?` for audit).
+- Prisma Client extension intercepts `delete()` → soft delete; filters `deletedAt: null` by default.
+- Explicit opt-in (`includeDeleted: true`) required to see deleted records.
+- Unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations.
+- `eliminar` = soft delete (default); `restaurar` = restore (separate permission); `eliminar_permanente` = hard delete (restricted).
+- Hard delete requires justification (legal erasure, retention policies) and full audit logging.
+- Cascades handled consistently: soft-deleting parent soft-deletes or detaches children per business rules.
+
+Comprehensive Auditing (Constitution-Level Principle):
+
+- EVERY relevant action MUST be audited—foundational stack principle, not optional.
+- Audit fields: who (userId, clientId), what (action, permission), when, which (entity, recordId), before/after (masked), origin (REST/MCP/job), context (IP, userAgent, requestId).
+- Audited actions: create, update, soft delete, restore, hard delete, permission/role changes, login/logout/failed auth, exports, MCP tool calls.
+- Reusable `AuditModule` with NestJS interceptor and/or Prisma extension for automatic capture.
+- Append-only `AuditLog` table—no update/delete operations allowed.
+- Sensitive data MUST be masked: passwords, tokens, secrets, PII never logged unmasked.
+- Permission category `auditoria`: `ver` (view logs), `exportar` (export audit data).
+- Frontend: paginated audit view with filters (entity, action, user, date range).
+- Configurable retention policy; archival strategy for old records documented.
+- Each domain module declares audited actions; new features must include audit coverage.
+- Note: `audit` module may later become internal shared package/template.
+
+Performance Principles (Constitution-Level):
+
+- Performance is a first-class requirement—foundational, not optional optimization.
+- No N+1 queries: load relations with Prisma `include`/`select`; batch with `findMany({ where: { id: { in: ids } } })`.
+- Fetch only needed: explicit `select` in every query; never load full entities unnecessarily.
+- Indexes: every column in `WHERE`, `ORDER BY`, or relations indexed in migrations; review with `EXPLAIN ANALYZE`.
+- Async heavy work: exports, emails, notifications run async; `@nestjs/event-emitter` / `@nestjs/schedule` default.
+- BullMQ + Redis OPTIONAL: recommended only when project needs retries, durability, or volume—not mandated.
+- Short transactions: no external calls inside tx; `createMany`/`updateMany` for bulk operations.
+- Measurable budget: p95 < 300 ms target; Prisma slow query logging (> 100 ms threshold).
+- Lightweight frontend: lazy routes, code splitting, virtualization, avoid re-renders; TanStack Query caching.
+- Note: MAS manages caching strategies; stack does NOT mandate Redis/backend caching.
+
+Required guidelines (Frontend — `apps/web`):
+
+- Never store secrets or auth tokens accessible to JavaScript; rely on HttpOnly cookies.
+- Include CSRF token in all mutating requests (POST, PUT, PATCH, DELETE).
+- Never use `dangerouslySetInnerHTML` without DOMPurify sanitization.
+- Generate typed API clients from OpenAPI; do not hardcode endpoints.
+- Use Content Security Policy headers to mitigate XSS.
+- Use `@casl/react` with rules served from `/me` endpoint for UI visibility only; the API ALWAYS enforces authorization.
+
+Plan should validate:
+
+- monorepo structure with `apps/api` and `apps/web` is confirmed;
+- authentication uses HttpOnly cookies with CSRF protection, not localStorage;
+- global `AuthGuard` is registered with `@Public()` route exceptions;
+- CORS allowlist matches frontend deployment URLs;
+- for each input (body, query, params, headers, MCP): shared Zod schema exists in `packages/contracts`;
+- backend validates each input with `nestjs-zod` + `ZodValidationPipe`; never skip validation;
+- frontend forms validate with `zodResolver` using SAME shared schema;
+- route search params use TanStack Router `validateSearch` with Zod schema;
+- business-rule errors return RFC 9457 with field-level `errors` array;
+- frontend maps RFC 9457 `errors` to form fields via `setError()`;
+- no duplicated hand-written validation rules; all derive from `packages/contracts`;
+- validation tests exist: valid passes, invalid rejects with correct errors;
+- every endpoint and MCP tool declares required `category:action` permission via `@Can()`;
+- every new/changed module has permission manifest in `<domain>.permissions.ts`;
+- all `@Can()` permissions are declared in manifests; all manifest actions are used (CI test);
+- `pnpm permissions:sync` is part of deploy/seed process;
+- record-level conditions and field-level restrictions are documented for applicable endpoints;
+- list queries use `accessibleBy()` for record filtering by user permissions;
+- response serialization and update DTOs apply field-level permissions;
+- permission schema (`PermissionCategory`, `Permission`, `RolePermission`, `UserRole`) exists in Prisma;
+- audit logging is implemented for all permission changes;
+- tests cover both allowed and denied authorization cases;
+- endpoints are mapped to guards, DTOs, and response types with `select`/`omit`;
+- Prisma migrations are required for schema changes;
+- OpenAPI client generation and synchronization process is documented;
+- frontend includes CSRF tokens in mutating requests;
+- frontend uses `@casl/react` for UI visibility only, with API enforcement documented;
+- models include `deletedAt DateTime?` (optionally `deletedBy String?` for audit);
+- Prisma Client extension intercepts `delete()` → soft delete, filters `deletedAt: null` by default;
+- explicit opt-in (`includeDeleted: true`) required to see deleted records;
+- unique constraints use partial indexes (`WHERE deletedAt IS NULL`) via migrations;
+- restore action protected by `<category>:restaurar` permission;
+- hard delete protected by `<category>:eliminar_permanente` with audit logging and justification;
+- cascades handled consistently (parent soft-delete → children soft-deleted or detached);
+- `AuditModule` exists with append-only `AuditLog` table (no update/delete);
+- audit captures: userId, action, timestamp, entity, recordId, before/after (masked), origin, context;
+- audited actions include: create, update, soft delete, restore, hard delete, permission changes, auth events, exports, MCP calls;
+- sensitive fields (passwords, tokens, secrets, PII) masked before logging;
+- permission category `auditoria` with `ver` and `exportar` actions;
+- frontend has paginated audit view with filters;
+- retention policy is configurable and documented;
+- each new feature declares audited actions; features without audit trail are rejected;
+- for each query: no N+1 patterns; relations loaded with `include`/`select` or batched;
+- for each query: explicit `select`; reject loading full entities unnecessarily;
+- for columns in `WHERE`, `ORDER BY`, or relations: indexes exist in migrations;
+- heavy operations (exports, emails) run async; not blocking HTTP requests;
+- BullMQ/Redis only when justified (retries, durability, volume)—not mandated;
+- no external calls inside database transactions; transactions are short;
+- bulk operations use `createMany`/`updateMany`; no loops with individual operations;
+- Prisma slow query logging configured; heavy queries reviewed with `EXPLAIN ANALYZE`;
+- nestjs-pino structured logging with correlationId for request visibility;
+- p95 < 300 ms target documented for common endpoints;
+- frontend: lazy routes, code-split components, virtualized large lists.

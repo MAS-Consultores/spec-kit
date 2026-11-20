@@ -632,6 +632,7 @@ def _unregister_presets_for_agent(
     agent_key: str,
     *,
     continuing: str,
+    preserve_paths: frozenset[Path] = frozenset(),
 ) -> None:
     """Best-effort removal of ``agent_key``'s preset command/skill artifacts.
 
@@ -647,7 +648,9 @@ def _unregister_presets_for_agent(
         from ..presets import PresetManager
 
         preset_mgr = PresetManager(project_root)
-        preset_mgr.unregister_agent_artifacts(agent_key)
+        preset_mgr.unregister_agent_artifacts(
+            agent_key, **({"preserve_paths": preserve_paths} if preserve_paths else {}),
+        )
     except Exception as preset_err:
         from .. import _print_cli_warning
 

@@ -1450,7 +1450,8 @@ class CommandRegistrar:
 
     def unregister_commands(
         self, registered_commands: Dict[str, List[str]], project_root: Path,
-        *, extension_id: Optional[str] = None, resource_hashes: Optional[dict] = None,
+        *, preserve_paths: frozenset[Path] = frozenset(),
+        extension_id: Optional[str] = None, resource_hashes: Optional[dict] = None,
     ) -> None:
         """Remove previously registered command files from agent directories.
 
@@ -1512,6 +1513,8 @@ class CommandRegistrar:
                             self._ensure_inside(cmd_file, target_dir)
                         except ValueError:
                             continue
+                        if cmd_file.absolute() in preserve_paths:
+                            continue
                         if cmd_file.exists() or cmd_file.is_symlink():
                             from .integrations._file_changes import after_file_change, before_file_change
 
@@ -1533,6 +1536,8 @@ class CommandRegistrar:
                     prompt_file = (
                         project_root / ".github" / "prompts" / f"{cmd_name}.prompt.md"
                     )
+                    if prompt_file.absolute() in preserve_paths:
+                        continue
                     if prompt_file.exists():
                         from .integrations._file_changes import after_file_change, before_file_change
 

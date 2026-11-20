@@ -567,7 +567,7 @@ if [ "$DRY_RUN" != true ]; then
     if [ "$HAS_GIT" = true ]; then
         branch_create_error=""
         if ! branch_create_error=$(git checkout -q -b "$BRANCH_NAME" 2>&1); then
-            current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+            current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
             if git branch --list "$BRANCH_NAME" | grep -q .; then
                 if [ "$ALLOW_EXISTING" = true ]; then
                     if [ "$current_branch" = "$BRANCH_NAME" ]; then

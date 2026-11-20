@@ -1,0 +1,191 @@
+# Catálogo de regresiones — `nestjs-react`
+
+Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitution no cuenta como cobertura. «Pendiente» significa que el historial no alcanza para un chequeo ejecutable o que el comportamiento no está en el esqueleto.
+
+## Fidelidad de maquetas
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D9-01 | el logo del prototipo se reemplazó por texto y nadie lo vio porque el e2e solo miraba roles y textos | el job `reference` corre `pnpm test:fidelity` sobre `fixtures/fidelity`: el caso que coincide sale 0; el caso negativo (logo en un `span`, padding 12px, riel 200px) sale distinto de 0 y el mensaje nombra `es texto`, `padding` y `width` |
+| D9-02 | se portaron solo tokens de marca y quedaron grises, radios o paddings por defecto del esqueleto | el mismo caso negativo exige `app-header padding 12px vs prototipo 16px` |
+| D9-03 | el menú se armó con estilos del esqueleto, sin riel, anchos ni gradiente | el mismo caso negativo exige el ancho del riel (`200px` vs `240px`) |
+
+## Demo 8 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D8-01 | specify, clarify, plan y tasks commitean con `git add -A` y `git commit` en bash y PowerShell; en un repo nacido vacío `finish-feature` deja `main` con el commit `speckit.specify` como raíz y primer padre del merge | `d1c8800c` | `test_specify_and_clarify_skills_commit` y `test_specify_commit_is_main_root_after_finish` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
+| D8-02 | la constitution, el contexto de stack y el catálogo piden `McpModule.forRoot` con `decorators`, igual que el esqueleto; ningún artefacto generado nombra la variante async de ese registro | `d1c8800c` | `test_mcp_registration_uses_for_root` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
+
+## Demo 7 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D7-01 | en un repo nacido vacío, `finish-feature` deja `main` en el commit raíz y crea un merge `--no-ff`; si `main` ya existe, lo conserva; un árbol sucio sale 1 | `64fd9ade` | `tests/test_mas_nestjs_demo7.py` y los pasos de CI «Finish feature on Bash» (Ubuntu y macOS) y «Finish feature on PowerShell» (Windows) |
+
+## Demo 6 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D6-01 | `check-casl.ts` acepta `@Authenticated()` en handlers HTTP; una tool MCP sin `@Can` sigue fallando; un handler sin `@Can`, `@Public` ni `@Authenticated` falla | `cbf536d6` | `tests/test_mas_nestjs_demo6.py` y `pnpm casl` del job `reference` |
+| D6-02 | `.env.example` lista las variables que la app lee y `specify init` lo copia | `19d2064d` | `tests/test_mas_nestjs_demo6.py` y `node scripts/check-env-example.mjs` |
+| D6-03 | Vite hace proxy de `/api` en dev y preview; Playwright llama a la API por el origen de la web | `d8d05593` | `node scripts/check-dev-proxy.mjs` y `pnpm test:e2e:web` (health vía el origen web) en ambos tramos del job `reference` |
+| D6-04 | los puertos de `.e2e-ports.json` se reutilizan solo si están libres o los dos servidores responden | `5b56f0e0` | `node --experimental-strip-types apps/web/e2e/ports.ts --self-test` y Playwright dos veces seguidas |
+
+## Demo 5 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D5-01 | `truncate-e2e.mjs` trunca las tablas de la app leídas de `information_schema`, sin nombres fijos, y omite `_prisma_migrations` | `bf51460a` | el e2e de API del job `reference` ejecuta el script |
+| D5-02 | logout y `me` usan `@Authenticated()`; el esqueleto no trae slice, seed ni cuentas de demostración | `dd35cd62` | `node scripts/check-no-example-slice.mjs` |
+| D5-03 | la rama se lee con `git symbolic-ref --short HEAD` en bash y PowerShell | `15c5e53b` | `tests/test_mas_nestjs_demo5.py` (repo sin commits) y el paso de CI en bash y PowerShell, que exige salida 128 de `rev-parse --abbrev-ref` |
+| D5-04 | `db:migrate` usa `DATABASE_URL`; un string vacío no cae a `SEED_DATABASE_URL`; si `SEED_DATABASE_URL` está definida debe ser distinta | `c969f542` | `tests/test_mas_nestjs_demo5.py` y `prisma migrate deploy` de las dos bases en el job `reference`. El fallback de loopback cuando el seed no está definido es D12-09 |
+| D5-05 | `/speckit.tasks` copia versiones del lockfile del esqueleto y no pide `npm view` | `9576bfc4` | `tests/test_mas_nestjs_demo5.py` lee el skill, la plantilla de tasks y el checklist |
+
+## Demo 4 (huecos de esta iteración)
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D4-01 | `create-new-feature` deja HEAD en la rama aunque el repo no tenga commits | `7e3a0f2b` | `tests/test_mas_nestjs_gaps.py` (repo vacío y con commit, bash) y el paso de CI «Spec Kit scripts without an LLM» |
+| D4-02 | `setup-tasks` escribe `tasks.md` | `7e3a0f2b` | el mismo pytest y el mismo paso de CI |
+| D4-03 | `ensure-feature-branch` sale 1 en `main`/`master` y 0 en la rama de feature; los skills lo invocan | `7e3a0f2b` | pytest de bash; paso de CI en bash y PowerShell |
+| D4-04 | `prisma.config.ts` usa `datasource.url` y `migrations.seed` | `37f9f929` | `prisma migrate deploy` en el job `reference` y `scripts/compile-preset-snippets.mjs` |
+| D4-05 | peers de pnpm 12 van en `pnpm-workspace.yaml` | `37f9f929` | `pnpm install --frozen-lockfile` del job `reference` (el install falla si el mapa no está donde pnpm 12 lo lee) |
+| D4-06 | aprobar skills de paquetes con `pnpm approve <pkg>`, no `--all`; conservar `minimumReleaseAgeExclude` | `37f9f929` | el mismo install; el yaml versionado ya trae `permissions` y `minimumReleaseAgeExclude` |
+| D4-07 | el seed de e2e usa `SEED_DATABASE_URL` y no la base de `DATABASE_URL` | `37f9f929` | `scripts/ensure-postgres.sh` (exit 1 si son iguales) y `pnpm db:seed` dos veces en CI |
+| D4-08 | shadcn no interactivo, sin `src/src` ni `from "cn"` | `37f9f929` | `node scripts/check-shadcn.mjs` dentro de `pnpm verify` |
+| D4-09 | el `JwtAuthGuard` global no intercepta MCP; scope insuficiente es error MCP | `37f9f929` | `pnpm test:e2e:mcp` (401 Bearer y 403 `insufficient_scope`) y el unit del guard |
+| D4-10 | CASL sin `PureAbility` | `37f9f929` | `tsc` del esqueleto y compilación del snippet |
+| D4-11 | `QueryClient` desde `@tanstack/query-core` y `stockFeatures` desde `@tanstack/table-core` | `37f9f929` | `tsc` de `apps/web` y compilación del snippet |
+| D4-12 | el checker CASL acepta `permissions.ts` | `7e3a0f2b` | `test_check_casl_accepts_permissions_ts` y `pnpm casl` sobre `permissions.ts` del esqueleto |
+| D4-13 | Corepack en Node ≥ 25 sin escribir en `/usr` | `da9e6989` | el job `reference` hace `npm config set prefix ~/.local` antes de Corepack |
+| D4-14 | analyze no hace commit; specify/clarify en un repo vacío commitean en la rama | `7e3a0f2b` | el script deja HEAD en la rama (D4-01); el skill lo exige. No hay un commit real de analyze en CI porque esa fase no tiene script |
+
+## Demo 2 y demo 3 reconstruidas del historial
+
+El commit `e2ce8252` agrupó los huecos 2–27 de la demo 2 sin enumerarlos uno a uno. Los commits posteriores cierran la demo 3. Donde el único chequeo histórico es una aserción de texto, queda pendiente.
+
+| ID | Descripción | Commit | Chequeo |
+| --- | --- | --- | --- |
+| D2-01 | `specify init --force` explica qué sobrescribe y no toca `.git` | `81445860` | `test_init_force_explains_git_merge` ejecuta init y lee stdout |
+| D2-05 | checker CASL por AST | `384bc74d` | `test_check_casl_tool_shapes` ejecuta el script con Node |
+| D2-13 | Tailwind 4 `@source` para `packages/ui` | `460004ab` | Playwright del job `reference` exige fondo no transparente en el botón |
+| D2-14 | prohibido reescribir imports compilados; Prisma ESM | `6348a8d7` | `nest build` del job `reference` arranca sin un script `fix-imports` |
+| D2-15 | el agente no toma capturas | `edc8da64` | Playwright con `screenshot`/`video`/`trace` en `'off'`; el spec no llama a `page.screenshot` |
+| D3-01 | Node es el Active LTS de `index.json` | `e6c1dd69` | el workflow resuelve `index.json` y no tiene una versión fija de Node |
+| D3-02 | rama de feature determinista | `799acd05` | D4-01 y D4-03 |
+| D3-03 | el warning de Prisma en Node 26 no rompe el install | `3374f355` | `pnpm install` del job `reference` termina 0 con ese warning |
+| D3-04 | `allowBuilds` explícito | `72f0916d` | el install de CI construye `prisma`, `argon2` y `@swc/core` |
+| D3-05 | Nest corre con SWC y `ThrottlerGuard` va por DI | `b1a3af57` | `pnpm build` y el e2e de 429 |
+| D3-06 | cliente MCP declarado y `shadcn add` no interactivo | `67f2ac8b` | `@modelcontextprotocol/client` está en el lockfile; D4-08 |
+| D3-07 | no pedir `/speckit.constitution` después del init | `bee9aa95` | `test_init_layouts_omit_constitution_step` y `test_upstream_followups_still_list_constitution_when_no_stack` en `tests/test_mas_nestjs_scenarios.py`, job `smoke` |
+| D3-08 | mínimos de tests de API, MCP, Playwright y unit | `72aa784b` | el job `reference` los ejecuta |
+| D3-09 | escenarios de gates | `36537e24` | `tests/test_mas_nestjs_scenarios.py` en el job `smoke` |
+| D3-10 | init sin stack falla antes del panel | `4f812998` | `test_missing_stack_still_fails_before_writing` en `tests/test_mas_nestjs_scenarios.py`, job `smoke` (sale 1 y no escribe el proyecto) |
+| D3-11 | Corepack en el runner de Windows | `ba142825` | el job `smoke` de `windows-latest` instala Corepack |
+| D3-12 | ruta nativa en Windows y TypeScript 5.9.3 para check-casl | `e8f3b605` | job `smoke` de Windows; el paquete `@demo/casl-check` depende de `typescript@5.9.3` |
+
+Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (locale es-CL del plan, `escapeLike`, `getZodError`, `onUnhandledFrame`, `richColors`, `getAnimations`): el esqueleto cubre es-CL, contraste y axe. El resto no tiene un fallo ejecutable propio y sigue pendiente.
+
+## Modularidad estricta
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D10-01 | un dominio no puede importar archivos internos de otro; solo `index.ts` | `apps/api/lint-fixtures/modules/billing/billing.service.ts` (`mas/public-module-api`) dentro de `pnpm lint` |
+| D10-02 | Prisma solo en `*.repository.ts` y en el módulo Prisma; `@Global()` solo en config | `service-imports-prisma.ts` (`mas/prisma-only-in-repositories`) y `global-module.ts` (`mas/no-global-module`) |
+| D10-03 | archivos de más de 300 líneas o funciones de más de 60 | `long-file.ts` (`max-lines`) y `long-function.ts` (`max-lines-per-function`) |
+| D10-04 | `let` o `new Map` en el top-level de una app | `module-state.ts` (`mas/no-module-state`). El rate limit del esqueleto persiste en `rate_limit_buckets` |
+| D10-05 | ciclos de módulos | `lint-fixtures/cycle` falla `import-x/no-cycle` y dependency-cruiser `no-circular` |
+| D10-06 | el router no importa una feature en estático; el shell no hace `fetch` | `apps/web/lint-fixtures/app-router.tsx` (`mas/lazy-feature-routes`) y `shell/logout.tsx` (`mas/fetch-in-feature-data`) |
+| D10-07 | cada módulo y cada feature tienen `index.ts` y el nombre permitido | `modules/orphan/orphan.module.ts` (`mas/module-layout`) |
+| D10-08 | un repositorio no toca modelos de otro dominio; el contrato se importa por su index | `billing.repository.ts` (`mas/own-models-only`) e `imports-contract-internal.ts` (`mas/contracts-public-index`) |
+| D10-09 | el esquema Prisma es un archivo por dominio y el generador no deja dominios de ejemplo | `node scripts/check-prisma-layout.mjs` en `pnpm verify`, y `node scripts/check-gen-fitness.mjs` al final del job `reference` (genera `alpha` y `beta`, lint, typecheck, test, build, diff acotado, y los borra) |
+
+## Auth del esqueleto
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D11-01 | los contadores de rate limit no pueden hacer count-then-insert; una transacción con `pg_advisory_xact_lock` incrementa, rechaza dentro y purga filas vencidas | `test/throttle.e2e.ts` (20 hits concurrentes, hits 1..20, 15 bloqueados, la fila vencida no sobrevive) en `pnpm test:e2e:api` del job `reference` |
+| D11-02 | el login de una cuenta ausente verifica un hash Argon2 ficticio fijo | `auth.service.spec.ts` exige `argon2.verify` con `DUMMY_PASSWORD_HASH` y con el hash real, dentro de `pnpm test` |
+| D11-03 | un refresh emitido antes de `password_changed_at` no emite otra sesión | `auth.service.spec.ts` (Unauthorized y `createRefresh` no se llama) |
+| D11-04 | un bypass de guard compara el path; una query que contiene `/mcp` no salta la autenticación | `jwt-auth.guard.spec.ts` y el fixture `mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) dentro de `pnpm lint` |
+| D11-05 | `minimatch` anterior a 11.0.1 no puede quedar en el lockfile | `pnpm audit --audit-level=high` del job `reference` queda en cero; el override `minimatch@<11.0.1` está en `pnpm-workspace.yaml` |
+| D11-06 | cada rechazo de login paga el coste Argon2; un 401 que no verifica un hash real verifica antes el Argon2id ficticio fijo (mismos parámetros) | `auth.service.spec.ts` cubre cuenta ausente, contraseña incorrecta, inactiva y bloqueada, dentro de `pnpm test` |
+| D11-07 | `BearerVerifier` se instancia dentro del módulo dinámico de MCP y no ve `JwtService` aunque un módulo global reexporte `AuthModule`; la API no arranca (`UnknownDependenciesException`) | `McpModule.forRoot` lleva `imports: [AuthModule]`; el job `skeleton-boot` arranca `node dist/main.js` con `MCP_ENABLED=true` y exige HTTP 200 en `/api/v1/health` |
+| D11-08 | con el esquema en `prisma/schema/`, `prisma migrate deploy` imprime `No migration found in prisma/migrations` y sale 0 si `migrations.path` no es absoluto | `apps/api/prisma.config.ts` fija `schema` y `migrations.path` con `import.meta.dirname`; el job `skeleton-boot` falla si la salida contiene `No migration found` |
+| D11-09 | `pnpm lint` con el cliente Prisma sin generar reporta cientos de errores de módulo ausente | `pnpm lint` ejecuta `scripts/ensure-prisma-client.mjs` (`prisma generate`) antes de ESLint; el job `skeleton-boot` corre `pnpm lint` tras generate |
+| D11-10 | el CI de humo no levantaba la API como proceso ni trataba `No migration found` como fallo, así que un Postgres limpio y el DI de MCP pasaban | el job `skeleton-boot` (Postgres 16) hace generate, `migrate deploy`, seed, arranque real con healthcheck, `pnpm test:e2e:api` y Playwright |
+| D11-11 | cambiar el idioma en admin no dejaba fila en la bitácora ni aparecía en Actividad; un handler `@Post`/`@Put`/`@Patch`/`@Delete` sin `@Audit('clave')` del catálogo (o `@NoAudit('motivo')`) no registra actor, persona afectada, tipo, resultado ni timestamp | `apps/api/lint-fixtures/missing-audit.controller.ts` y `unknown-audit.controller.ts` (`mas/require-audit-on-mutations`) dentro de `pnpm lint`; `audit.spec.ts` exige `auth.login` en `activityTypeFilter` y que `language.changed` lance `undeclared audit event` |
+
+## Lint determinista del esqueleto
+
+`pnpm verify` ejecuta `pnpm lint` (el esqueleto en verde) y `pnpm lint:fixtures` (cada fixture tiene que fallar con el mensaje de la corrección). El job `reference` corre `pnpm verify`.
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| L2-01 | `apps/api` no importa `apps/web` ni `@demo/ui`; la web no importa la API; `packages/contracts` no importa apps. Los tipos compartidos van a `packages/contracts`. Madge sigue cubriendo ciclos | `apps/api/lint-fixtures/imports-web.ts` (`boundaries/dependencies`) dentro de `pnpm lint:fixtures` |
+| L2-02 | un controller o una tool MCP no toca Prisma; la consulta va al servicio de dominio | `apps/api/lint-fixtures/uses-prisma.controller.ts` (`mas/no-prisma-at-edge`) |
+| L2-03 | `process.env` y `requiredEnv` solo en `apps/api/src/config` (ConfigModule + Zod), más `prisma.config.ts`, `prisma/database-url.ts`, scripts y configs de e2e (incluido `vite.config.ts`) | `apps/api/lint-fixtures/reads-env.service.ts` (`mas/no-process-env`). El mensaje pide agregar la variable al módulo de config y a `.env.example` |
+| L2-04 | `useEffect` solo en `apps/web/src/shared/hooks/**`. El estado de servidor va por TanStack Query | `apps/web/lint-fixtures/route-effect.tsx` (`mas/no-use-effect`). El hook `useWindowEvent` del esqueleto sigue en verde |
+| L2-05 | `@ts-ignore` y `@ts-expect-error` exigen descripción (`@typescript-eslint/ban-ts-comment`) | `apps/api/lint-fixtures/bare-ts-ignore.ts` |
+| L2-06 | `eslint-disable` exige justificación o ticket (`@eslint-community/eslint-plugin-eslint-comments` `require-description`). Desactivar `no-explicit-any` sigue prohibido aunque haya descripción | `apps/api/lint-fixtures/disable-without-reason.ts` y `disable-explicit-any.ts` |
+| L2-07 | un `*.guard.ts` no llama a `originalUrl.includes` ni a `url.includes` | `apps/api/lint-fixtures/mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) |
+
+## Código limpio y contratos
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| L3-01 | un texto visible (excepción HTTP o toast) no pasa por i18n | `apps/api/lint-fixtures/hardcoded-message.controller.ts` (`mas/no-hardcoded-user-message`) en `pnpm lint` |
+| L3-02 | un formateador fija `'es-CL'` en vez del locale activo | `apps/web/lint-fixtures/fixed-locale.ts` (`mas/no-fixed-locale`) |
+| L3-03 | `response.json() as T` no valida el contrato | `apps/web/lint-fixtures/cast-fetch.ts` (`mas/no-cast-fetch-response`) |
+| L3-04 | un schema Zod de escritura no termina en `.strict()` | `apps/api/lint-fixtures/loose-write.ts` (`mas/zod-strict-writes`) |
+| L3-05 | un `catch` no relanza ni registra; un `catch` que solo relanza el mismo valor tampoco vale | `swallowed-catch.ts` (`mas/no-swallowed-catch`) y `useless-catch.ts` (`no-useless-catch`, ya activa en `eslint:recommended`) |
+| L3-06 | el `index.ts` de un módulo exporta el repositorio | `apps/api/lint-fixtures/modules/ledger/index.ts` (`mas/barrel-exports-only-public`) |
+| L3-07 | un ciclo entre `*.spec.ts` no lo veía el grafo | `apps/api/lint-fixtures/spec-cycle/` (`no-circular`) dentro de `pnpm lint`; `depcruise apps packages` incluye specs y e2e |
+| L3-08 | un tipo de `packages/contracts` se vuelve a declarar en una app | `scripts/check-duplicate-contract-types.mjs` y el fixture rojo `scripts/fixtures/duplicate-types` |
+| L3-09 | un export, archivo o dependencia muerta entra al esqueleto | `knip` dentro de `pnpm lint` (job `reference` y `skeleton-boot`) |
+
+## Migraciones seguras sobre datos existentes
+
+`pnpm lint` corre `scripts/lint-migrations.mjs` (las migraciones del esqueleto, sin base de datos) y `scripts/check-migration-fixtures.mjs` (cada fixture negativo sale distinto de 0 con su código). El job `skeleton-boot` aplica el script sobre Postgres.
+
+| ID | Descripción | Chequeo |
+| --- | --- | --- |
+| D12-01 | `ADD COLUMN ... NOT NULL` sin `DEFAULT` sobre una tabla que ya existe | fixture `add-not-null` (`not-null-add`) dentro de `pnpm lint` |
+| D12-02 | `UPDATE` asigna NULL antes de quitar `NOT NULL` (el caso P3018 / 23502) | fixture `null-into-not-null` y `node scripts/upgrade-on-data.mjs --prove-reject` en `skeleton-boot` |
+| D12-03 | `SET NOT NULL` sin un `UPDATE` previo que asigne un valor no nulo | fixture `set-not-null` (`not-null-set`) |
+| D12-04 | `DROP COLUMN` o `DROP TABLE` sin `-- mas:allow-destructive <motivo>` | fixtures `drop-column` y `drop-table` (`destructive`) |
+| D12-05 | renombre de columna sin esa marca | fixture `rename-column` (`destructive`) |
+| D12-06 | índice único nuevo sobre una tabla que ya estaba en una migración anterior | fixture `unique-existing` (`unique-on-existing`) |
+| D12-07 | se edita el SQL de una migración que ya está en la rama base | fixture `edited` (`edited-migration`). El lint real compara con `origin/master`, `origin/main` o `MIGRATION_BASE_REF` |
+| D12-08 | el caso seguro pasa: `DEFAULT`, backfill y luego `SET NOT NULL`, y `DROP COLUMN` con la marca | fixture `pass` (el script exige cero hallazgos) |
+| D12-09 | sin `SEED_DATABASE_URL`, `db:seed` usa `DATABASE_URL` solo en `127.0.0.1`, `localhost` o `::1`; un host remoto se niega; con la variable definida sigue siendo distinta | `test_migration_url_ignores_blank_and_seed` en `tests/test_mas_nestjs_demo5.py` |
+| D12-10 | el deploy de un PR no asume una base vacía: migraciones de la base, seed, luego `migrate deploy` | `skeleton-boot` ejecuta `upgrade-on-data.mjs --split-last`. Los proyectos copian `.github/workflows/upgrade-on-data.yml` del esqueleto |
+| D12-11 | el texto del admin quedó blanco: `.rail-link[aria-current=page]` y el hover usaban `--sidebar-accent-foreground`, heredada del tema oscuro, y el chequeo leía la variable en `:root` en vez del color computado | `e2e/fidelity.ts --self-test` exige que prototipo y caso negativo compartan `--sidebar-accent-foreground: #ffffff` en `:root` mientras el enlace del prototipo fija `#123456`. El job `reference` corre `pnpm test:fidelity`: el caso que coincide sale 0 y registra el color computado; el caso negativo sale distinto de 0, nombra `hover color` y `axe color-contrast`. Leer `:root` no habría fallado |
+| D12-12 | la maqueta usa Font Awesome (`fa-solid fa-gauge`) y la implementación importó otra librería | el mismo caso negativo nombra `icon lucide:gauge vs prototipo fontawesome:fa-solid fa-gauge`. `pnpm lint` falla `mas/icon-library` en `icons/wrong-library.tsx` (react-icons) y en `icons/direct-library.tsx` (lucide-react fuera del módulo central). El módulo `apps/web/src/icons/index.ts` sí puede importar la librería de `ui.icons.json` |
+| D12-13 | `useApplyLocale` llamaba a `i18n.changeLanguage` durante el render y en cada pasada volvía a imponer el idioma del navegador sobre la cookie: loop infinito y selector pegado | `pnpm lint` falla `mas/no-i18n-mutation-in-render` en `apps/web/lint-fixtures/i18n/change-in-render.tsx` (mensaje `during render`) y en `effect-without-guard.tsx` (mensaje `needs a guard`). El caso válido (handler y efecto con `if (i18n.language !== next)`) no dispara la regla. `apps/web/src/i18n/locale.spec.ts` exige preferencia, luego cookie, luego navegador, luego el default, y que el navegador no pise la cookie |
+| D12-14 | el menú de administración no cambiaba de idioma: `t()` al cargar el módulo, o un array de navegación con el texto ya resuelto | `pnpm lint` falla `mas/no-module-translation` en `i18n/module-t.ts` (`module scope`) y en `i18n/nav-literal.ts` (`labelKey`). El caso válido guarda `labelKey` y llama a `t()` dentro del componente. `mas/no-literal-copy` falla `i18n/jsx-literal.tsx` (`locales/*.json`) en texto JSX y en `aria-label` |
+| D12-15 | las cards de configuración no seguían la maqueta (faltaba `panel-card`, `section-label`, `h5`, texto muted, `hr.my-4`, fila con label, badge, ayuda y switch; el mapa no pedía borde, radio, sombra, padding, tipografía ni color computado) | `node scripts/check-settings-card.mjs` dentro de `pnpm lint`: `missing-hr` sale distinto de 0 y nombra `<hr`; `map-gap` nombra `box-shadow`; `literal-color` nombra `literal color`; `pass` sale 0 |
+
+## Versiones probadas
+
+`specify init --stack nestjs-react` copia `pnpm-lock.yaml` y los `package.json` del esqueleto a `.specify/reference/`. Lo comprueba `test_reference_lockfile_is_what_init_installs`. El job `reference` hace `pnpm install --frozen-lockfile` sobre esa copia. Renovate solo actualiza el esqueleto (`renovate.json`); ese PR tiene que pasar este workflow. Así se cumple «última estable» sin resolver versiones en cada proyecto.
+
+## Pre-mortem
+
+| Riesgo | Qué haría fallar la demo | Chequeo |
+| --- | --- | --- |
+| PM-01 | Postgres recién instalado, sin cluster o sin `postgresql.conf` | `scripts/ensure-postgres.sh` sale 1 y dice cómo correr `initdb`. El job `reference` lo ejecuta contra postgres:16 |
+| PM-02 | Corepack sin permiso de escritura en `/usr` | el job `reference` usa `npm config set prefix ~/.local`. El README del esqueleto documenta Linux, macOS, Windows y nvm |
+| PM-03 | PATH de nvm vacío | el README indica `source "$NVM_DIR/nvm.sh"` antes de `pnpm` |
+| PM-04 | Playwright sin navegadores | `scripts/ensure-playwright.mjs` sale 1 con el comando `pnpm exec playwright install chromium`. El job lo corre después de instalar solo chromium |
+| PM-05 | puertos 3000, 4173 o 5432 ocupados | Playwright reserva un puerto libre. La base se elige con las URLs, no asumiendo que 5432 esté libre para la app |
+| PM-06 | flujo de scripts sin LLM en un repo vacío | paso de CI en bash (Ubuntu y macOS) y PowerShell (Windows): init, create-new-feature, setup-plan, setup-tasks, ensure-feature-branch en la rama y en `main`, y `finish-feature` (repo nacido vacío, `main` con commits, árbol sucio) |
+| PM-07 | migración desde cero, seed dos veces, URLs distintas, truncado | job `reference`: `migrate deploy` de las dos bases, `pnpm db:seed` dos veces, `scripts/truncate-e2e.mjs` en el global setup y en el e2e de API |
+| PM-14 | el esqueleto no incluye un slice de ejemplo | el job de referencia ejecuta `node scripts/check-no-example-slice.mjs` y falla si reaparece un módulo o una cuenta de demostración |
+| PM-08 | cookies HttpOnly, CSRF rotado en logout, refresh, 429 aislado, MCP con guard JWT | `pnpm test:e2e:api`, `test/throttle.e2e.ts` (instancia propia con límite 2) y `pnpm test:e2e:mcp` |
+| PM-09 | es-CL, axe, `routeTree.gen` antes del typecheck, paths `@demo/ui` | `pnpm --filter @demo/web test`, Playwright + axe, `pnpm routes:gen` al inicio de `typecheck` |
+| PM-10 | drift de OpenAPI o del api-client, i18n, eslint strict, madge, CASL, tests skipped | `pnpm verify` |
+| PM-11 | una dependencia directa prerelease o un lockfile que no instala congelado | `pnpm install --frozen-lockfile` y `node scripts/check-prerelease.mjs`. El checker mira los `package.json` del esqueleto. Rangos transitivos que pnpm anota (`@emnapi/*` beta, `@visx/*` alpha) no son dependencias directas y no rompen el install. `auditConfig.ignoreGhsas` omite `GHSA-fc5q-39xc-vjpf`: picomatch 4.0.7 es la última estable y el aviso no tiene versión parcheada; entra por shadcn y fast-glob |
+| PM-12 | warnings de engines o peers rompen el install | están documentados en el README del esqueleto; el install de CI no usa `--strict-peer-dependencies` y el warning de Prisma en Node 26 no es un fallo |
+| PM-13 | un snippet de la constitution o de un skill no compila (el caso de `prisma.config.ts`) | `scripts/compile-preset-snippets.mjs` contra los `node_modules` del esqueleto |

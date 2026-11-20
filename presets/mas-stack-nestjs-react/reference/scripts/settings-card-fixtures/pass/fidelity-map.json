@@ -1,0 +1,19 @@
+{
+  "pairs": [
+    {
+      "prototype": ".panel-card",
+      "app": "[data-testid='settings-card']",
+      "properties": [
+        "border",
+        "border-radius",
+        "box-shadow",
+        "padding",
+        "font-family",
+        "font-size",
+        "font-weight",
+        "color",
+        "background"
+      ]
+    }
+  ]
+}

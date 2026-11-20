@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>App</title>
+    <!--
+      Andamiaje, no portar: Tailwind CDN, jQuery, Font Awesome, sim-bar.
+      El diseño sí se extrae. Config CDN de referencia:
+      tailwind.config = { theme: { extend: { colors: { brand: "#123456" }, fontFamily: { sans: ["Fidelity Sans"] }, borderRadius: { shell: "8px" } } } }
+    -->
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" href="assets/images/logo.svg" />
+  </head>
+  <body>
+    <header data-testid="app-header">
+      <img data-testid="brand-logo" src="assets/images/logo.svg" alt="" width="32" height="32" />
+      <span data-testid="brand-mark">Marca</span>
+    </header>
+    <nav data-testid="app-rail">
+      <a data-testid="rail-link" class="rail-link" aria-current="page" data-icon="fontawesome:fa-solid fa-gauge" href="#panel">Panel</a>
+    </nav>
+    <nav data-testid="app-rail-collapsed"></nav>
+  </body>
+</html>

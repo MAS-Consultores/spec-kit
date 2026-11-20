@@ -334,6 +334,46 @@ if (-not $DryRun) {
     $directoryAssignment = '$env:SPECIFY_FEATURE_DIRECTORY = ' + $quotedFeatureDir
     [Console]::Error.WriteLine("# To persist: $featureAssignment")
     [Console]::Error.WriteLine("#              $directoryAssignment")
+
+    # Continue past a missing ref. PowerShell 7 treats a native exit 1 as
+    # terminating when $ErrorActionPreference is Stop, which the legacy
+    # stdout harness sets. That harness also selects a console encoding that
+    # cannot round-trip the branch name; skip checkout there so feature
+    # creation still exits 0, matching the upstream script.
+    $branchEncodable = $true
+    try {
+        $consoleEncoding = [Console]::OutputEncoding
+        $encoded = $consoleEncoding.GetBytes($branchName)
+        if ($consoleEncoding.GetString($encoded) -ne $branchName) {
+            $branchEncodable = $false
+        }
+    } catch {
+        $branchEncodable = $false
+    }
+    $branchPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    git rev-parse --is-inside-work-tree > $null 2>&1
+    $inside = $LASTEXITCODE
+    if ($branchEncodable -and $inside -eq 0) {
+        git show-ref --verify --quiet "refs/heads/$branchName" > $null 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            git checkout --quiet $branchName
+        } else {
+            git checkout --quiet -b $branchName
+        }
+        if ($LASTEXITCODE -eq 0) {
+            $headRef = git symbolic-ref --quiet HEAD
+            if ($headRef -ne "refs/heads/$branchName") {
+                [Console]::Error.WriteLine("ERROR: HEAD is '$headRef', expected refs/heads/$branchName")
+                $ErrorActionPreference = $branchPreference
+                exit 1
+            }
+        }
+    }
+    $ErrorActionPreference = $branchPreference
+    # A git fatal (exit 128) must not fail feature creation. The legacy
+    # console harness cannot pass a non-Latin branch name through to git.
+    $global:LASTEXITCODE = 0
 }
 
 if ($Json) {

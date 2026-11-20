@@ -1,0 +1,755 @@
+name: NestJS React stack smoke
+
+on:
+  push:
+    branches: ["nestjs-react-support"]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Restore ESLint cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint
+          key: eslint-nestjs-react-${{ runner.os }}-${{ hashFiles('presets/mas-stack-nestjs-react/reference/pnpm-lock.yaml', 'presets/mas-stack-nestjs-react/reference/eslint.config.js', 'presets/mas-stack-nestjs-react/reference/eslint/**') }}
+          restore-keys: |
+            eslint-nestjs-react-${{ runner.os }}-
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Active LTS from index.json
+        id: node
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request, pathlib, os
+          url = "https://nodejs.org/dist/index.json"
+          try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                  text = response.read().decode()
+          except Exception as exc:
+              raise SystemExit(f"failed to fetch {url}: {exc}; refusing to guess a Node version")
+          try:
+              payload = json.loads(text)
+          except json.JSONDecodeError as exc:
+              raise SystemExit(f"index.json is not valid JSON: {exc}; refusing to guess a Node version")
+          if not isinstance(payload, list):
+              raise SystemExit("index.json must be an array; refusing to guess a Node version")
+          hit = next((entry for entry in payload if isinstance(entry, dict) and entry.get("lts") is not False), None)
+          if hit is None or not str(hit.get("version", "")).startswith("v"):
+              raise SystemExit("no Active LTS in index.json; refusing to guess a Node version")
+          exact = hit["version"][1:]
+          path = os.environ["GITHUB_OUTPUT"]
+          with open(path, "a", encoding="utf-8") as handle:
+              handle.write(f"version={exact}\n")
+          print(exact)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: Enable Corepack
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Windows runners already have shim files (yarn.cmd). --force replaces
+          # them so corepack@latest can install; Linux and macOS do not need it.
+          if [ "${RUNNER_OS:-}" = "Windows" ]; then
+            npm i -g corepack@latest --force
+          else
+            npm i -g corepack@latest
+          fi
+          corepack enable
+          node -p "process.versions.node"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install Python test dependencies
+        run: uv sync --extra test
+
+      - name: Policy and scenario tests
+        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py tests/test_mas_nestjs_demo6.py tests/test_mas_nestjs_demo7.py tests/test_mas_nestjs_demo8.py -q --tb=short
+
+      - name: Feature script on Bash
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          mkdir -p "$work/.specify/scripts/bash" "$work/.specify/templates"
+          cp scripts/bash/create-new-feature.sh scripts/bash/common.sh "$work/.specify/scripts/bash/"
+          printf '# spec\n' > "$work/.specify/templates/spec-template.md"
+          bash "$work/.specify/scripts/bash/create-new-feature.sh" --json --short-name user-login "Add user login" > "$work/out.json"
+          python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); assert p["BRANCH_NAME"].endswith("user-login")' "$work/out.json"
+          set +e
+          bash "$work/.specify/scripts/bash/create-new-feature.sh" --short-name x "   " >/tmp/feature-fail.txt 2>&1
+          code=$?
+          set -e
+          test "$code" -ne 0
+          empty="$(mktemp -d)"
+          git init -b main "$empty"
+          test "$(git -C "$empty" symbolic-ref --short HEAD)" = "main"
+          set +e
+          git -C "$empty" rev-parse --abbrev-ref HEAD >/dev/null 2>&1
+          rev=$?
+          set -e
+          test "$rev" -eq 128
+
+      - name: Feature script on PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:TEMP "speckit-smoke"
+          if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          git init -b main $work
+          git -C $work config user.email smoke@example.com
+          git -C $work config user.name smoke
+          New-Item -ItemType Directory -Force -Path "$work/.specify/scripts/powershell","$work/.specify/templates" | Out-Null
+          Copy-Item scripts/powershell/create-new-feature.ps1,scripts/powershell/common.ps1 "$work/.specify/scripts/powershell/"
+          Set-Content -Path "$work/.specify/templates/spec-template.md" -Value "# spec"
+          & "$work/.specify/scripts/powershell/create-new-feature.ps1" -Json -ShortName "user-login" "Add user login"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $empty = Join-Path $env:TEMP "speckit-empty-branch"
+          if (Test-Path $empty) { Remove-Item -Recurse -Force $empty }
+          New-Item -ItemType Directory -Path $empty | Out-Null
+          git init -b main $empty
+          $symOut = Join-Path $empty "sym-out.txt"
+          $symErr = Join-Path $empty "sym-err.txt"
+          $sym = Start-Process -FilePath "git" -ArgumentList @("-C", $empty, "symbolic-ref", "--short", "HEAD") -Wait -PassThru -NoNewWindow -RedirectStandardOutput $symOut -RedirectStandardError $symErr
+          $name = "$(Get-Content -Raw $symOut)".Trim()
+          Write-Host "symbolic-ref exit=$($sym.ExitCode) name=[$name] err=[$(Get-Content -Raw $symErr)]"
+          if ($sym.ExitCode -ne 0 -or $name -ne "main") { exit 1 }
+          $revOut = Join-Path $empty "rev-out.txt"
+          $revErr = Join-Path $empty "rev-err.txt"
+          $rev = Start-Process -FilePath "git" -ArgumentList @("-C", $empty, "rev-parse", "--abbrev-ref", "HEAD") -Wait -PassThru -NoNewWindow -RedirectStandardOutput $revOut -RedirectStandardError $revErr
+          Write-Host "rev-parse exit=$($rev.ExitCode) out=[$(Get-Content -Raw $revOut)] err=[$(Get-Content -Raw $revErr)]"
+          if ($rev.ExitCode -ne 128) { exit 1 }
+
+      - name: Init scaffold smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          # Git Bash rewrites /tmp arguments for native Windows programs.
+          # The path baked into a Python script is not rewritten, so convert it.
+          if [ "${RUNNER_OS:-}" = "Windows" ]; then
+            SMOKE_WORK="$(cygpath -w "$work")"
+          else
+            SMOKE_WORK="$work"
+          fi
+          export SMOKE_WORK
+          uv run python - <<'PY'
+          import os
+          from pathlib import Path
+          root = Path(os.environ["SMOKE_WORK"])
+          context_path = root / ".specify" / "memory" / "stack-context.md"
+          if not context_path.is_file():
+              raise SystemExit(
+                  f"specify init did not write {context_path}; "
+                  "MAS memory is missing at the path passed to init"
+              )
+          context = context_path.read_text(encoding="utf-8")
+          for needle in ("@scarf/scarf", "start:e2e", "OPENAPI_GENERATE", "@modelcontextprotocol/client", "shadcn add", "console.warn", "supertest"):
+              if needle not in context:
+                  raise SystemExit(f"missing {needle}")
+          app = root / "apps/api/package.json"
+          if not app.is_file():
+              print("no app skeleton; skip install, build, typecheck, lint, unit, and postgres e2e")
+          else:
+              raise SystemExit("app skeleton present; this workflow must install and test it")
+          PY
+          uv run python - <<'PY'
+          import json, urllib.request
+          from specify_cli.mas_policy import is_prerelease, latest_stable
+          def versions(name):
+              with urllib.request.urlopen(f"https://registry.npmjs.org/{name}", timeout=60) as response:
+                  payload = json.load(response)
+              return list(payload["versions"])
+          prisma = latest_stable(versions("prisma"), major=7)
+          nest = latest_stable(versions("@nestjs%2Fcore"))
+          assert not is_prerelease(prisma) and prisma.startswith("7.")
+          assert not is_prerelease(nest)
+          print("stable", prisma, nest)
+          PY
+
+      - name: Spec Kit scripts without an LLM
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          git -C "$work" commit --allow-empty -m base
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          # setup-plan resolves preset templates with the Python that is on PATH.
+          # shellcheck disable=SC1091
+          source .venv/bin/activate
+          cd "$work"
+          bash .specify/scripts/bash/create-new-feature.sh --json --short-name user-login "Add user login" > out.json
+          python3 -c 'import json,subprocess; p=json.load(open("out.json")); head=subprocess.check_output(["git","symbolic-ref","HEAD"],text=True).strip(); assert head=="refs/heads/"+p["BRANCH_NAME"]'
+          bash .specify/scripts/bash/ensure-feature-branch.sh
+          bash .specify/scripts/bash/setup-plan.sh
+          python3 -c 'import json,pathlib; p=json.load(open("out.json")); d=pathlib.Path("specs",p["BRANCH_NAME"]); d.mkdir(exist_ok=True); (d/"research.md").write_text("ok\n"); (d/"data-model.md").write_text("ok\n"); (d/"quickstart.md").write_text("ok\n"); c=d/"contracts"; c.mkdir(exist_ok=True); (c/"api.md").write_text("ok\n")'
+          bash .specify/scripts/bash/setup-tasks.sh
+          python3 -c 'import json,pathlib; p=json.load(open("out.json")); text=pathlib.Path("specs",p["BRANCH_NAME"],"tasks.md").read_text(); assert text.strip()'
+          git checkout main
+          if bash .specify/scripts/bash/ensure-feature-branch.sh; then
+            echo "main must be rejected" >&2
+            exit 1
+          fi
+
+      - name: Finish feature on Bash
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin="$PWD"
+          finish_repo() {
+            local work="$1"
+            local mode="$2"
+            git init -b main "$work"
+            git -C "$work" config user.email smoke@example.com
+            git -C "$work" config user.name smoke
+            mkdir -p "$work/.specify/scripts/bash" "$work/.specify/templates"
+            cp "$origin/scripts/bash/common.sh" "$origin/scripts/bash/create-new-feature.sh" "$origin/scripts/bash/finish-feature.sh" "$work/.specify/scripts/bash/"
+            printf '# spec\n' > "$work/.specify/templates/spec-template.md"
+            cd "$work"
+            if [ "$mode" = "existing" ]; then
+              printf 'base\n' > README.md
+              git add README.md
+              git commit -m base
+            fi
+            bash .specify/scripts/bash/create-new-feature.sh --json --short-name user-login "Add user login" > out.json
+            python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); assert p["BRANCH_NAME"].endswith("user-login")' out.json
+            printf 'specify\n' > specify.txt
+            git add -A
+            git commit -m specify
+            printf 'plan\n' > plan.txt
+            git add plan.txt
+            git commit -m plan
+            printf 'implement\n' > implement.txt
+            git add implement.txt
+            git commit -m implement
+          }
+          assert_merge() {
+            local work="$1"
+            local feature_sha="$2"
+            local first="$3"
+            test "$(git -C "$work" symbolic-ref --short HEAD)" = "main"
+            set -- $(git -C "$work" rev-list --parents -n 1 HEAD)
+            test "$#" -eq 3
+            test "$2" = "$first"
+            test "$3" = "$feature_sha"
+            git -C "$work" merge-base --is-ancestor "$feature_sha" HEAD
+            test -z "$(git -C "$work" status --porcelain)"
+          }
+          empty="$(mktemp -d)"
+          finish_repo "$empty" empty
+          feature_sha="$(git rev-parse HEAD)"
+          root="$(git rev-list --max-parents=0 HEAD | head -n 1)"
+          bash .specify/scripts/bash/finish-feature.sh
+          assert_merge "$empty" "$feature_sha" "$root"
+          existing="$(mktemp -d)"
+          finish_repo "$existing" existing
+          feature_sha="$(git rev-parse HEAD)"
+          base="$(git rev-parse main)"
+          bash .specify/scripts/bash/finish-feature.sh
+          assert_merge "$existing" "$feature_sha" "$base"
+          dirty="$(mktemp -d)"
+          finish_repo "$dirty" empty
+          printf 'dirty\n' > dirty.txt
+          set +e
+          bash .specify/scripts/bash/finish-feature.sh >/tmp/finish-dirty.txt 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 1
+          grep -q dirty /tmp/finish-dirty.txt
+          test "$(git symbolic-ref --short HEAD)" != "main"
+
+      - name: Spec Kit scripts on PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:TEMP "speckit-flow"
+          if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          git init -b main $work
+          git -C $work config user.email smoke@example.com
+          git -C $work config user.name smoke
+          git -C $work commit --allow-empty -m base
+          uv run specify init $work --integration cursor-agent --stack nestjs-react --ignore-agent-tools --script ps --skip-external-skills --non-interactive --force
+          . .\.venv\Scripts\Activate.ps1
+          Set-Location $work
+          $json = & .\.specify\scripts\powershell\create-new-feature.ps1 -Json -ShortName "user-login" "Add user login"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $branch = ($json | ConvertFrom-Json).BRANCH_NAME
+          $head = git symbolic-ref HEAD
+          if ($head -ne "refs/heads/$branch") { Write-Error "HEAD is $head"; exit 1 }
+          & .\.specify\scripts\powershell\ensure-feature-branch.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\.specify\scripts\powershell\setup-plan.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $dir = Join-Path "specs" $branch
+          New-Item -ItemType Directory -Force -Path (Join-Path $dir "contracts") | Out-Null
+          Set-Content -Path (Join-Path $dir "contracts\api.md") -Value "ok"
+          Set-Content -Path (Join-Path $dir "research.md") -Value "ok"
+          Set-Content -Path (Join-Path $dir "data-model.md") -Value "ok"
+          Set-Content -Path (Join-Path $dir "quickstart.md") -Value "ok"
+          & .\.specify\scripts\powershell\setup-tasks.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "specs\$branch\tasks.md")) { Write-Error "tasks.md missing"; exit 1 }
+          git checkout main
+          $PSNativeCommandUseErrorActionPreference = $false
+          pwsh -NoProfile -File .\.specify\scripts\powershell\ensure-feature-branch.ps1 2>&1 | Out-Host
+          if ($LASTEXITCODE -eq 0) { Write-Error "main must be rejected"; exit 1 }
+          exit 0
+
+      - name: Finish feature on PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $origin = (Get-Location).Path
+          function Finish-Repo([string]$Work, [string]$Mode) {
+            if (Test-Path $Work) { Remove-Item -Recurse -Force $Work }
+            New-Item -ItemType Directory -Path $Work | Out-Null
+            git init -b main $Work
+            git -C $Work config user.email smoke@example.com
+            git -C $Work config user.name smoke
+            New-Item -ItemType Directory -Force -Path "$Work/.specify/scripts/powershell","$Work/.specify/templates" | Out-Null
+            Copy-Item "$origin/scripts/powershell/common.ps1","$origin/scripts/powershell/create-new-feature.ps1","$origin/scripts/powershell/finish-feature.ps1" "$Work/.specify/scripts/powershell/"
+            Set-Content -Path "$Work/.specify/templates/spec-template.md" -Value "# spec"
+            Set-Location $Work
+            if ($Mode -eq 'existing') {
+              Set-Content -Path "README.md" -Value "base"
+              git add README.md
+              git commit -m base
+            }
+            & .\.specify\scripts\powershell\create-new-feature.ps1 -Json -ShortName "user-login" "Add user login"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Set-Content -Path "specify.txt" -Value "specify"
+            git add -A
+            git commit -m specify
+            Set-Content -Path "plan.txt" -Value "plan"
+            git add plan.txt
+            git commit -m plan
+            Set-Content -Path "implement.txt" -Value "implement"
+            git add implement.txt
+            git commit -m implement
+          }
+          function Assert-Merge([string]$Work, [string]$FeatureSha, [string]$First) {
+            $head = "$(git -C $Work symbolic-ref --short HEAD)".Trim()
+            if ($head -ne 'main') { Write-Error "HEAD is $head"; exit 1 }
+            $parts = @("$(git -C $Work rev-list --parents -n 1 HEAD)".Trim() -split '\s+' | Where-Object { $_ })
+            if ($parts.Count -ne 3) { Write-Error "parents $($parts.Count)"; exit 1 }
+            if ($parts[1] -ne $First) { Write-Error "first parent $($parts[1])"; exit 1 }
+            if ($parts[2] -ne $FeatureSha) { Write-Error "second parent $($parts[2])"; exit 1 }
+            git -C $Work merge-base --is-ancestor $FeatureSha HEAD
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $status = "$(git -C $Work status --porcelain)"
+            if ($status) { Write-Error "dirty after merge: $status"; exit 1 }
+          }
+          $empty = Join-Path $env:TEMP "speckit-finish-empty"
+          Finish-Repo $empty 'empty'
+          $featureSha = "$(git rev-parse HEAD)".Trim()
+          $root = "$(git rev-list --max-parents=0 HEAD)".Trim().Split("`n")[0].Trim()
+          & .\.specify\scripts\powershell\finish-feature.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Assert-Merge $empty $featureSha $root
+          $existing = Join-Path $env:TEMP "speckit-finish-existing"
+          Finish-Repo $existing 'existing'
+          $featureSha = "$(git rev-parse HEAD)".Trim()
+          $base = "$(git rev-parse main)".Trim()
+          & .\.specify\scripts\powershell\finish-feature.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Assert-Merge $existing $featureSha $base
+          $dirty = Join-Path $env:TEMP "speckit-finish-dirty"
+          Finish-Repo $dirty 'empty'
+          Set-Content -Path "dirty.txt" -Value "dirty"
+          $PSNativeCommandUseErrorActionPreference = $false
+          & .\.specify\scripts\powershell\finish-feature.ps1
+          if ($LASTEXITCODE -ne 1) { Write-Error "dirty tree must exit 1, got $LASTEXITCODE"; exit 1 }
+          $head = "$(git symbolic-ref --short HEAD)".Trim()
+          if ($head -eq 'main') { Write-Error "dirty run moved HEAD to main"; exit 1 }
+          exit 0
+
+  reference:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Restore ESLint cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint
+          key: eslint-nestjs-react-${{ runner.os }}-${{ hashFiles('presets/mas-stack-nestjs-react/reference/pnpm-lock.yaml', 'presets/mas-stack-nestjs-react/reference/eslint.config.js', 'presets/mas-stack-nestjs-react/reference/eslint/**') }}
+          restore-keys: |
+            eslint-nestjs-react-${{ runner.os }}-
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Active LTS from index.json
+        id: node
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request, os
+          url = "https://nodejs.org/dist/index.json"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              payload = json.load(response)
+          hit = next(entry for entry in payload if isinstance(entry, dict) and entry.get("lts") is not False)
+          exact = hit["version"][1:]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"version={exact}\n")
+          print(exact)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: Enable Corepack without writing to /usr
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -c 'CREATE DATABASE app'
+          psql -h localhost -U postgres -c 'CREATE DATABASE e2e'
+
+      - name: Init, install the tested lockfile, and run the skeleton
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+          SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+          JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret
+          JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
+          LOGIN_THROTTLE_LIMIT: "1000"
+          MCP_ENABLED: "true"
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          cp -a "$work/.specify/reference/." "$work/"
+          cd "$work"
+          pnpm install --frozen-lockfile
+          eslint_cache_src="${GITHUB_WORKSPACE}/presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint"
+          eslint_cache_dst="${work}/node_modules/.cache/eslint"
+          if [ -d "$eslint_cache_src" ]; then
+            mkdir -p "$eslint_cache_dst"
+            cp -a "$eslint_cache_src/." "$eslint_cache_dst/"
+          fi
+          bash scripts/ensure-postgres.sh
+          pnpm db:generate
+          deploy_out="$(pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$deploy_out"
+          if printf '%s\n' "$deploy_out" | grep -q "No migration found"; then
+            echo "migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$deploy_out" | grep -q "successfully applied"
+          e2e_out="$(DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$e2e_out"
+          if printf '%s\n' "$e2e_out" | grep -q "No migration found"; then
+            echo "e2e migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$e2e_out" | grep -q "successfully applied"
+          pnpm db:seed
+          pnpm db:seed
+          pnpm verify
+          if [ -d "$eslint_cache_dst" ]; then
+            mkdir -p "$eslint_cache_src"
+            cp -a "$eslint_cache_dst/." "$eslint_cache_src/"
+          fi
+          pnpm build
+          api_pid=""
+          cleanup_api() {
+            if [ -n "$api_pid" ]; then
+              kill "$api_pid" >/dev/null 2>&1 || true
+              wait "$api_pid" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup_api EXIT
+          MCP_ENABLED=true PORT=3999 node apps/api/dist/main.js &
+          api_pid=$!
+          ready=0
+          for _ in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:3999/api/v1/health" >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$api_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "http://127.0.0.1:3999/api/v1/health"
+          test "$ready" -eq 1
+          cleanup_api
+          api_pid=""
+          trap - EXIT
+          pnpm test:e2e:api
+          pnpm test:e2e:mcp
+          pnpm --filter @demo/web exec playwright install chromium
+          pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
+          pnpm --filter @demo/web exec node --experimental-strip-types e2e/fidelity.ts --self-test --prototype-css "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/prototype/css/styles-prototype.css" --mismatch-css "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/mismatch/css/app.css"
+          fidelity_ok="$(pnpm test:fidelity -- --map "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/fidelity-map.json" 2>&1)"
+          fidelity_ok_code=$?
+          printf '%s\n' "$fidelity_ok"
+          test "$fidelity_ok_code" -eq 0
+          printf '%s\n' "$fidelity_ok" | grep -q "fontawesome:fa-solid fa-gauge"
+          printf '%s\n' "$fidelity_ok" | grep -q "recorded"
+          set +e
+          fidelity_out="$(pnpm test:fidelity -- --map "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/fidelity-map.json" --app "$GITHUB_WORKSPACE/presets/mas-stack-nestjs-react/fixtures/fidelity/mismatch" 2>&1)"
+          fidelity_code=$?
+          set -e
+          printf '%s\n' "$fidelity_out"
+          test "$fidelity_code" -ne 0
+          printf '%s\n' "$fidelity_out" | grep -q "es texto"
+          printf '%s\n' "$fidelity_out" | grep -q "padding"
+          printf '%s\n' "$fidelity_out" | grep -q "12px"
+          printf '%s\n' "$fidelity_out" | grep -q "16px"
+          printf '%s\n' "$fidelity_out" | grep -q "width"
+          printf '%s\n' "$fidelity_out" | grep -q "200px"
+          printf '%s\n' "$fidelity_out" | grep -q "lucide:gauge"
+          printf '%s\n' "$fidelity_out" | grep -q "fontawesome:fa-solid fa-gauge"
+          printf '%s\n' "$fidelity_out" | grep -q "hover color"
+          printf '%s\n' "$fidelity_out" | grep -q "color-contrast"
+          pnpm test:e2e:web
+          pnpm test:e2e:web
+          pnpm audit --audit-level=high
+          node scripts/check-prerelease.mjs
+          node scripts/check-no-example-slice.mjs
+          node scripts/check-env-example.mjs
+          node scripts/check-dev-proxy.mjs
+          node --experimental-strip-types apps/web/e2e/ports.ts --self-test
+          node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
+          node scripts/check-gen-fitness.mjs
+
+  skeleton-boot:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Restore ESLint cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint
+          key: eslint-nestjs-react-${{ runner.os }}-${{ hashFiles('presets/mas-stack-nestjs-react/reference/pnpm-lock.yaml', 'presets/mas-stack-nestjs-react/reference/eslint.config.js', 'presets/mas-stack-nestjs-react/reference/eslint/**') }}
+          restore-keys: |
+            eslint-nestjs-react-${{ runner.os }}-
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Active LTS from index.json
+        id: node
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request, os
+          url = "https://nodejs.org/dist/index.json"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              payload = json.load(response)
+          hit = next(entry for entry in payload if isinstance(entry, dict) and entry.get("lts") is not False)
+          exact = hit["version"][1:]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"version={exact}\n")
+          print(exact)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: Enable Corepack without writing to /usr
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -c 'CREATE DATABASE app'
+          psql -h localhost -U postgres -c 'CREATE DATABASE e2e'
+          psql -h localhost -U postgres -c 'CREATE DATABASE upgrade'
+          psql -h localhost -U postgres -c 'CREATE DATABASE upgrade_reject'
+
+      - name: Generate, migrate a clean database, boot the API, e2e, Playwright
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+          SEED_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/e2e
+          JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret
+          JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
+          LOGIN_THROTTLE_LIMIT: "1000"
+          MCP_ENABLED: "true"
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          git init -b main "$work"
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          uv run specify init "$work" --integration cursor-agent --stack nestjs-react \
+            --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
+          cp -a "$work/.specify/reference/." "$work/"
+          cd "$work"
+          pnpm install --frozen-lockfile
+          eslint_cache_src="${GITHUB_WORKSPACE}/presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint"
+          eslint_cache_dst="${work}/node_modules/.cache/eslint"
+          if [ -d "$eslint_cache_src" ]; then
+            mkdir -p "$eslint_cache_dst"
+            cp -a "$eslint_cache_src/." "$eslint_cache_dst/"
+          fi
+          bash scripts/ensure-postgres.sh
+          pnpm db:generate
+          pnpm --filter @demo/contracts build
+          pnpm lint
+          if [ -d "$eslint_cache_dst" ]; then
+            mkdir -p "$eslint_cache_src"
+            cp -a "$eslint_cache_dst/." "$eslint_cache_src/"
+          fi
+          DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/upgrade" \
+            node scripts/upgrade-on-data.mjs --split-last
+          DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/upgrade_reject" \
+            node scripts/upgrade-on-data.mjs --prove-reject
+          deploy_out="$(pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$deploy_out"
+          if printf '%s\n' "$deploy_out" | grep -q "No migration found"; then
+            echo "migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$deploy_out" | grep -q "successfully applied"
+          e2e_out="$(DATABASE_URL="$SEED_DATABASE_URL" pnpm --filter @demo/api exec prisma migrate deploy 2>&1)"
+          printf '%s\n' "$e2e_out"
+          if printf '%s\n' "$e2e_out" | grep -q "No migration found"; then
+            echo "e2e migrate deploy did not see prisma/migrations" >&2
+            exit 1
+          fi
+          printf '%s\n' "$e2e_out" | grep -q "successfully applied"
+          pnpm db:seed
+          pnpm --filter @demo/api build
+          api_pid=""
+          cleanup_api() {
+            if [ -n "$api_pid" ]; then
+              kill "$api_pid" >/dev/null 2>&1 || true
+              wait "$api_pid" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup_api EXIT
+          MCP_ENABLED=true PORT=3999 node apps/api/dist/main.js &
+          api_pid=$!
+          ready=0
+          for _ in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:3999/api/v1/health" >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$api_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "http://127.0.0.1:3999/api/v1/health"
+          test "$ready" -eq 1
+          cleanup_api
+          api_pid=""
+          trap - EXIT
+          pnpm test:e2e:api
+          pnpm --filter @demo/web exec playwright install chromium
+          pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
+          pnpm test:e2e:web

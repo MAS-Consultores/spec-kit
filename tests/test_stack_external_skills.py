@@ -163,6 +163,18 @@ def test_resolve_stack_external_skills_merges_core_and_stack():
     assert "vercel-react-best-practices" in skill_names
 
 
+def test_resolve_stack_external_skills_nestjs_react():
+    """Verify nestjs-react stack external skills manifest content."""
+    stack = get_mas_stack("nestjs-react")
+    assert stack is not None
+    specs = resolve_stack_external_skills(stack)
+    skill_names = {s.skill for s in specs}
+    assert "find-skills" in skill_names
+    assert "vercel-react-best-practices" in skill_names
+    assert "nestjs-architecture" not in skill_names, "nestjs-architecture removed (external skills curated internally)"
+    assert "nestjs-security" not in skill_names, "nestjs-security removed (external skills curated internally)"
+
+
 def test_resolve_stack_external_skills_dedupes():
     stack = get_mas_stack("moodle5-plugin")
     assert stack is not None
@@ -387,6 +399,7 @@ def test_init_with_skip_external_skills_no_npx(tmp_path, monkeypatch):
             "moodle5-plugin",
             "--skip-external-skills",
             "--ignore-agent-tools",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -454,6 +467,7 @@ def test_init_external_skills_metadata_with_mock_npx(tmp_path, monkeypatch):
             "--stack",
             "laravel-inertia-react",
             "--ignore-agent-tools",
+            "--non-interactive",
             "--script",
             "sh",
         ],
@@ -509,6 +523,7 @@ def test_init_laravel_stack_external_skills_cursor_sync(tmp_path, monkeypatch):
             "--stack",
             "laravel-inertia-react",
             "--ignore-agent-tools",
+            "--non-interactive",
             "--script",
             "sh",
         ],

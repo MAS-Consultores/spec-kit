@@ -1,0 +1,99 @@
+@font-face {
+  font-family: "Fidelity Sans";
+  src: url("../assets/fonts/fidelity-sans.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+}
+
+:root {
+  --brand: #123456;
+  --brand-foreground: #ffffff;
+  --rail-end: #0b1f33;
+  --header-padding: 16px;
+  --radius: 8px;
+  --shadow: 0 2px 4px rgb(0 0 0 / 0.2);
+  --rail-width: 240px;
+  --rail-collapsed: 72px;
+  --sidebar-accent: #0b1f33;
+  --sidebar-accent-foreground: #ffffff;
+}
+
+[data-testid="app-header"] {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--header-padding);
+  background-color: var(--brand);
+  color: var(--brand-foreground);
+  font-family: "Fidelity Sans", sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  width: 320px;
+  height: 64px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: background-color 200ms ease;
+}
+
+[data-testid="brand-logo"] {
+  width: 32px;
+  height: 32px;
+}
+
+[data-testid="brand-mark"] {
+  animation-name: brand-pulse;
+  animation-duration: 1.2s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes brand-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="brand-mark"] {
+    animation-name: none;
+    animation-duration: 0s;
+  }
+}
+
+[data-testid="app-rail"],
+[data-testid="app-rail-collapsed"] {
+  box-sizing: border-box;
+  height: 100px;
+}
+
+[data-testid="app-rail"] {
+  width: var(--rail-width);
+  background-image: linear-gradient(180deg, var(--brand), var(--rail-end));
+}
+
+[data-testid="app-rail-collapsed"] {
+  width: var(--rail-collapsed);
+  background-color: var(--brand);
+}
+
+.rail-link,
+.rail-link:hover,
+.rail-link:active,
+.rail-link[aria-current="page"] {
+  color: var(--sidebar-accent-foreground);
+  background-color: #ffffff;
+  font-family: "Fidelity Sans", sans-serif;
+  font-size: 16px;
+}
+
+@media (max-width: 640px) {
+  [data-testid="app-rail"] {
+    width: 0px;
+    height: 0px;
+  }
+}
+
+@media (min-width: 641px) {
+  [data-testid="app-header"] { padding: 12px; }
+  [data-testid="app-rail"] { width: 200px; }
+}

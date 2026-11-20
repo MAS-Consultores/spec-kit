@@ -16,7 +16,7 @@ import pytest
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import TomlIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
-from tests.conftest import MAS_INIT_EXTRA_FILES
+from tests.conftest import mas_init_extra_files
 
 
 class TomlIntegrationTests:
@@ -530,7 +530,7 @@ class TomlIntegrationTests:
 
 
 
-        return sorted([*files, *MAS_INIT_EXTRA_FILES])
+        return sorted([*files, *mas_init_extra_files(script_variant)])
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""

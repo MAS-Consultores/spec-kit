@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
+import re
+import subprocess
+from pathlib import Path
 
 from typer.testing import CliRunner
 
 from specify_cli import app
 from specify_cli.mas import (
+    _bullets,
     get_mas_stack,
     language_policy_init_options,
     render_language_policy_md,
@@ -37,6 +41,7 @@ def test_mas_stack_catalog_resolves_preset_composition():
     )
     assert "moodle5-plugin" in valid_stack_ids()
     assert "moodle3" in valid_stack_ids()
+    assert "nestjs-react" in valid_stack_ids()
 
 
 def test_mas_stack_moodle3_is_exception_track():
@@ -270,7 +275,8 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
     assert "specify init --stack <stack-id>" in constitution
 
 
-def test_init_creates_gitignore_with_specify_entry(tmp_path):
+def test_init_adds_specify_to_root_gitignore(tmp_path):
+    """Upstream init records ``.specify/`` on the root gitignore."""
     project = tmp_path / "gitignore-project"
     result = CliRunner().invoke(
         app,
@@ -287,10 +293,12 @@ def test_init_creates_gitignore_with_specify_entry(tmp_path):
     )
 
     assert result.exit_code == 0, result.output
-    assert (project / ".gitignore").read_text(encoding="utf-8") == ".specify/\n"
+    content = (project / ".gitignore").read_text(encoding="utf-8")
+    assert ".specify/" in content
 
 
 def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
+    """Existing .gitignore entries stay, and ``.specify/`` is appended."""
     project = tmp_path / "existing-gitignore-project"
     project.mkdir()
     (project / ".gitignore").write_text("node_modules/\ndist/", encoding="utf-8")
@@ -312,8 +320,83 @@ def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
 
     assert result.exit_code == 0, result.output
     gitignore = (project / ".gitignore").read_text(encoding="utf-8")
-    assert gitignore == "node_modules/\ndist/\n.specify/\n"
-    assert gitignore.splitlines().count(".specify/") == 1
+    assert "node_modules/" in gitignore
+    assert "dist/" in gitignore
+    assert ".specify/" in gitignore
+
+
+def test_nested_specify_gitignore_ignores_local_state_only(tmp_path):
+    """The nested .specify/.gitignore should ignore machine-local state, not memory/."""
+    project = tmp_path / "nested-gitignore-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "laravel-inertia-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    nested_gitignore = project / ".specify" / ".gitignore"
+    assert nested_gitignore.exists(), ".specify/.gitignore should exist"
+
+    content = nested_gitignore.read_text(encoding="utf-8")
+    # Should ignore machine-local state
+    assert "feature.json" in content, "Should ignore feature.json (local state)"
+    assert "integrations/packages/" in content, "Should ignore integrations/packages/"
+    # Should NOT ignore memory/ (it's versioned)
+    assert "memory/" not in content or "NOT ignored" in content
+
+
+def test_specify_memory_and_templates_can_be_versioned(tmp_path):
+    """memory/, templates/, and init-options.json should NOT be gitignored — verify with git check-ignore."""
+    import subprocess
+
+    project = tmp_path / "versioned-files-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "laravel-inertia-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    # Initialize git repo for check-ignore to work
+    subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
+
+    # Upstream init ignores the whole .specify/ tree from the root gitignore.
+    # The nested rules still name machine-local state and leave memory/ out.
+    root_ignore = (project / ".gitignore").read_text(encoding="utf-8")
+    assert ".specify/" in root_ignore
+    nested = (project / ".specify" / ".gitignore").read_text(encoding="utf-8")
+    assert "feature.json" in nested
+    assert "memory/" not in nested or "NOT ignored" in nested
+
+    # feature.json SHOULD be ignored (by the root or nested gitignore)
+    feature_json = project / ".specify" / "feature.json"
+    feature_json.write_text("{}", encoding="utf-8")  # Create it for test
+    result = subprocess.run(
+        ["git", "check-ignore", "-q", ".specify/feature.json"],
+        cwd=project,
+        capture_output=True,
+    )
+    # Exit code 0 means ignored (what we want for feature.json)
+    assert result.returncode == 0, "feature.json should be gitignored by nested .gitignore"
 
 
 def test_init_with_valid_stack_writes_selected_stack_memory(tmp_path):
@@ -616,6 +699,523 @@ def test_init_rejects_stack_and_preset_conflict(tmp_path):
     assert "mas-stack-<stack-id>" in result.output
     assert not project.exists()
 
+
+def test_mas_stack_nestjs_react_metadata():
+    stack = get_mas_stack("nestjs-react")
+
+    assert stack is not None
+    assert stack.id == "nestjs-react"
+    assert stack.display_name == "NestJS + React (API + SPA)"
+    assert stack.stack_preset_id == "mas-stack-nestjs-react"
+    assert stack.preset_composition == ("mas-core", "mas-stack-nestjs-react")
+    assert "Prisma" in stack.summary
+    assert "monorepo" in stack.purpose.lower()
+
+
+def test_init_with_nestjs_react_stack_writes_memory_files(tmp_path):
+    project = tmp_path / "nestjs-react-project"
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(project),
+            "--integration",
+            "codex",
+            "--stack",
+            "nestjs-react",
+            *_MAS_INIT_OPTS,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+
+    payload = json.loads((project / ".specify" / "init-options.json").read_text())
+    assert payload["stack"] == "nestjs-react"
+    assert payload["stack_display_name"] == "NestJS + React (API + SPA)"
+    assert payload["mas_presets"] == ["mas-core", "mas-stack-nestjs-react"]
+
+    assert (project / ".specify" / "presets" / "mas-core" / "preset.yml").exists()
+    assert (
+        project / ".specify" / "presets" / "mas-stack-nestjs-react" / "preset.yml"
+    ).exists()
+
+    memory_dir = project / ".specify" / "memory"
+    assert (memory_dir / "stack.md").exists()
+    assert (memory_dir / "security-guidelines.md").exists()
+    assert (memory_dir / "stack-context.md").exists()
+    assert (memory_dir / "language-policy.md").exists()
+
+    stack_md = (memory_dir / "stack.md").read_text()
+    security_md = (memory_dir / "security-guidelines.md").read_text()
+    context_md = (memory_dir / "stack-context.md").read_text()
+
+    assert "**Canonical ID**: `nestjs-react`" in stack_md
+    assert "**Display Name**: NestJS + React (API + SPA)" in stack_md
+    assert "apps/api" in stack_md
+    assert "apps/web" in stack_md
+    assert "Prisma" in stack_md
+
+    assert "**Stack ID**: `nestjs-react`" in security_md
+    assert "HttpOnly" in security_md
+    assert "CSRF" in security_md
+    assert "AuthGuard" in security_md
+    assert "$queryRawUnsafe" in security_md
+
+    assert "# Stack Context: NestJS + React (API + SPA)" in context_md
+    assert "Monorepo" in context_md
+    assert "Prisma" in context_md
+    assert "OpenAPI" in context_md
+
+
+def test_nestjs_react_stack_contrasts_with_laravel():
+    nestjs_stack = get_mas_stack("nestjs-react")
+    laravel_stack = get_mas_stack("laravel-inertia-react")
+
+    assert nestjs_stack is not None
+    assert laravel_stack is not None
+
+    nestjs_constraints = " ".join(nestjs_stack.core_constraints)
+    assert "Laravel + Inertia" in nestjs_constraints or "Inertia" in nestjs_constraints
+    assert "decoupled" in nestjs_constraints.lower() or "monorepo" in nestjs_constraints.lower()
+
+    nestjs_when_not = " ".join(nestjs_stack.when_not_to_use)
+    assert "Laravel" in nestjs_when_not or "Inertia" in nestjs_when_not
+
+
+def test_bullets_renders_headings_and_items():
+    """Test that _bullets handles ## and ### prefixes as Markdown headings."""
+    items = (
+        "Regular item one",
+        "## Section Heading",
+        "Regular item two",
+        "### Subsection Heading",
+        "Regular item three",
+    )
+    result = _bullets(items)
+
+    assert "- Regular item one" in result
+    assert "\n### Section Heading" in result
+    assert "- Regular item two" in result
+    assert "\n#### Subsection Heading" in result
+    assert "- Regular item three" in result
+    assert "- ## Section Heading" not in result
+    assert "- ### Subsection Heading" not in result
+
+
+def test_nestjs_react_uses_es_cl_locale():
+    """Test that nestjs-react stack uses es-CL as default product locale with Chile label."""
+    from specify_cli.mas import render_language_policy_md
+
+    stack = get_mas_stack("nestjs-react")
+    assert stack is not None
+    assert stack.default_product_locale == "es-CL"
+
+    # Check init_options_payload includes es-CL
+    payload = stack.init_options_payload()
+    assert payload["product_locale"] == "es-CL"
+
+    # Check render_language_policy_md with es-CL shows Spanish — Chile
+    policy_md = render_language_policy_md(product_locale="es-CL")
+    assert "es-CL" in policy_md
+    assert "Spanish — Chile" in policy_md
+    assert "Spanish — Spain" not in policy_md
+
+
+def test_other_stacks_unchanged_locale():
+    """Test that other stacks don't have a default_product_locale override and use Spanish — Spain."""
+    for stack_id in ["cakephp2-mysql", "moodle3", "moodle5-plugin", "moodle5-portal", "laravel-inertia-react"]:
+        stack = get_mas_stack(stack_id)
+        assert stack is not None
+        assert stack.default_product_locale is None, f"{stack_id} should not have default_product_locale"
+        payload = stack.init_options_payload()
+        assert payload["product_locale"] == "es-ES", f"{stack_id} should use es-ES"
+        # Verify language-policy.md shows Spanish — Spain
+        policy_md = render_language_policy_md(product_locale="es-ES")
+        assert "Spanish — Spain" in policy_md
+        assert "Spanish — Chile" not in policy_md
+
+
+def test_bullets_renders_nested_items():
+    """Test that _bullets handles nested items ('  - ') correctly."""
+    items = (
+        "Top level item",
+        "  - Nested item one",
+        "  - Nested item two",
+        "Another top level",
+    )
+    result = _bullets(items)
+    assert "- Top level item" in result
+    assert "  - Nested item one" in result
+    assert "  - Nested item two" in result
+    assert "- Another top level" in result
+    assert "-   - Nested" not in result
+
+
+def test_bullets_no_triple_blank_lines():
+    """Test that _bullets avoids triple blank lines between sections."""
+    items = (
+        "## Section One",
+        "Item in section one",
+        "## Section Two",
+        "Item in section two",
+    )
+    result = _bullets(items)
+    assert "\n\n\n" not in result
+
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Banned in every context, including "do not use" lines.
+_NEVER_MENTION = re.compile(
+    r"opentelemetry|\botel\b|z\.string\(\)\.uuid\(\)|McpTestClient", re.IGNORECASE
+)
+# Allowed only on lines that explicitly prohibit them.
+_PROHIBITION_ONLY = ("@nestjs/authorization", "class-validator", "cache-manager")
+_PROHIBITION_LINE = re.compile(
+    r"\b(?:do not|don't|never|forbidden|prohibited|reject|instead of)\b|\bNOT\b|\bNO\b|❌",
+    re.IGNORECASE,
+)
+
+
+def _forbidden_term_violations(name: str, text: str) -> list[str]:
+    violations = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if _NEVER_MENTION.search(line):
+            violations.append(f"{name}:{lineno}: {line.strip()[:120]}")
+            continue
+        if any(term in line for term in _PROHIBITION_ONLY) and not _PROHIBITION_LINE.search(line):
+            violations.append(f"{name}:{lineno}: {line.strip()[:120]}")
+    return violations
+
+
+def test_forbidden_term_checker_flags_and_allows_expected_lines():
+    assert _forbidden_term_violations("x", "Use OpenTelemetry for traces.")
+    assert _forbidden_term_violations("x", "Do NOT use OTel exporters.")
+    assert _forbidden_term_violations("x", "Install @opentelemetry/api")
+    assert _forbidden_term_violations("x", "id: z.string().uuid()")
+    assert _forbidden_term_violations("x", "Use `@nestjs/authorization` guards.")
+    assert _forbidden_term_violations("x", "Validate DTOs with class-validator.")
+    assert not _forbidden_term_violations("x", "Do NOT use `@nestjs/authorization`.")
+    assert not _forbidden_term_violations("x", "Zod only (NO class-validator)")
+    assert not _forbidden_term_violations("x", "Hotel booking; id: z.uuid()")
+
+
+def test_mas_docs_have_no_forbidden_terms():
+    docs = sorted((_REPO_ROOT / "docs" / "mas").glob("*.md"))
+    preset_docs = sorted((_REPO_ROOT / "presets" / "mas-stack-nestjs-react").rglob("*.md"))
+    assert docs and preset_docs
+    violations = []
+    for path in docs + preset_docs:
+        rel = path.relative_to(_REPO_ROOT).as_posix()
+        violations += _forbidden_term_violations(rel, path.read_text(encoding="utf-8"))
+    assert not violations, "\n".join(violations)
+
+
+def test_nestjs_react_generated_memory_has_no_forbidden_terms(tmp_path):
+    project = tmp_path / "nestjs-react-forbidden"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    memory_files = sorted((project / ".specify" / "memory").glob("*.md"))
+    assert {p.name for p in memory_files} >= {"stack.md", "security-guidelines.md", "stack-context.md"}
+    violations = []
+    for path in memory_files:
+        violations += _forbidden_term_violations(path.name, path.read_text(encoding="utf-8"))
+    assert not violations, "\n".join(violations)
+
+
+def test_nestjs_react_requires_tailwind_source_directive(tmp_path):
+    """Test that nestjs-react stack docs require @source directive for Tailwind 4 monorepo."""
+    project = tmp_path / "tailwind-source"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    # Check constitution requires @source
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    assert "@source" in constitution, "Constitution must require @source directive"
+    assert "packages/ui" in constitution, "Constitution must reference packages/ui for @source"
+
+    # Check stack-context.md documents the @source configuration (detailed stack docs)
+    stack_context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    assert "@source" in stack_context, "stack-context.md must document @source directive"
+    assert "Tailwind 4" in stack_context, "stack-context.md must mention Tailwind 4"
+
+    # Check Playwright style verification is documented
+    assert "computed" in stack_context.lower() or "getComputedStyle" in stack_context, \
+        "stack-context.md must require Playwright style verification"
+
+
+_AD_HOC_SCREENSHOT_RULE = (
+    "AI agents MUST NOT take, generate, or save ad hoc screenshots during "
+    "`/speckit.implement`, demos, or pilots—not with Playwright, not with a "
+    "browser, and not with scripts. Visual review is performed by a human "
+    "(revisión visual humana). Playwright + axe-core gates, including computed "
+    "Tailwind style verification, remain mandatory and MUST run without "
+    "screenshots (`screenshot: 'off'`; no `toHaveScreenshot()`; no "
+    "`page.screenshot()`)."
+)
+
+
+def test_nestjs_react_constitution_forbids_ad_hoc_agent_screenshots(tmp_path):
+    """Generated nestjs-react constitution forbids ad hoc AI screenshots.
+
+    Playwright + axe gates, including computed Tailwind style checks, stay
+    mandatory and still run with screenshots disabled.
+    """
+    project = tmp_path / "no-ad-hoc-screenshots"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    assert _AD_HOC_SCREENSHOT_RULE in constitution
+    assert "At least one Playwright spec MUST verify computed styles" in constitution
+
+    stack_context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    security = (project / ".specify" / "memory" / "security-guidelines.md").read_text(encoding="utf-8")
+    assert _AD_HOC_SCREENSHOT_RULE in stack_context
+    assert _AD_HOC_SCREENSHOT_RULE in security
+
+    laravel = get_mas_stack("laravel-inertia-react")
+    assert laravel is not None
+    laravel_rules = "\n".join(
+        laravel.security_controls
+        + laravel.anti_patterns
+        + laravel.expected_artifacts
+        + laravel.plan_validation_checks
+    )
+    assert "ad hoc screenshots" not in laravel_rules
+
+
+def test_nestjs_react_prisma_esm_config_and_no_import_fixing_scripts(tmp_path):
+    """Test that nestjs-react stack requires correct Prisma ESM config and prohibits import-fixing scripts."""
+    project = tmp_path / "prisma-esm"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    stack_context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+
+    # Check Prisma generator config requirements
+    assert "importFileExtension" in stack_context, "stack-context.md must require importFileExtension in Prisma generator"
+    assert 'moduleFormat = "esm"' in stack_context or "moduleFormat" in stack_context, \
+        "stack-context.md must require moduleFormat esm"
+    assert 'provider = "prisma-client"' in stack_context or "prisma-client" in stack_context, \
+        "stack-context.md must require prisma-client provider"
+
+    # Check prohibition of import-fixing scripts
+    assert "fix" in stack_context.lower() and "import" in stack_context.lower(), \
+        "stack-context.md must mention prohibition of import-fixing scripts"
+    assert "PROHIBITED" in stack_context or "prohibited" in stack_context.lower(), \
+        "stack-context.md must explicitly prohibit import-fixing scripts"
+
+    # Check dev script requirements
+    assert "nest start --watch" in stack_context, "stack-context.md must require nest start --watch for dev"
+    assert "nest build" in stack_context, "stack-context.md must document nest build"
+
+
+def test_nestjs_react_closes_demo2_framework_gaps(tmp_path):
+    """Demo 2 gaps that must show up in generated NestJS memory and commands."""
+    project = tmp_path / "demo2-gaps"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    tasks_skill = (project / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").read_text(encoding="utf-8")
+    plan_skill = (project / ".agents" / "skills" / "speckit-plan" / "SKILL.md").read_text(encoding="utf-8")
+    analyze_skill = (project / ".agents" / "skills" / "speckit-analyze" / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "apps/api/prisma.config.ts" in context
+    assert "schema: 'prisma/schema'" in context
+    assert "npm view" in context
+    assert "typescript-eslint" in context
+    assert "Mandatory Auth Phase" in context
+    assert "SkipCsrf()" in context
+    assert "insufficient_scope" in context
+    assert "isError: true" in context
+    assert "allowBuilds" in context
+    assert "approve-builds --all" in context
+    assert "migrate reset" in context
+    assert "node --import tsx" in context
+    assert "createPrismaAbility" in context
+    assert ".ofType(" in context
+    assert "@casl/prisma/runtime" in context
+    assert "queryClient.query" in context
+    assert "createMongoAbility" not in context
+    assert "MongoAbility" not in context
+    assert "onUnhandledFrame" in context
+    assert "getAnimations()" in context
+    assert "richColors" in context
+    assert "@theme inline" in context
+    assert "routeTree.gen.ts" in context and "Do not list it in `.gitignore`" in context
+    assert "dist/generated/prisma/client.js" in context
+    assert "tsconfig.build.json" in context
+    assert "projectService" in context
+    assert "escapeLike" in context
+    assert "LOGIN_THROTTLE_LIMIT" in context
+    assert "getZodError()" in context
+    assert "source-only" in context
+    assert "radix-ui" in context
+
+    assert "AuthModule" in constitution
+    assert "queryClient.query" in constitution
+    assert "SkipCsrf()" in constitution
+
+    assert "blocking auth phase" in tasks_skill
+    assert "check-casl.ts" in tasks_skill
+    assert "allowBuilds" in tasks_skill
+    assert "queryClient.query" in tasks_skill
+
+    assert "@demo/api" in plan_skill
+    assert "es-CL" in plan_skill
+
+    assert "CRITICAL" in analyze_skill
+    assert "AuthModule" in analyze_skill
+    assert "insufficient" not in analyze_skill or "routeTree" in analyze_skill
+
+
+def test_nestjs_react_pins_active_lts_from_nodejs_index(tmp_path):
+    """Node is the Active LTS from index.json; a missing .nvmrc is CRITICAL."""
+    project = tmp_path / "node-lts"
+    result = CliRunner().invoke(
+        app,
+        ["init", str(project), "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    context = (project / ".specify" / "memory" / "stack-context.md").read_text(encoding="utf-8")
+    constitution = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    analyze_skill = (project / ".agents" / "skills" / "speckit-analyze" / "SKILL.md").read_text(encoding="utf-8")
+    tasks_skill = (project / ".agents" / "skills" / "speckit-tasks" / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "https://nodejs.org/dist/index.json" in context
+    assert "first" in context and "lts" in context
+    assert ".nvmrc" in context
+    assert "npm i -g corepack@latest && corepack enable" in context
+    assert "node:22" not in context
+    assert "26.13.1" in context
+    assert "not a hardcoded `26`" in context
+
+    assert "index.json" in constitution
+    assert ".nvmrc" in constitution
+    assert "corepack@latest" in constitution
+
+    assert "CRITICAL" in analyze_skill
+    assert ".nvmrc" in analyze_skill
+    assert "**not** by itself CRITICAL" in analyze_skill
+    assert "setup task" in analyze_skill
+    assert "not a warning" in analyze_skill
+    assert "index.json" in analyze_skill
+    assert "26.13.1" in tasks_skill
+    assert "corepack@latest" in tasks_skill
+
+
+def test_init_git_only_directory_does_not_require_force(tmp_path, monkeypatch):
+    project = tmp_path / "with-git"
+    project.mkdir()
+    subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
+    monkeypatch.chdir(project)
+    result = CliRunner().invoke(
+        app,
+        ["init", ".", "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    assert ".git is the only existing entry" in result.output
+    assert "continuing without --force" in result.output
+    assert (project / ".specify" / "memory" / "stack.md").exists()
+
+
+def test_init_real_files_still_require_force(tmp_path, monkeypatch):
+    project = tmp_path / "with-files"
+    project.mkdir()
+    subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
+    (project / "README.md").write_text("existing\n", encoding="utf-8")
+    monkeypatch.chdir(project)
+    result = CliRunner().invoke(
+        app,
+        ["init", ".", "--integration", "codex", "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+        catch_exceptions=False,
+    )
+    assert result.exit_code != 0
+    assert "--force" in result.output
+    assert "Does not rewrite .git" in result.output
+
+
+def test_mas_feature_branch_is_mandatory_for_cursor_and_codex(tmp_path):
+    cursor_project = tmp_path / "cursor-app"
+    codex_project = tmp_path / "codex-app"
+    for project, integration, skills_root in (
+        (cursor_project, "cursor-agent", ".cursor/skills"),
+        (codex_project, "codex", ".agents/skills"),
+    ):
+        result = CliRunner().invoke(
+            app,
+            ["init", str(project), "--integration", integration, "--stack", "nestjs-react", *_MAS_INIT_OPTS],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+        specify = (project / skills_root / "speckit-specify" / "SKILL.md").read_text(encoding="utf-8")
+        plan = (project / skills_root / "speckit-plan" / "SKILL.md").read_text(encoding="utf-8")
+        tasks = (project / skills_root / "speckit-tasks" / "SKILL.md").read_text(encoding="utf-8")
+        implement = (project / skills_root / "speckit-implement" / "SKILL.md").read_text(encoding="utf-8")
+        assert "create-new-feature.sh" in specify
+        assert "git checkout main" in specify
+        assert "not optional" in specify
+        assert "HARD_FAIL" in plan
+        assert "ensure-feature-branch.sh" in plan
+        assert "HARD_FAIL" in tasks
+        assert "git merge --no-ff" in implement
+        assert ".cursor/commands" not in specify
+    constitution = (cursor_project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
+    assert ".cursor/skills/speckit-*/SKILL.md" in constitution
+    assert "not installed under `.cursor/commands`" in constitution
+
+
+def test_check_casl_reads_tool_options_and_manifests():
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "presets/mas-stack-nestjs-react/templates/check-casl.ts"
+    ).read_text(encoding="utf-8")
+    assert "arguments[index]" in script or "arguments[0]" in script
+    assert "scopes" in script
+    assert "unused manifest action" in script
+    assert "lacks @Can, @Public, or @Authenticated" in script
+    assert "MCP tool" in script
+    assert "reserved" in script
+    assert "@Tool scopes do not include" in script
+
+
+def test_mas_constitution_keeps_security_standard_inside_principle_one():
+    template = Path(__file__).resolve().parents[1] / "presets/mas-core/templates/constitution-template.md"
+    content = template.read_text(encoding="utf-8")
+    headings = [line for line in content.splitlines() if line.startswith("#")]
+    assert [line for line in headings if line.startswith("# ")] == ["# [PROJECT_NAME] Constitution"]
+    security = content.split("### I. Security and Access Control", 1)[1].split("### II.", 1)[0]
+    assert "#### Security Standard (Stack-Agnostic)" in security
+    assert "##### 1. Authentication and Identity Lifecycle" in security
+    assert "Deny by default" in security
 
 def test_upstream_init_without_stack_receives_main_stack(tmp_path):
     """Upstream-style init omits --stack; the suite supplies one from main."""

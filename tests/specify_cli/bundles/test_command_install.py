@@ -1105,3 +1105,17 @@ def test_install_initializes_uninitialized_project(tmp_path: Path):
     assert marker.exists()
     data = json.loads(marker.read_text(encoding="utf-8"))
     assert "copilot" in json.dumps(data)
+
+
+def test_bootstrap_defaults_missing_stack_to_cakephp(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _commands._run_init("copilot", script_type="sh", offline=True, stack=None)
+    payload = json.loads((tmp_path / ".specify" / "init-options.json").read_text())
+    assert payload["stack"] == "cakephp2-mysql"
+
+
+def test_bootstrap_rejects_invalid_mas_stack(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(BundlerError, match="requires --stack"):
+        _commands._run_init("copilot", script_type="sh", offline=True, stack="unknown-stack")
+    assert list(tmp_path.iterdir()) == []

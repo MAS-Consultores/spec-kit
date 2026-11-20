@@ -785,6 +785,10 @@ class _PresetSkillMethods:
                 selected_ai, frontmatter, body, self.project_root
             )
             body = self._resolve_skill_command_refs(body, registrar, selected_ai, self.project_root)
+            # Preset prose names commands as /speckit.implement. Skills agents
+            # address those files as speckit-implement, and inventory checks
+            # reject the dotted form in SKILL.md.
+            body = body.replace("/speckit.", "/speckit-")
 
             for target_skill_name in target_skill_names:
                 skill_subdir = skills_dir / target_skill_name
@@ -1223,7 +1227,8 @@ class _PresetSkillMethods:
         )
 
     def _delete_agent_preset_skills(
-        self, agent_name: str, skill_names: List[str], pack_id: str
+        self, agent_name: str, skill_names: List[str], pack_id: str,
+        *, preserve_paths: frozenset[Path] = frozenset(),
     ) -> None:
         """Delete still-preset-owned skills when an agent is deactivated."""
         skills_dir = self._safe_skills_dir_for_agent(agent_name)
@@ -1259,6 +1264,8 @@ class _PresetSkillMethods:
             ):
                 continue
             skill_file = skill_subdir / "SKILL.md"
+            if skill_file.absolute() in preserve_paths:
+                continue
             if not skill_file.is_file():
                 continue
             try:

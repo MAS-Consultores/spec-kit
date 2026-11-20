@@ -169,11 +169,13 @@ MAS_INIT_EXTRA_FILES = [
     ".specify/presets/.registry",
     ".specify/presets/mas-core/.composed/speckit.checklist.md",
     ".specify/presets/mas-core/.composed/speckit.clarify.md",
+    ".specify/presets/mas-core/.composed/speckit.implement.md",
     ".specify/presets/mas-core/.composed/speckit.plan.md",
     ".specify/presets/mas-core/.composed/speckit.specify.md",
     ".specify/presets/mas-core/.composed/speckit.tasks.md",
     ".specify/presets/mas-core/commands/speckit.checklist.md",
     ".specify/presets/mas-core/commands/speckit.clarify.md",
+    ".specify/presets/mas-core/commands/speckit.implement.md",
     ".specify/presets/mas-core/commands/speckit.plan.md",
     ".specify/presets/mas-core/commands/speckit.specify.md",
     ".specify/presets/mas-core/commands/speckit.tasks.md",
@@ -187,8 +189,25 @@ MAS_INIT_EXTRA_FILES = [
     ".specify/presets/mas-stack-cakephp2-mysql/stack-skills.yml",
     ".specify/presets/mas-stack-cakephp2-mysql/templates/mas-stack-cakephp2-mysql.md",
 ]
+
+
+def mas_init_extra_files(script: str) -> list[str]:
+    """Stack files plus the branch scripts for the selected script flavor."""
+    branch_scripts = {
+        "sh": [
+            ".specify/scripts/bash/ensure-feature-branch.sh",
+            ".specify/scripts/bash/finish-feature.sh",
+        ],
+        "ps": [
+            ".specify/scripts/powershell/ensure-feature-branch.ps1",
+            ".specify/scripts/powershell/finish-feature.ps1",
+        ],
+    }
+    return [*MAS_INIT_EXTRA_FILES, *branch_scripts[script]]
 _SKIP_DEFAULT_STACK_TESTS = frozenset({
     "test_init_rejects_missing_stack_before_side_effects",
+    "test_missing_or_invalid_stack_fails_before_creating_project",
+    "test_missing_stack_still_fails_before_writing",
 })
 _INJECT_UPSTREAM_INIT_STACK: ContextVar[bool] = ContextVar(
     "inject_upstream_init_stack", default=True

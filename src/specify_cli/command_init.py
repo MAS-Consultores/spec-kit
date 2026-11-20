@@ -207,6 +207,32 @@ def _install_extension_during_init(project_path: Path, ext_spec: str, speckit_ve
     return f"{manifest.name} v{manifest.version} installed"
 
 
+def _content_entries(items: list[Path]) -> list[Path]:
+    """Entries that conflict with init. A lone ``.git`` from ``git init`` does not."""
+    return [item for item in items if item.name != ".git"]
+
+
+def _merge_impact_lines(project_path: Path) -> list[str]:
+    """Explain what a non-empty init merge overwrites."""
+    try:
+        names = sorted(entry.name for entry in project_path.iterdir())
+    except OSError:
+        names = []
+    preview = ", ".join(names[:25])
+    if len(names) > 25:
+        preview = f"{preview} (+{len(names) - 25} more)"
+    lines = [
+        "Merge impact (this is what the force flag skips confirming):",
+        "- Overwrites Spec Kit files that already exist: templates, commands, skills, and .specify/memory for the selected stack.",
+        "- Leaves unrelated project files in place. Init does not delete files.",
+        "- Does not rewrite .git, commit history, branches, or remotes.",
+        "- A directory whose only entry is .git does not need the force flag.",
+    ]
+    if preview:
+        lines.append(f"- Existing top-level entries: {preview}")
+    return lines
+
+
 def ensure_constitution_from_template(project_path: Path, tracker: Any | None = None) -> None:
     """Materialize the resolved constitution template into project memory.
 
@@ -264,7 +290,13 @@ def register(app: typer.Typer) -> None:
         force: bool = typer.Option(
             False,
             "--force",
-            help="Force merge/overwrite when using --here (skip confirmation)",
+            help=(
+                "Skip confirmation and merge into a non-empty directory. "
+                "A directory that contains only .git does not need this flag. "
+                "Overwrites colliding Spec Kit files (templates, commands, skills, "
+                ".specify/memory). Does not delete unrelated files and does not "
+                "rewrite .git, history, branches, or remotes."
+            ),
         ),
         allow_symlinks: bool = typer.Option(
             False, "--allow-symlinks",
@@ -378,6 +410,7 @@ def register(app: typer.Typer) -> None:
             specify init my-project --integration codex --stack moodle5-plugin
             specify init --here --integration claude --stack cakephp2-mysql
             specify init my-project --integration copilot --stack laravel-inertia-react
+            specify init my-project --integration cursor-agent --stack nestjs-react
             specify init --here --force --stack moodle3 --integration cursor-agent
         """
         # Lazy imports to avoid circular dependency — __init__.py imports this module
@@ -462,14 +495,14 @@ def register(app: typer.Typer) -> None:
 
             original_directory = initial_directory_state(project_path)
             existing_items = original_directory[1] if original_directory else list(project_path.iterdir())
-            if existing_items:
+            content_items = _content_entries(existing_items)
+            if content_items:
                 console.print(
-                    f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)"
+                    f"[yellow]Warning:[/yellow] Current directory is not empty ({len(content_items)} items)"
                 )
+                for line in _merge_impact_lines(project_path):
+                    console.print(f"[yellow]{line}[/yellow]")
                 if force:
-                    console.print(
-                        "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
-                    )
                     console.print(
                         "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
                     )
@@ -483,8 +516,9 @@ def register(app: typer.Typer) -> None:
                 else:
                     try:
                         proceed = typer.confirm(
-                            "Template files will be merged with existing content "
-                            "and may overwrite existing files. Do you want to continue?"
+                            "Merge Spec Kit into this directory as described above? "
+                            "Colliding Spec Kit files will be overwritten. "
+                            ".git and unrelated files stay."
                         )
                     except (typer.Abort, EOFError):
                         if _stdin_is_interactive():
@@ -499,6 +533,11 @@ def register(app: typer.Typer) -> None:
                     if not proceed:
                         console.print("[yellow]Operation cancelled[/yellow]")
                         raise typer.Exit(0)
+            elif existing_items:
+                console.print(
+                    "[dim].git is the only existing entry; continuing without --force. "
+                    "History, branches, and remotes stay as they are.[/dim]"
+                )
         else:
             project_path = Path(project_name).absolute()
             original_directory = initial_directory_state(project_path)
@@ -511,14 +550,18 @@ def register(app: typer.Typer) -> None:
                     )
                     raise typer.Exit(1)
                 existing_items = original_directory[1] if original_directory else list(project_path.iterdir())
-                if force:
-                    if existing_items:
+                content_items = _content_entries(existing_items)
+                if existing_items and not content_items:
+                    console.print(
+                        f"[dim]'{safe_name}' contains only .git; continuing without --force.[/dim]"
+                    )
+                elif force:
+                    if content_items:
                         console.print(
-                            f"[yellow]Warning:[/yellow] Directory '{safe_name}' is not empty ({len(existing_items)} items)"
+                            f"[yellow]Warning:[/yellow] Directory '{safe_name}' is not empty ({len(content_items)} items)"
                         )
-                        console.print(
-                            "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
-                        )
+                        for line in _merge_impact_lines(project_path):
+                            console.print(f"[yellow]{line}[/yellow]")
                     console.print(
                         f"[cyan]--force supplied: merging into existing directory '[cyan]{safe_name}[/cyan]'[/cyan]"
                     )
@@ -859,6 +902,16 @@ def register(app: typer.Typer) -> None:
                 tracker.start("mas-presets")
                 install_mas_stack_presets(project_path, mas_stack)
                 tracker.complete("mas-presets", " + ".join(mas_stack.preset_composition))
+                # Preset installation replaces managed agent commands after setup.
+                # Refresh only files setup owns, preserving untouched recovery marks.
+                from .integrations._helpers import _resync_manifest_after_registration
+
+                _resync_manifest_after_registration(
+                    manifest,
+                    resolved_integration.key,
+                    unmodified_files=set(manifest.files),
+                    continuing="MAS presets were installed, but manifest hashes may be stale.",
+                )
 
                 # Preset registration rewrites wrapped commands after the
                 # integration manifest snapshot. Re-hash only the files whose
@@ -1195,6 +1248,7 @@ def register(app: typer.Typer) -> None:
             or grok_skill_mode
             or dsh_skill_mode
             or bob_skill_mode
+            or _is_skills_integration
         )
 
         if codex_skill_mode:
@@ -1267,28 +1321,30 @@ def register(app: typer.Typer) -> None:
         def _display_cmd(name: str) -> str:
             return f"{invoke_prefix}speckit{invoke_separator}{name}"
 
+        from .mas_policy import init_followup_commands
+
+        summaries = {
+            "constitution": "Establish project principles",
+            "specify": "Create baseline specification",
+            "plan": "Create implementation plan",
+            "tasks": "Generate actionable tasks",
+            "implement": "Execute implementation",
+            "converge": "Assess the codebase and append remaining work as tasks",
+        }
         steps_lines.append(
             f"{step_num}. Start using {usage_label} with your coding agent:"
         )
-
-        steps_lines.append(
-            f"   {step_num}.1 [cyan]{_display_cmd('constitution')}[/] - Establish project principles"
-        )
-        steps_lines.append(
-            f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification"
-        )
-        steps_lines.append(
-            f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan"
-        )
-        steps_lines.append(
-            f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks"
-        )
-        steps_lines.append(
-            f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
-        )
-        steps_lines.append(
-            f"   {step_num}.6 [cyan]{_display_cmd('converge')}[/] - Assess the codebase and append remaining work as tasks"
-        )
+        if mas_stack is not None:
+            steps_lines.append(
+                "   Project principles are already in [cyan].specify/memory/constitution.md[/cyan] from the selected stack."
+            )
+        for index, name in enumerate(
+            init_followup_commands(mas_stack=getattr(mas_stack, "id", None) == "nestjs-react"),
+            start=1,
+        ):
+            steps_lines.append(
+                f"   {step_num}.{index} [cyan]{_display_cmd(name)}[/] - {summaries[name]}"
+            )
 
         steps_panel = Panel(
             "\n".join(steps_lines),

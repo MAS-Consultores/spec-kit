@@ -63,10 +63,10 @@ model's context.
   Copilot: commands that install, remove or update presets (including `specify
   bundle` commands that carry presets), `specify integration use copilot`, and
   `specify integration switch copilot` when Copilot is installed but not the
-  default. To reapply the option, run `specify integration upgrade copilot
-  --force` while Copilot is the default integration (`--force` is needed because
-  those commands modify installed skill files, and it overwrites local edits to
-  Spec Kit-managed files).
+  default. To reapply the option, run `specify integration upgrade copilot`
+  while it is the default integration. Preset installation and removal refresh
+  hashes for previously unmodified managed files. Use `--force` only when you
+  intend to overwrite local edits to Spec Kit-managed files.
 
 ## Commands Layout
 

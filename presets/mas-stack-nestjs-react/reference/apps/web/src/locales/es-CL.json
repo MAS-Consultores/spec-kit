@@ -1,0 +1,17 @@
+{
+  "title": "Inicio",
+  "create": "Continuar",
+  "rutLabel": "RUT",
+  "dateLabel": "Fecha",
+  "numberLabel": "Número",
+  "logout": "Salir",
+  "activity": {
+    "events": {
+      "auth": {
+        "login": "Inicio de sesión",
+        "refresh": "Renovación de sesión",
+        "logout": "Cierre de sesión"
+      }
+    }
+  }
+}

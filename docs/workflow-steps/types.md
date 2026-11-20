@@ -432,13 +432,19 @@ and resolves the integration from the step config or the workflow default:
 ```yaml
 - id: bootstrap
   type: init
+  stack: nestjs-react        # Required: approved MAS stack
+  skip_external_skills: true # Optional: disable external skill downloads
   here: true                 # or: project: my-project
   integration: copilot       # Optional: defaults to workflow integration
   integration_options: "--skills"  # Optional: extra options for the integration
   script: sh                 # Optional: sh, ps, or py
   force: true                # Optional: required when target directory already exists
-  preset: healthcare-compliance   # Optional preset ID
 ```
+
+The MAS stack must be selected explicitly; missing or invalid stacks fail before
+project creation. `stack` and `skip_external_skills` support workflow expressions.
+The legacy `preset` field cannot be combined with a MAS stack.
+External skills retain the CLI default unless `skip_external_skills` is enabled.
 
 ## Workflow Slots
 

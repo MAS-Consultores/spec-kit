@@ -1,0 +1,60 @@
+{
+  "name": "mas-nestjs-react-reference",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env scripts/dev.mjs",
+    "verify": "pnpm --filter @demo/contracts build && pnpm lint && pnpm typecheck && pnpm madge && pnpm casl && pnpm shadcn:check && pnpm i18n:check && pnpm openapi:check && pnpm env:check && pnpm proxy:check && pnpm ports:check && pnpm example:check && pnpm schema:check && pnpm test && pnpm skips:check && pnpm test:fidelity",
+    "schema:check": "node scripts/check-prisma-layout.mjs",
+    "test:fidelity": "pnpm --filter @demo/web exec node --experimental-strip-types e2e/fidelity.ts",
+    "example:check": "node scripts/check-no-example-slice.mjs",
+    "env:check": "node scripts/check-env-example.mjs",
+    "proxy:check": "node scripts/check-dev-proxy.mjs",
+    "ports:check": "node --experimental-strip-types apps/web/e2e/ports.ts --self-test",
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "lint": "node scripts/ensure-prisma-client.mjs && eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto && depcruise apps packages --config .dependency-cruiser.cjs && node scripts/check-lint-fixtures.mjs && node scripts/check-duplicate-contract-types.mjs && node scripts/check-duplicate-contract-fixtures.mjs && node scripts/run-knip.mjs && node scripts/check-colors.mjs && node scripts/check-i18n.mjs && node scripts/check-settings-card.mjs && node scripts/lint-migrations.mjs && node scripts/check-migration-fixtures.mjs",
+    "lint:fixtures": "node scripts/check-lint-fixtures.mjs",
+    "gen:module": "node scripts/gen-module.mjs",
+    "typecheck": "pnpm routes:gen && pnpm -r --if-present run typecheck",
+    "routes:gen": "node scripts/generate-route-tree.mjs",
+    "madge": "madge --circular --extensions ts --exclude 'generated/prisma|routeTree.gen|lint-fixtures' apps packages",
+    "casl": "pnpm --filter @demo/casl-check exec node --experimental-strip-types check-casl.ts",
+    "shadcn:check": "node scripts/check-shadcn.mjs",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "openapi:check": "node scripts/generate-openapi.mjs --check",
+    "test": "pnpm --filter @demo/api test && pnpm --filter @demo/web test",
+    "skips:check": "node scripts/check-skips.mjs",
+    "build": "pnpm --filter @demo/contracts build && pnpm --filter @demo/api build && pnpm --filter @demo/web build",
+    "db:generate": "pnpm --filter @demo/api exec prisma generate",
+    "db:migrate": "pnpm db:generate && pnpm --filter @demo/api exec prisma migrate deploy",
+    "db:seed": "pnpm --filter @demo/api exec prisma db seed",
+    "db:setup": "node scripts/db-setup.mjs",
+    "test:e2e:api": "pnpm --filter @demo/api test:e2e",
+    "test:e2e:mcp": "pnpm --filter @demo/api test:mcp",
+    "test:e2e:web": "pnpm --filter @demo/web exec playwright test"
+  },
+  "devDependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
+    "@eslint/js": "10.0.1",
+    "dependency-cruiser": "18.8.0",
+    "eslint": "10.15.0",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-boundaries": "7.4.4",
+    "eslint-plugin-import-x": "4.18.1",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "knip": "6.46.1",
+    "lint-staged": "17.6.1",
+    "madge": "8.0.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,tsx}": "eslint --cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto --no-warn-ignored"
+  }
+}

@@ -1,0 +1,48 @@
+overrides:
+  "minimatch@<11.0.1": "11.0.8"
+  "effect@<=3.22.0": "3.22.1"
+
+packages:
+  - apps/*
+  - packages/*
+  - scripts
+
+allowBuilds:
+  prisma: true
+  "@prisma/engines": true
+  argon2: true
+  esbuild: true
+  "@swc/core": true
+  msw: true
+  "@scarf/scarf": false
+
+peerDependencyRules:
+  allowedVersions:
+    "@nestjs/common": "^12"
+    "@nestjs/core": "^12"
+    "@nestjs/swagger": "^12"
+
+auditConfig:
+  ignoreGhsas:
+    # picomatch <=4.0.7 has no stable release outside GHSA-fc5q-39xc-vjpf.
+    # It is pulled in by shadcn and fast-glob, not by a direct dependency.
+    - GHSA-fc5q-39xc-vjpf
+
+minimumReleaseAgeExclude:
+  - "@casl/ability@7.1.3"
+  - "@eslint/config-array@0.23.6"
+  - "@nestjs/cli@12.0.13"
+  - "@nestjs/jwt@12.0.5"
+  - "@nestjs/passport@12.0.2"
+  - "@playwright/test@1.65.1"
+  - eslint@10.15.0
+  - playwright-core@1.65.1
+  - playwright@1.65.1
+
+permissions:
+  '@tanstack/react-router':
+    skills: true
+  "@tanstack/react-table":
+    skills: true
+  "@tanstack/table-core":
+    skills: true

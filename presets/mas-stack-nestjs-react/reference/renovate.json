@@ -1,0 +1,8 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "rangeStrategy": "pin",
+  "ignoreDeps": [],
+  "prConcurrentLimit": 1,
+  "description": "Renovate updates only this reference skeleton. The pull request must pass the NestJS React stack smoke workflow before merge. Projects copy the lockfile; they do not resolve versions themselves."
+}

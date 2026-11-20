@@ -3,6 +3,45 @@ description: Generate MAS stack-aware implementation tasks.
 strategy: wrap
 ---
 
+## MAS Feature Branch Check
+
+Before generating tasks, run the branch gate and stop when it exits 1. Do not
+generate tasks on `main` or `master`, and do not create a branch here.
+
+- Bash: `.specify/scripts/bash/ensure-feature-branch.sh`
+- PowerShell: `.specify/scripts/powershell/ensure-feature-branch.ps1`
+
+The script exits 1 when HEAD is `main`, `master`, detached, or not a
+`NNN-short-name` feature branch, and when `.specify/feature.json` names a
+directory whose basename is not HEAD. That exit is `HARD_FAIL`.
+
+Do not create `main` and do not merge. Task generation commits stay on the
+feature branch. The local merge is `finish-feature` during `/speckit.implement`.
+
+## Phase commit (mandatory)
+
+After `tasks.md` is written, commit it on the current feature branch. Do not
+rely on `.specify/extensions.yml` or `speckit.git.commit`. Do not create
+`main`. Do not run `git branch`.
+
+1. `git symbolic-ref --short HEAD` must be the feature branch (`NNN-short-name`).
+2. If `git status --porcelain` is empty, stop this section.
+3. Otherwise run the commands for the current shell and require exit code 0.
+
+Bash:
+
+```bash
+git add -A
+git commit -m "speckit.tasks"
+```
+
+PowerShell:
+
+```powershell
+git add -A
+git commit -m "speckit.tasks"
+```
+
 ## MAS Stack-Aware Task Generation Requirements
 
 Before executing core task generation, read and treat the following files as required MAS context:
