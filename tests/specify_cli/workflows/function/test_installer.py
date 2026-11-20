@@ -214,10 +214,11 @@ class TestExportCollisions:
             thread.join(timeout=30)
 
         winners = [i for i, r in results.items() if r == "ok"]
-        assert len(winners) == 1 and len(results) == len(sources)
+        losers = {i: str(r) for i, r in results.items() if i not in winners}
+        assert len(winners) == 1 and len(results) == len(sources), results
         assert list(FunctionRegistry(project_dir).list()) == winners
         assert [p.name for p in functions_dir(project_dir).iterdir() if p.is_dir()] == winners
-        assert all("already provided" in str(r) for i, r in results.items() if i not in winners)
+        assert losers and all("already provided" in message for message in losers.values()), losers
 
 
 class TestSharedInstallFlow:
