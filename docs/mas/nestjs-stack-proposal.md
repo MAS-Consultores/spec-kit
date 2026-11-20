@@ -9,8 +9,8 @@ TypeScript para casos de uso donde se requiere una API independiente.
 
 ## Identificador Canónico
 
-**ID**: `nestjs-react`  
-**Display Name**: NestJS + React (API + SPA)  
+**ID**: `nestjs-react`
+**Display Name**: NestJS + React (API + SPA)
 **Preset**: `mas-stack-nestjs-react`
 
 ### Justificación del ID
@@ -960,8 +960,8 @@ los `delete` anidados dentro de `update` están prohibidos (usar el service del 
 
 ```sql
 -- migrations/XXXXXX_add_partial_unique_email.sql
-CREATE UNIQUE INDEX "Usuario_email_unique_active" 
-ON "Usuario"("email") 
+CREATE UNIQUE INDEX "Usuario_email_unique_active"
+ON "Usuario"("email")
 WHERE "deletedAt" IS NULL;
 ```
 
@@ -1121,7 +1121,7 @@ export class AuditService {
   async log(entry: AuditEntry): Promise<void> {
     // Mask sensitive fields before logging
     const masked = this.maskSensitiveFields(entry);
-    
+
     await this.prisma.auditLog.create({
       data: {
         userId: masked.userId,
@@ -1170,10 +1170,10 @@ model AuditLog {
   userAgent String?
   requestId String?
   createdAt DateTime @default(now())
-  
+
   // NO deletedAt - append-only table
   // NO @@map("audit_logs") si se prefiere convención
-  
+
   @@index([userId])
   @@index([entity, recordId])
   @@index([action])
@@ -1192,7 +1192,7 @@ export class AuditInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const startTime = Date.now();
-    
+
     return next.handle().pipe(
       tap(async (response) => {
         const auditMeta = Reflect.getMetadata('audit', context.getHandler());
@@ -1258,7 +1258,7 @@ export const auditoriaPermissions: PermissionManifest = {
 // apps/web/src/features/audit/pages/AuditLogPage.tsx
 function AuditLogPage() {
   const search = Route.useSearch(); // TanStack Router search params
-  
+
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey: ['audit-logs', search],
     queryFn: ({ pageParam }) => api.audit.list({ ...search, cursor: pageParam }),
@@ -1268,7 +1268,7 @@ function AuditLogPage() {
   return (
     <Can permission="auditoria:ver">
       <AuditFilters />
-      <VirtualizedAuditTable 
+      <VirtualizedAuditTable
         data={data?.pages.flatMap(p => p.items) ?? []}
         onLoadMore={fetchNextPage}
         hasMore={hasNextPage}
@@ -1285,8 +1285,8 @@ function AuditLogPage() {
 
 ```typescript
 // Configuración de retención
-export const AUDIT_RETENTION_DAYS = process.env.AUDIT_RETENTION_DAYS 
-  ? parseInt(process.env.AUDIT_RETENTION_DAYS) 
+export const AUDIT_RETENTION_DAYS = process.env.AUDIT_RETENTION_DAYS
+  ? parseInt(process.env.AUDIT_RETENTION_DAYS)
   : 365; // 1 año por defecto
 
 // Job de archivado (ejecutar periódicamente)
@@ -1294,14 +1294,14 @@ export const AUDIT_RETENTION_DAYS = process.env.AUDIT_RETENTION_DAYS
 export class AuditArchiveService {
   async archiveOldRecords() {
     const cutoffDate = subDays(new Date(), AUDIT_RETENTION_DAYS);
-    
+
     // Mover a tabla de archivo o storage externo
     const oldRecords = await this.prisma.auditLog.findMany({
       where: { createdAt: { lt: cutoffDate } },
     });
-    
+
     await this.archiveToStorage(oldRecords); // S3, etc.
-    
+
     // Solo después de confirmar archivo exitoso
     await this.prisma.auditLog.deleteMany({
       where: { createdAt: { lt: cutoffDate } },
@@ -1376,9 +1376,9 @@ model Order {
   userId    String
   status    String
   createdAt DateTime @default(now())
-  
+
   user User @relation(fields: [userId], references: [id])
-  
+
   @@index([userId])              // Relación
   @@index([status])              // WHERE frecuente
   @@index([createdAt])           // ORDER BY frecuente
@@ -1401,10 +1401,10 @@ export class OrderService {
 
   async createOrder(dto: CreateOrderDto) {
     const order = await this.prisma.order.create({ data: dto });
-    
+
     // Async: no bloquea la respuesta HTTP
     this.eventEmitter.emit('order.created', order);
-    
+
     return order;
   }
 }

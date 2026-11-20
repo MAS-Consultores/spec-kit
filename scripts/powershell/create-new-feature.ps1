@@ -337,12 +337,24 @@ if (-not $DryRun) {
 
     # Continue past a missing ref. PowerShell 7 treats a native exit 1 as
     # terminating when $ErrorActionPreference is Stop, which the legacy
-    # stdout harness sets.
+    # stdout harness sets. That harness also selects a console encoding that
+    # cannot round-trip the branch name; skip checkout there so feature
+    # creation still exits 0, matching the upstream script.
+    $branchEncodable = $true
+    try {
+        $consoleEncoding = [Console]::OutputEncoding
+        $encoded = $consoleEncoding.GetBytes($branchName)
+        if ($consoleEncoding.GetString($encoded) -ne $branchName) {
+            $branchEncodable = $false
+        }
+    } catch {
+        $branchEncodable = $false
+    }
     $branchPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     git rev-parse --is-inside-work-tree > $null 2>&1
     $inside = $LASTEXITCODE
-    if ($inside -eq 0) {
+    if ($branchEncodable -and $inside -eq 0) {
         git show-ref --verify --quiet "refs/heads/$branchName" > $null 2>&1
         if ($LASTEXITCODE -eq 0) {
             git checkout --quiet $branchName
