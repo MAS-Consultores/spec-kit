@@ -8,6 +8,7 @@ import hmac
 import logging
 import os
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -241,13 +242,51 @@ def _validate_safe_shared_directory(project_path: Path, directory: Path) -> None
             raise ValueError(f"Shared infrastructure directory escapes project root: {label}") from None
 
 
+# Windows file locks are owned by the process. Two threads in one process can
+# both pass ``msvcrt.locking`` (or one of them can fail with a lock-violation
+# ``OSError`` whose errno is not ``EACCES``/``EDEADLK``). This in-process lock
+# closes that gap; other processes still queue on the file lock.
+_THREAD_LOCKS_GUARD = threading.Lock()
+_THREAD_LOCKS: dict[str, threading.Lock] = {}
+
+# ERROR_SHARING_VIOLATION and ERROR_LOCK_VIOLATION. Python 3.15 on Windows
+# sometimes reports these with an errno other than EACCES/EDEADLK.
+_WIN_LOCK_CONTENTION = {32, 33}
+
+
+def _inprocess_lock(lock_file: Path) -> threading.Lock:
+    key = os.path.normcase(os.path.abspath(lock_file))
+    with _THREAD_LOCKS_GUARD:
+        lock = _THREAD_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _THREAD_LOCKS[key] = lock
+        return lock
+
+
+def _lock_attempt_is_contention(exc: OSError) -> bool:
+    """True when a non-blocking lock failed because someone else holds it."""
+    import errno
+
+    contended = {
+        errno.EACCES,
+        errno.EAGAIN,
+        errno.EDEADLK,
+        errno.EWOULDBLOCK,
+    }
+    if exc.errno in contended:
+        return True
+    return getattr(exc, "winerror", None) in _WIN_LOCK_CONTENTION
+
+
 @contextlib.contextmanager
 def _exclusive_project_lock(project_root: Path, lock_name: str, *, context: str):
     """Hold an exclusive inter-process lock on ``.specify/<lock_name>``.
 
     Callers use one lock file per mutable project resource so that its
-    directory and registry changes are serialized across processes. Every
-    failure to acquire the lock is raised as ``OSError``.
+    directory and registry changes are serialized across processes and across
+    threads in this process. Every failure to acquire the lock is raised as
+    ``OSError``.
     """
     project_root = Path(project_root)
     lock_dir = project_root / ".specify"
@@ -271,7 +310,6 @@ def _exclusive_project_lock(project_root: Path, lock_name: str, *, context: str)
         # Call the lock primitives through their modules so tests can observe
         # contention by patching ``msvcrt.locking`` / ``fcntl.flock``.
         if os.name == "nt":
-            import errno
             import msvcrt
             import time
 
@@ -283,14 +321,22 @@ def _exclusive_project_lock(project_root: Path, lock_name: str, *, context: str)
                     msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
                     break
                 except OSError as exc:
-                    if exc.errno not in (errno.EACCES, errno.EDEADLK):
+                    if not _lock_attempt_is_contention(exc):
                         raise
                     time.sleep(0.05)
         else:
             import fcntl
 
             fcntl.flock(fd, fcntl.LOCK_EX)
-        yield
+        # Taken after the OS lock so a waiting thread still reaches the file
+        # lock (tests observe that attempt) while same-process threads cannot
+        # both enter when the OS lock does not exclude them.
+        thread_lock = _inprocess_lock(lock_file)
+        thread_lock.acquire()
+        try:
+            yield
+        finally:
+            thread_lock.release()
     finally:
         os.close(fd)
 
