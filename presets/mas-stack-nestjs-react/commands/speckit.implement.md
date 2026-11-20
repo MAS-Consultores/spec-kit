@@ -24,6 +24,12 @@ A run that only has a few unit tests and a single Playwright spec does not meet 
 
 ## Modularidad estricta
 
+Follow **Formatos estándar** in the stack constitution and read `.specify/presets/mas-stack-nestjs-react/templates/approved-libraries.md`. Use `exceljs` for xlsx, `csv-parse` for CSV, Playwright `page.pdf()` to generate a PDF from HTML, `pdf-lib` to merge or stamp, and `unpdf` to extract text. Do not import `xlsx`, do not hand-write a PDF, and do not finish while `mas/no-handrolled-format-parsers` fails. For ZIP or XML, use only the library the plan consulted or justified.
+
+Follow **Librerías de producto** in the stack constitution and `approved-libraries.md`. Keep `pnpm lint` at 0, including `scripts/check-mjml.mjs` (`validationLevel: 'strict'`). Do not add BullMQ unless the plan justifies it while the queue decision is still open. Do not add `ffprobe` or `fluent-ffmpeg`. Do not finish while `mas/no-regex-html-sanitize`, `mas/no-dangerous-html-unsanitized`, `mas/no-handmade-email-html`, `mas/no-client-file-type-trust`, `mas/no-direct-llm-fetch`, `mas/no-secret-in-client`, `mas/no-raw-process-env`, `mas/require-throttle-sensitive`, `mas/require-helmet`, `mas/no-manual-form-errors`, `mas/reduced-motion-animations`, or `no-console` in `apps/api` fails. Warnings `mas/no-timer-scheduling`, `mas/no-handmade-charts`, and `mas/no-manual-date-math` must be resolved or suppressed with a justification.
+
+Follow **Subida de archivos** in the stack constitution. Uploads use multipart with `limits.fileSize` and a type or magic-byte validator. Do not finish while `mas/multipart-upload-limits`, `mas/no-base64-file-upload`, or `mas/base64-upload-max-length` fails.
+
 Follow **Bitácora de actividad** in the stack constitution. Each mutating handler uses `@Audit('event.key')` with a catalog key, or `@NoAudit('motivo')` when the spec records that exception. Do not finish while `mas/require-audit-on-mutations` fails.
 
 Follow **Modularidad estricta** in the stack constitution. New domains come from `pnpm gen:module <dominio>`. Do not register a domain by editing another domain. `pnpm lint` must stay at 0.

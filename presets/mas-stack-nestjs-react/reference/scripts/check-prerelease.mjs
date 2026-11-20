@@ -5,6 +5,7 @@ const rootDir = new URL("..", import.meta.url).pathname;
 const prerelease = /-rc\.|-beta|-alpha|-canary|-next\.|-dev\./;
 const names = new Set();
 const bad = [];
+const forbiddenPackages = new Set(["xlsx"]);
 
 function readPackage(file) {
   const manifest = JSON.parse(readFileSync(file, "utf8"));
@@ -13,6 +14,9 @@ function readPackage(file) {
     if (!block || typeof block !== "object") continue;
     for (const [name, version] of Object.entries(block)) {
       names.add(name);
+      if (forbiddenPackages.has(name)) {
+        bad.push(`${file} forbids ${name}@${version}`);
+      }
       if (typeof version === "string" && prerelease.test(version)) {
         bad.push(`${file} ${name}@${version}`);
       }
@@ -45,6 +49,9 @@ for (const line of lock.split("\n")) {
   const match = line.match(/^\s{2}'?(@?[^@'\s]+)@([^':]+)'?:/);
   if (!match) continue;
   const [, name, version] = match;
+  if (forbiddenPackages.has(name)) {
+    bad.push(`lock forbids ${name}@${version}`);
+  }
   if (names.has(name) && prerelease.test(version)) {
     bad.push(`lock ${name}@${version}`);
   }

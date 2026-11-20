@@ -10,6 +10,7 @@ import importX from "eslint-plugin-import-x";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import mas, { boundaryElements, boundaryRule } from "../eslint/mas-plugin.js";
+import { restrictedImports } from "../eslint/package2-rules.js";
 
 const cases = [
   {
@@ -22,7 +23,10 @@ const cases = [
   },
   {
     file: "apps/api/lint-fixtures/reads-env.service.ts",
-    expects: [{ ruleId: "mas/no-process-env", includes: ".env.example" }],
+    expects: [
+      { ruleId: "mas/no-process-env", includes: ".env.example", severity: "error" },
+      { ruleId: "mas/no-raw-process-env", includes: ".env.example", severity: "error" },
+    ],
   },
   {
     file: "apps/web/lint-fixtures/route-effect.tsx",
@@ -138,6 +142,123 @@ const cases = [
     file: "apps/api/lint-fixtures/unknown-audit.controller.ts",
     expects: [{ ruleId: "mas/require-audit-on-mutations", includes: "catalog" }],
   },
+  {
+    file: "apps/api/lint-fixtures/base64-upload.dto.ts",
+    expects: [
+      { ruleId: "mas/no-base64-file-upload", includes: "multipart/form-data" },
+      { ruleId: "mas/base64-upload-max-length", includes: "1_048_576" },
+    ],
+  },
+  {
+    file: "apps/api/lint-fixtures/base64-upload-too-big.dto.ts",
+    expects: [{ ruleId: "mas/base64-upload-max-length", includes: "1_048_576" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/base64-buffer.service.ts",
+    expects: [{ ruleId: "mas/no-base64-file-upload", includes: "Buffer.from" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/upload-no-limit.controller.ts",
+    expects: [{ ruleId: "mas/multipart-upload-limits", includes: "limits.fileSize" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/upload-no-type.controller.ts",
+    expects: [{ ruleId: "mas/multipart-upload-limits", includes: "FileTypeValidator" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/import-xlsx.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "exceljs" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/zlib-inflate.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "inflateRaw" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/sheet-xml.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "sheetData" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/csv-split.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "csv-parse" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/pdf-handrolled.service.ts",
+    expects: [{ ruleId: "mas/no-handrolled-format-parsers", includes: "pdf-lib" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/regex-sanitize.service.ts",
+    expects: [{ ruleId: "mas/no-regex-html-sanitize", includes: "DOMPurify", severity: "error" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/dangerous-html.tsx",
+    expects: [{ ruleId: "mas/no-dangerous-html-unsanitized", includes: "DOMPurify.sanitize", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/email/handmade-mail.ts",
+    expects: [{ ruleId: "mas/no-handmade-email-html", includes: "mjml2html", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/email/triple-stash.ts",
+    expects: [{ ruleId: "mas/no-handmade-email-html", includes: "{{{", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/timer-schedule.service.ts",
+    expects: [{ ruleId: "mas/no-timer-scheduling", includes: "approved-libraries.md", severity: "warn" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/charts/handmade-chart.tsx",
+    expects: [{ ruleId: "mas/no-handmade-charts", includes: "Recharts", severity: "warn" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/date-math.service.ts",
+    expects: [{ ruleId: "mas/no-manual-date-math", includes: "date-fns", severity: "warn" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/trust-mimetype.controller.ts",
+    expects: [{ ruleId: "mas/no-client-file-type-trust", includes: "file-type", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/llm-fetch.service.ts",
+    expects: [{ ruleId: "mas/no-direct-llm-fetch", includes: "/chat/completions", severity: "error" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/vite-secret.ts",
+    expects: [{ ruleId: "mas/no-secret-in-client", includes: "VITE_", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/api-main.ts",
+    expects: [{ ruleId: "mas/require-helmet", includes: "helmet", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/login-no-throttle.controller.ts",
+    expects: [{ ruleId: "mas/require-throttle-sensitive", includes: "SensitiveThrottle", severity: "error" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/form-errors.tsx",
+    expects: [{ ruleId: "mas/no-manual-form-errors", includes: "react-hook-form", severity: "error" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/confetti.tsx",
+    expects: [{ ruleId: "mas/reduced-motion-animations", includes: "prefers-reduced-motion", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/console-log.service.ts",
+    expects: [{ ruleId: "no-console", includes: "console", severity: "error" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/banned-imports.ts",
+    min: 13,
+    minRule: "no-restricted-imports",
+    expects: [
+      { ruleId: "no-restricted-imports", includes: "moment", severity: "error" },
+      { ruleId: "no-restricted-imports", includes: "dayjs", severity: "error" },
+      { ruleId: "no-restricted-imports", includes: "chart.js", severity: "error" },
+      { ruleId: "no-restricted-imports", includes: "react-chartjs-2", severity: "error" },
+      { ruleId: "no-restricted-imports", includes: "echarts", severity: "error" },
+      { ruleId: "no-restricted-imports", includes: "socket.io", severity: "error" },
+      { ruleId: "no-restricted-imports", includes: "ws", severity: "error" },
+    ],
+  },
 ];
 
 const eslint = new ESLint({
@@ -178,7 +299,28 @@ const eslint = new ESLint({
         "mas/lazy-feature-routes": "error",
         "mas/fetch-in-feature-data": "error",
         "mas/module-layout": "error",
+        "mas/thin-controllers": "error",
         "mas/no-url-includes-in-guards": "error",
+        "mas/no-base64-file-upload": "error",
+        "mas/base64-upload-max-length": "error",
+        "mas/multipart-upload-limits": "error",
+        "mas/no-handrolled-format-parsers": "error",
+        "mas/no-regex-html-sanitize": "error",
+        "mas/no-dangerous-html-unsanitized": "error",
+        "mas/no-handmade-email-html": "error",
+        "mas/no-timer-scheduling": "warn",
+        "mas/no-handmade-charts": "warn",
+        "mas/no-manual-date-math": "warn",
+        "mas/no-client-file-type-trust": "error",
+        "mas/no-direct-llm-fetch": "error",
+        "mas/no-secret-in-client": "error",
+        "mas/no-raw-process-env": "error",
+        "mas/require-throttle-sensitive": "error",
+        "mas/require-helmet": "error",
+        "mas/no-manual-form-errors": "error",
+        "mas/reduced-motion-animations": "error",
+        "no-restricted-imports": ["error", restrictedImports],
+        "no-console": "error",
         "mas/icon-library": "error",
         "mas/no-literal-color": "error",
         "mas/no-i18n-mutation-in-render": "error",
@@ -242,6 +384,26 @@ cases.push(
     file: "apps/api/lint-fixtures/modules/ledger/index.ts",
     expects: [{ ruleId: "mas/barrel-exports-only-public", includes: "public API" }],
   },
+  {
+    file: "apps/api/lint-fixtures/thin-prisma.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "PrismaService" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-repository.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "repository" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-loop.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "business loops" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-branch.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "Business branches" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/thin-math.controller.ts",
+    expects: [{ ruleId: "mas/thin-controllers", includes: "calculate" }],
+  },
 );
 
 let failed = false;
@@ -253,10 +415,20 @@ for (const item of cases) {
       !messages.some(
         (message) =>
           message.ruleId === expected.ruleId &&
+          (expected.severity === undefined ||
+            (expected.severity === "warn" ? message.severity === 1 : message.severity === 2)) &&
           (expected.includes === undefined ||
             (typeof message.message === "string" && message.message.includes(expected.includes))),
       ),
   );
+  const counted =
+    item.min === undefined
+      ? []
+      : messages.filter((message) => message.ruleId === item.minRule);
+  if (item.min !== undefined && counted.length < item.min) {
+    failed = true;
+    console.error(`fixture ${item.file} expected at least ${item.min} ${item.minRule}, got ${counted.length}`);
+  }
   if (misses.length > 0) {
     failed = true;
     console.error(`fixture ${item.file} missed ${JSON.stringify(misses)}`);
@@ -268,6 +440,99 @@ for (const item of cases) {
   }
 }
 if (failed) process.exit(1);
+
+const formatOff = new ESLint({
+  cwd: new URL("..", import.meta.url).pathname,
+  overrideConfigFile: true,
+  overrideConfig: [
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: { mas },
+      languageOptions: { parser: tseslint.parser },
+      rules: { "mas/no-handrolled-format-parsers": "off" },
+    },
+  ],
+});
+const formatFixtures = [
+  "apps/api/lint-fixtures/import-xlsx.service.ts",
+  "apps/api/lint-fixtures/zlib-inflate.service.ts",
+  "apps/api/lint-fixtures/sheet-xml.service.ts",
+  "apps/api/lint-fixtures/csv-split.service.ts",
+  "apps/api/lint-fixtures/pdf-handrolled.service.ts",
+];
+for (const file of formatFixtures) {
+  const results = await formatOff.lintFiles([file]);
+  const hit = results
+    .flatMap((result) => result.messages)
+    .find((message) => message.ruleId === "mas/no-handrolled-format-parsers");
+  if (hit) {
+    console.error(`rule off still emitted mas/no-handrolled-format-parsers for ${file}`);
+    process.exit(1);
+  }
+  console.log(`fixture off ok ${file}`);
+}
+
+const package2OffRules = {
+  "mas/no-regex-html-sanitize": "off",
+  "mas/no-dangerous-html-unsanitized": "off",
+  "mas/no-handmade-email-html": "off",
+  "mas/no-timer-scheduling": "off",
+  "mas/no-handmade-charts": "off",
+  "mas/no-manual-date-math": "off",
+  "mas/no-client-file-type-trust": "off",
+  "mas/no-direct-llm-fetch": "off",
+  "mas/no-secret-in-client": "off",
+  "mas/no-raw-process-env": "off",
+  "mas/require-throttle-sensitive": "off",
+  "mas/require-helmet": "off",
+  "mas/no-manual-form-errors": "off",
+  "mas/reduced-motion-animations": "off",
+  "no-restricted-imports": "off",
+  "no-console": "off",
+};
+const package2Off = new ESLint({
+  cwd: new URL("..", import.meta.url).pathname,
+  overrideConfigFile: true,
+  overrideConfig: [
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: { mas },
+      languageOptions: {
+        parser: tseslint.parser,
+        parserOptions: { ecmaFeatures: { jsx: true } },
+      },
+      rules: package2OffRules,
+    },
+  ],
+});
+const package2OffCases = [
+  ["apps/api/lint-fixtures/regex-sanitize.service.ts", "mas/no-regex-html-sanitize"],
+  ["apps/web/lint-fixtures/dangerous-html.tsx", "mas/no-dangerous-html-unsanitized"],
+  ["apps/api/lint-fixtures/email/handmade-mail.ts", "mas/no-handmade-email-html"],
+  ["apps/api/lint-fixtures/email/triple-stash.ts", "mas/no-handmade-email-html"],
+  ["apps/api/lint-fixtures/timer-schedule.service.ts", "mas/no-timer-scheduling"],
+  ["apps/web/lint-fixtures/charts/handmade-chart.tsx", "mas/no-handmade-charts"],
+  ["apps/api/lint-fixtures/date-math.service.ts", "mas/no-manual-date-math"],
+  ["apps/api/lint-fixtures/trust-mimetype.controller.ts", "mas/no-client-file-type-trust"],
+  ["apps/api/lint-fixtures/llm-fetch.service.ts", "mas/no-direct-llm-fetch"],
+  ["apps/web/lint-fixtures/vite-secret.ts", "mas/no-secret-in-client"],
+  ["apps/api/lint-fixtures/reads-env.service.ts", "mas/no-raw-process-env"],
+  ["apps/api/lint-fixtures/api-main.ts", "mas/require-helmet"],
+  ["apps/api/lint-fixtures/login-no-throttle.controller.ts", "mas/require-throttle-sensitive"],
+  ["apps/web/lint-fixtures/form-errors.tsx", "mas/no-manual-form-errors"],
+  ["apps/web/lint-fixtures/confetti.tsx", "mas/reduced-motion-animations"],
+  ["apps/api/lint-fixtures/console-log.service.ts", "no-console"],
+  ["apps/api/lint-fixtures/banned-imports.ts", "no-restricted-imports"],
+];
+for (const [file, ruleId] of package2OffCases) {
+  const results = await package2Off.lintFiles([file]);
+  const hit = results.flatMap((result) => result.messages).find((message) => message.ruleId === ruleId);
+  if (hit) {
+    console.error(`rule off still emitted ${ruleId} for ${file}`);
+    process.exit(1);
+  }
+  console.log(`fixture off ok ${file} ${ruleId}`);
+}
 
 const referenceRoot = new URL("..", import.meta.url).pathname;
 const central = join(referenceRoot, "apps/web/src/icons/index.ts");
@@ -340,10 +605,178 @@ const textCases = [
     forbid: ["mas/no-swallowed-catch", "no-useless-catch"],
   },
   {
+    name: "multipart upload declares fileSize and a type validator",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.controller.ts"),
+    code: 'function FileInterceptor(..._args: unknown[]): MethodDecorator { return () => undefined; }\nfunction ParseFilePipe(_options: unknown): ParameterDecorator { return () => undefined; }\nfunction FileTypeValidator(_options: unknown): object { return {}; }\nfunction MaxFileSizeValidator(_options: unknown): object { return {}; }\nexport class FilesController {\n  upload(\n    @UploadedFile(\n      new ParseFilePipe({\n        validators: [\n          new FileTypeValidator({ fileType: "image/png" }),\n          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),\n        ],\n      }),\n    )\n    _file: unknown,\n  ): { ok: true } {\n    return {\n      ok: true,\n      saved: FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }),\n    };\n  }\n}\nfunction UploadedFile(_pipe: unknown): ParameterDecorator { return () => undefined; }\n',
+    forbid: ["mas/multipart-upload-limits", "mas/no-base64-file-upload", "mas/base64-upload-max-length"],
+  },
+  {
+    name: "multipart upload uses a fileFilter",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.controller.ts"),
+    code: 'function FileInterceptor(..._args: unknown[]): MethodDecorator { return () => undefined; }\nexport function configured(): unknown {\n  return FileInterceptor("file", {\n    limits: { fileSize: 1024 * 1024 },\n    fileFilter(_req: unknown, _file: unknown, cb: (error: null, accept: boolean) => void) {\n      cb(null, true);\n    },\n  });\n}\n',
+    forbid: ["mas/multipart-upload-limits"],
+  },
+  {
+    name: "base64 JSON under 1 MiB with a justified suppression",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/avatar.dto.ts"),
+    code: 'function MaxLength(_max: number): PropertyDecorator { return () => undefined; }\nfunction IsBase64(): PropertyDecorator { return () => undefined; }\nexport class AvatarDto {\n  @MaxLength(1024)\n  @IsBase64()\n  // eslint-disable-next-line mas/no-base64-file-upload -- legado de 1 KB que el cliente aún manda en JSON\n  iconBase64!: string;\n}\n',
+    forbid: ["mas/no-base64-file-upload", "mas/base64-upload-max-length", "mas/require-disable-justification"],
+  },
+  {
+    name: "token base64url and a secret decode are not file uploads",
+    filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.service.ts"),
+    code: 'export class AuthService {\n  decode(secret: string): Buffer {\n    return Buffer.from(secret, "base64");\n  }\n}\nexport class SessionDto {\n  refreshBase64Url!: string;\n}\n',
+    forbid: ["mas/no-base64-file-upload", "mas/base64-upload-max-length"],
+  },
+  {
+    name: "exceljs streaming reader",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { stream } from "exceljs";\nexport async function readSheet(input: AsyncIterable<unknown>): Promise<void> {\n  const reader = new stream.xlsx.WorkbookReader(input, {});\n  for await (const worksheet of reader) {\n    for await (const row of worksheet) {\n      void row;\n    }\n  }\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "csv-parse reads a csv",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { parse } from "csv-parse";\nexport function readCsv(csvText: string): void {\n  parse(csvText, { columns: true }, () => undefined);\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "justified suppression for a legacy csv line",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'export function legacy(fileText: string): string[] {\n  const line = fileText;\n  // eslint-disable-next-line mas/no-handrolled-format-parsers -- el plan documenta este CSV de una sola columna heredada\n  return line.split(",");\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers", "mas/require-disable-justification"],
+  },
+  {
+    name: "gzip and a header split are not format parsers",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { gzipSync } from "node:zlib";\nexport function pack(body: Buffer, header: string): { packed: Buffer; parts: string[] } {\n  return { packed: gzipSync(body), parts: header.split(",") };\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "pdf-lib loads a pdf",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { PDFDocument } from "pdf-lib";\nexport async function merge(bytes: Uint8Array): Promise<Uint8Array> {\n  const doc = await PDFDocument.load(bytes);\n  return doc.save();\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "unpdf extracts text",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { extractText } from "unpdf";\nexport async function textOf(data: Uint8Array): Promise<unknown> {\n  return extractText(data);\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
+    name: "playwright page.pdf renders html",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'type Page = { pdf: (options: { format: "A4" }) => Promise<Uint8Array> };\nexport function certificate(page: Page): Promise<Uint8Array> {\n  return page.pdf({ format: "A4" });\n}\n',
+    forbid: ["mas/no-handrolled-format-parsers"],
+  },
+  {
     name: "module index reexports the public class",
     filePath: join(referenceRoot, "apps/api/src/modules/health/index.ts"),
     code: 'export { HealthModule } from "./health.module.js";\n',
     forbid: ["mas/barrel-exports-only-public"],
+  },
+  {
+    name: "regex replace that is not html",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'export function slug(value: string): string {\n  return value.replace(/-/g, "");\n}\n',
+    forbid: ["mas/no-regex-html-sanitize"],
+  },
+  {
+    name: "dangerouslySetInnerHTML uses DOMPurify.sanitize",
+    filePath: join(referenceRoot, "apps/web/src/features/home/components/home-page.tsx"),
+    code: 'const DOMPurify = { sanitize(value: string): string { return value; } };\nexport function View(html: string): React.ReactElement {\n  return <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />;\n}\n',
+    forbid: ["mas/no-dangerous-html-unsanitized"],
+  },
+  {
+    name: "email renders a compiled mjml template",
+    filePath: join(referenceRoot, "apps/api/src/modules/email/welcome.ts"),
+    code: 'import mjml2html from "mjml";\nimport { readFileSync } from "node:fs";\nexport function render(): string {\n  const source = readFileSync(new URL("./welcome.mjml", import.meta.url), "utf8");\n  return mjml2html(source, { validationLevel: "strict" }).html;\n}\n',
+    forbid: ["mas/no-handmade-email-html"],
+  },
+  {
+    name: "triple stash with a justified suppression",
+    filePath: join(referenceRoot, "apps/api/src/modules/email/trusted.ts"),
+    code: 'export function raw(): string {\n  // eslint-disable-next-line mas/no-handmade-email-html -- el nombre ya viene escapado por Handlebars aguas arriba\n  return "Hola {{{trustedName}}}";\n}\n',
+    forbid: ["mas/no-handmade-email-html", "mas/require-disable-justification"],
+  },
+  {
+    name: "short setTimeout is protocol timing",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: "export function defer(): void {\n  setTimeout(() => undefined, 50);\n}\n",
+    forbid: ["mas/no-timer-scheduling"],
+  },
+  {
+    name: "static icon path is not a chart",
+    filePath: join(referenceRoot, "apps/web/src/icons/mark.tsx"),
+    code: 'export function Mark(): React.ReactElement {\n  return <svg><path d="M2 2h4v4H2z" /></svg>;\n}\n',
+    forbid: ["mas/no-handmade-charts"],
+  },
+  {
+    name: "date-fns addDays is not manual date math",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { addDays } from "date-fns";\nexport function tomorrow(value: Date): Date {\n  return addDays(value, 1);\n}\n',
+    forbid: ["mas/no-manual-date-math"],
+  },
+  {
+    name: "magic bytes plus a mime hint",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { fileTypeFromBuffer } from "file-type";\nexport async function kind(bytes: Uint8Array, file: { mimetype: string }): Promise<string> {\n  const found = await fileTypeFromBuffer(bytes);\n  return found?.mime ?? file.mimetype;\n}\n',
+    forbid: ["mas/no-client-file-type-trust", "mas/multipart-upload-limits"],
+  },
+  {
+    name: "llm call goes through the sdk",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'import { generateText } from "ai";\nexport function model(): string {\n  return generateText.name;\n}\n',
+    forbid: ["mas/no-direct-llm-fetch"],
+  },
+  {
+    name: "public vite flag is not a secret",
+    filePath: join(referenceRoot, "apps/web/src/features/home/api/home-api.ts"),
+    code: "export const origin = import.meta.env.VITE_API_ORIGIN;\n",
+    forbid: ["mas/no-secret-in-client"],
+  },
+  {
+    name: "main registers helmet",
+    filePath: join(referenceRoot, "apps/api/src/main.ts"),
+    code: 'import helmet from "helmet";\nexport function boot(app: { use(fn: unknown): void }): void {\n  app.use(helmet());\n}\n',
+    forbid: ["mas/require-helmet"],
+  },
+  {
+    name: "login uses SensitiveThrottle",
+    filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.controller.ts"),
+    code: 'function Controller(_path: string): ClassDecorator { return () => undefined; }\nfunction Post(_path: string): MethodDecorator { return () => undefined; }\nfunction SensitiveThrottle(): MethodDecorator { return () => undefined; }\n@Controller("auth")\nexport class AuthController {\n  @Post("login")\n  @SensitiveThrottle()\n  login(): { ok: true } {\n    return { ok: true };\n  }\n}\n',
+    forbid: ["mas/require-throttle-sensitive"],
+  },
+  {
+    name: "form uses react-hook-form",
+    filePath: join(referenceRoot, "apps/web/src/features/home/components/home-page.tsx"),
+    code: 'import { useForm } from "react-hook-form";\nexport function Form(): React.ReactElement {\n  const form = useForm();\n  return <form onSubmit={form.handleSubmit(() => undefined)} />;\n}\n',
+    forbid: ["mas/no-manual-form-errors"],
+  },
+  {
+    name: "confetti honors reduced motion",
+    filePath: join(referenceRoot, "apps/web/src/features/home/components/home-page.tsx"),
+    code: 'import confetti from "canvas-confetti";\nexport function celebrate(): void {\n  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;\n  void confetti({ particleCount: 20 });\n}\n',
+    forbid: ["mas/reduced-motion-animations"],
+  },
+  {
+    name: "api logs with nestjs-pino style logger",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.service.ts"),
+    code: 'const logger = { info(_message: string): void { return undefined; } };\nexport function start(): void {\n  logger.info("api up");\n}\n',
+    forbid: ["no-console"],
+  },
+  {
+    name: "thin controller delegates and may reject a missing input",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/health.controller.ts"),
+    code: 'function Controller(_path: string): ClassDecorator { return () => undefined; }\nfunction Post(_path: string): MethodDecorator { return () => undefined; }\nfunction Body(): ParameterDecorator { return () => undefined; }\nclass BadRequestException extends Error {}\nclass HealthService { create(_body: unknown): { id: string } { return { id: "1" }; } }\n@Controller("health")\nexport class HealthController {\n  constructor(private readonly health: HealthService) {}\n  @Post()\n  create(@Body() body: unknown): { id: string } {\n    if (!body) throw new BadRequestException("missing");\n    if (body == null) throw new BadRequestException("missing");\n    return this.health.create(body);\n  }\n}\n',
+    forbid: ["mas/thin-controllers", "mas/prisma-only-in-repositories"],
+  },
+  {
+    name: "echarts only with a justified suppression",
+    filePath: join(referenceRoot, "apps/web/src/features/home/components/home-page.tsx"),
+    code: '// eslint-disable-next-line no-restricted-imports -- el mapa WebGL no cabe en Recharts\nimport "echarts";\nexport const chartLib = "echarts";\n',
+    forbid: ["no-restricted-imports", "mas/require-disable-justification"],
   },
 ];
 for (const item of textCases) {
@@ -365,40 +798,75 @@ for (const item of textCases) {
 
 const cruiseRoot = new URL("..", import.meta.url).pathname;
 const cruiseBin = join(cruiseRoot, "node_modules/.bin/depcruise");
+
+function cruiseText(error) {
+  const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
+  const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+  return `${stdout}\n${stderr}`;
+}
+
+function expectCruiseFailure(target, ruleName) {
+  try {
+    execFileSync(cruiseBin, [target, "--config", ".dependency-cruiser.fixtures.cjs"], {
+      cwd: cruiseRoot,
+      stdio: "pipe",
+    });
+    console.error(`dependency-cruiser accepted ${target}`);
+    process.exit(1);
+  } catch (error) {
+    const text = cruiseText(error);
+    if (!text.includes(ruleName)) {
+      console.error(text);
+      console.error(`dependency-cruiser did not report ${ruleName} for ${target}`);
+      process.exit(1);
+    }
+    console.log(`fixture ok dependency-cruiser ${ruleName} ${target}`);
+  }
+}
+
+expectCruiseFailure("apps/api/lint-fixtures/cycle", "no-circular");
+expectCruiseFailure("apps/api/lint-fixtures/spec-cycle", "no-circular");
+expectCruiseFailure("apps/api/lint-fixtures/depcruise/bad-internal", "no-foreign-module-internals");
+expectCruiseFailure("apps/api/lint-fixtures/depcruise/bad-cycle", "no-circular");
+expectCruiseFailure("apps/api/lint-fixtures/depcruise/bad-controller", "no-controller-prisma");
+
 try {
-  execFileSync(cruiseBin, ["apps/api/lint-fixtures/cycle", "--config", ".dependency-cruiser.fixtures.cjs"], {
+  execFileSync(cruiseBin, ["apps/api/lint-fixtures/depcruise/valid", "--config", ".dependency-cruiser.fixtures.cjs"], {
     cwd: cruiseRoot,
     stdio: "pipe",
   });
-  console.error("dependency-cruiser accepted a module cycle");
-  process.exit(1);
+  console.log("fixture ok dependency-cruiser valid");
 } catch (error) {
-  const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
-  const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
-  const text = `${stdout}\n${stderr}`;
-  if (!text.includes("no-circular") && !text.includes("circular")) {
-    console.error(text);
-    console.error("dependency-cruiser did not report the cycle fixture");
+  console.error(cruiseText(error));
+  console.error("dependency-cruiser rejected the valid module graph");
+  process.exit(1);
+}
+
+const thinOff = new ESLint({
+  cwd: cruiseRoot,
+  overrideConfigFile: true,
+  overrideConfig: [
+    {
+      files: ["**/*.controller.ts"],
+      plugins: { mas },
+      languageOptions: { parser: tseslint.parser },
+      rules: { "mas/thin-controllers": "off" },
+    },
+  ],
+});
+for (const file of [
+  "apps/api/lint-fixtures/thin-prisma.controller.ts",
+  "apps/api/lint-fixtures/thin-repository.controller.ts",
+  "apps/api/lint-fixtures/thin-loop.controller.ts",
+  "apps/api/lint-fixtures/thin-branch.controller.ts",
+  "apps/api/lint-fixtures/thin-math.controller.ts",
+]) {
+  const results = await thinOff.lintFiles([file]);
+  const hit = results.flatMap((result) => result.messages).find((message) => message.ruleId === "mas/thin-controllers");
+  if (hit) {
+    console.error(`rule off still emitted mas/thin-controllers for ${file}`);
     process.exit(1);
   }
-  console.log("fixture ok dependency-cruiser cycle");
 }
-try {
-  execFileSync(cruiseBin, ["apps/api/lint-fixtures/spec-cycle", "--config", ".dependency-cruiser.fixtures.cjs"], {
-    cwd: cruiseRoot,
-    stdio: "pipe",
-  });
-  console.error("dependency-cruiser accepted a spec cycle");
-  process.exit(1);
-} catch (error) {
-  const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
-  const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
-  const text = `${stdout}\n${stderr}`;
-  if (!text.includes("no-circular") && !text.includes("circular")) {
-    console.error(text);
-    console.error("dependency-cruiser did not report the spec cycle");
-    process.exit(1);
-  }
-  console.log("fixture ok dependency-cruiser spec cycle");
-}
+console.log("fixture ok mas/thin-controllers off");
 console.log("lint-fixtures ok");

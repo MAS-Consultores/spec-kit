@@ -47,6 +47,15 @@ module.exports = {
       from: { path: "^packages/contracts/" },
       to: { path: "^apps/|^packages/ui/" },
     },
+    {
+      name: "no-controller-prisma",
+      severity: "error",
+      comment: "A controller may not import Prisma. Call a service; the repository owns Prisma.",
+      from: { path: "\\.controller\\.ts$" },
+      to: {
+        path: "(@prisma/client|\\.prisma/client|generated/prisma|prisma\\.service|modules/prisma/)",
+      },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },
