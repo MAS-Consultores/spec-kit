@@ -9,7 +9,7 @@ interface BucketRow {
 export interface BucketDecision {
   hits: number;
   expiresAt: Date;
-  blocked: boolean;
+  isBlocked: boolean;
 }
 
 @Injectable()
@@ -17,15 +17,16 @@ export class ThrottleRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   consume(key: string, ttlMs: number, limit: number): Promise<BucketDecision> {
-    return this.prisma.$transaction((tx) => this.lockedConsume(tx, key, ttlMs, limit));
+    return this.prisma.$transaction((tx) => this.lockedConsume({ tx, key, ttlMs, limit }));
   }
 
-  private async lockedConsume(
-    tx: Pick<PrismaService, "$executeRaw" | "$queryRaw">,
-    key: string,
-    ttlMs: number,
-    limit: number,
-  ): Promise<BucketDecision> {
+  private async lockedConsume(input: {
+    tx: Pick<PrismaService, "$executeRaw" | "$queryRaw">;
+    key: string;
+    ttlMs: number;
+    limit: number;
+  }): Promise<BucketDecision> {
+    const { tx, key, ttlMs, limit } = input;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
     await tx.$executeRaw`DELETE FROM rate_limit_buckets WHERE expires_at <= NOW()`;
     const rows = await tx.$queryRaw<BucketRow[]>`
@@ -46,6 +47,6 @@ export class ThrottleRepository {
     if (!row) {
       throw new Error("rate limit bucket was not written");
     }
-    return { hits: row.hits, expiresAt: row.expires_at, blocked: row.hits > limit };
+    return { hits: row.hits, expiresAt: row.expires_at, isBlocked: row.hits > limit };
   }
 }

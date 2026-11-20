@@ -9,6 +9,10 @@ import type { AuthRepository, AuthUserRecord } from "./auth.repository.js";
 
 const accessSecret = "test-access-secret-test-access";
 const refreshSecret = "test-refresh-secret-test-refresh";
+const knownPassword = "correct-password";
+const wrongPassword = "wrong-password";
+const knownEmail = "known@infra.test";
+const argonOptions = { type: argon2.argon2id, memoryCost: 65536, timeCost: 3, parallelism: 4 } as const;
 
 function response(): Response & { jar: Record<string, string> } {
   const jar: Record<string, string> = {};
@@ -32,7 +36,7 @@ function user(partial: Partial<AuthUserRecord> & Pick<AuthUserRecord, "passwordH
   return {
     id: "user-1",
     tokenVersion: 0,
-    mustChangePassword: false,
+    shouldChangePassword: false,
     passwordChangedAt: null,
     permissions: [],
     ...partial,
@@ -52,7 +56,7 @@ function serviceFor(record: AuthUserRecord | null): AuthService {
 
 async function rejectedLogin(record: AuthUserRecord | null, password: string): Promise<UnauthorizedException> {
   const error = await serviceFor(record)
-    .login({ email: "known@infra.test", password }, response())
+    .login({ email: knownEmail, password }, response())
     .then(() => null)
     .catch((caught: unknown) => caught);
   expect(error).toBeInstanceOf(UnauthorizedException);
@@ -61,24 +65,19 @@ async function rejectedLogin(record: AuthUserRecord | null, password: string): P
 
 describe("login existence", () => {
   it("pays the Argon2 cost on every rejection path", async () => {
-    const passwordHash = await argon2.hash("correct-password", {
-      type: argon2.argon2id,
-      memoryCost: 65536,
-      timeCost: 3,
-      parallelism: 4,
-    });
+    const passwordHash = await argon2.hash(knownPassword, argonOptions);
     const verify = vi.spyOn(argon2, "verify");
     const started = Date.now();
-    const missingError = await rejectedLogin(null, "wrong-password");
+    const missingError = await rejectedLogin(null, wrongPassword);
     const missingMs = Date.now() - started;
     const wrongStarted = Date.now();
-    const wrongError = await rejectedLogin(user({ passwordHash }), "wrong-password");
+    const wrongError = await rejectedLogin(user({ passwordHash }), wrongPassword);
     const wrongMs = Date.now() - wrongStarted;
-    const inactiveError = await rejectedLogin(user({ passwordHash, active: false }), "correct-password");
-    const lockedError = await rejectedLogin(user({ passwordHash, locked: true }), "correct-password");
-    const blockedError = await rejectedLogin(user({ passwordHash, blocked: true }), "correct-password");
-    const noCredential = await rejectedLogin(user({ passwordHash: null }), "wrong-password");
-    const unverifiedEmail = await rejectedLogin(user({ passwordHash, emailVerified: false }), "correct-password");
+    const inactiveError = await rejectedLogin(user({ passwordHash, isActive: false }), knownPassword);
+    const lockedError = await rejectedLogin(user({ passwordHash, isLocked: true }), knownPassword);
+    const blockedError = await rejectedLogin(user({ passwordHash, isBlocked: true }), knownPassword);
+    const noCredential = await rejectedLogin(user({ passwordHash: null }), wrongPassword);
+    const unverifiedEmail = await rejectedLogin(user({ passwordHash, isEmailVerified: false }), knownPassword);
     expect(missingError.message).toBe(wrongError.message);
     expect(inactiveError.message).toBe(wrongError.message);
     expect(lockedError.message).toBe(wrongError.message);
@@ -87,9 +86,9 @@ describe("login existence", () => {
     expect(unverifiedEmail.message).toBe(wrongError.message);
     expect(missingMs).toBeGreaterThan(20);
     expect(wrongMs).toBeGreaterThan(20);
-    expect(verify).toHaveBeenCalledWith(DUMMY_PASSWORD_HASH, "wrong-password");
-    expect(verify).toHaveBeenCalledWith(passwordHash, "wrong-password");
-    expect(verify).toHaveBeenCalledWith(passwordHash, "correct-password");
+    expect(verify).toHaveBeenCalledWith(DUMMY_PASSWORD_HASH, wrongPassword);
+    expect(verify).toHaveBeenCalledWith(passwordHash, wrongPassword);
+    expect(verify).toHaveBeenCalledWith(passwordHash, knownPassword);
     const dummyCalls = verify.mock.calls.filter((call) => call[0] === DUMMY_PASSWORD_HASH);
     expect(dummyCalls.length).toBeGreaterThanOrEqual(2);
     verify.mockRestore();
@@ -99,7 +98,7 @@ describe("login existence", () => {
 
 describe("restricted session", () => {
   it("issues no business scopes when the password must change", async () => {
-    const passwordHash = await argon2.hash("correct-password", { type: argon2.argon2id });
+    const passwordHash = await argon2.hash(knownPassword, { type: argon2.argon2id });
     const service = new AuthService(
       {
         findUserByEmail: () =>
@@ -107,7 +106,7 @@ describe("restricted session", () => {
             user({
               passwordHash,
               tokenVersion: 3,
-              mustChangePassword: true,
+              shouldChangePassword: true,
               permissions: [{ permission: { code: "records:read" } }],
             }),
           ),
@@ -117,7 +116,7 @@ describe("restricted session", () => {
       config,
     );
     const res = response();
-    await service.login({ email: "known@infra.test", password: "correct-password" }, res);
+    await service.login({ email: knownEmail, password: knownPassword }, res);
     const payload = jwt.verify<{ scopes: string[]; ver: number }>(res.jar["access_token"] ?? "");
     expect(payload.scopes).toEqual([]);
     expect(payload.ver).toBe(3);
@@ -145,14 +144,14 @@ function refreshDoubles(record: AuthUserRecord, created: string[]): AuthReposito
 
 describe("refresh", () => {
   it("does not reissue business scopes on refresh", async () => {
-    const passwordHash = await argon2.hash("correct-password", { type: argon2.argon2id });
+    const passwordHash = await argon2.hash(knownPassword, { type: argon2.argon2id });
     const refresh = jwt.sign({ sub: "user-1", family: "fam-1", jti: "jti-1" }, { secret: refreshSecret });
     const service = new AuthService(
       refreshDoubles(
         user({
           passwordHash,
           tokenVersion: 4,
-          mustChangePassword: true,
+          shouldChangePassword: true,
           permissions: [{ permission: { code: "records:read" } }],
         }),
         [],
@@ -167,7 +166,7 @@ describe("refresh", () => {
   });
 
   it("rejects a refresh token issued before password_changed_at", async () => {
-    const passwordHash = await argon2.hash("correct-password", { type: argon2.argon2id });
+    const passwordHash = await argon2.hash(knownPassword, { type: argon2.argon2id });
     const refresh = jwt.sign({ sub: "user-1", family: "fam-1", jti: "jti-old" }, { secret: refreshSecret });
     const created: string[] = [];
     const service = new AuthService(

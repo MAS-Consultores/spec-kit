@@ -44,7 +44,7 @@ async function boot(): Promise<INestApplication> {
 
 async function ensureActor(): Promise<void> {
   const url = process.env["SEED_DATABASE_URL"];
-  if (!url) {
+  if (url === undefined || url.length === 0) {
     throw new Error("SEED_DATABASE_URL is required");
   }
   const prisma = new PrismaClient({ adapter: new PrismaPg(new pg.Pool({ connectionString: url })) });
@@ -118,7 +118,7 @@ describe("api", () => {
   it("returns health without a session", async () => {
     const res = await request(server(app)).get("/api/v1/health");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ isOk: true });
   });
 
   it("returns 401 without a session", async () => {

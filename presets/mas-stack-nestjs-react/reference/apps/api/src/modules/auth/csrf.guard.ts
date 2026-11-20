@@ -16,14 +16,20 @@ export class CsrfGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    if (context.getType<string>() !== "http") {
+    if (this.skipsCsrf(context)) return true;
+    const request = context.switchToHttp().getRequest<Request & { user?: AccessPayload }>();
+    if (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS") {
       return true;
     }
+    if (!this.tokensMatch(request)) throw new ForbiddenException();
+    return true;
+  }
+
+  private skipsCsrf(context: ExecutionContext): boolean {
+    if (context.getType<string>() !== "http") return true;
     const early = context.switchToHttp().getRequest<Request>();
-    if (isMcpTransport(early.originalUrl)) {
-      return true;
-    }
-    const skip = this.reflector.getAllAndOverride<boolean>(SKIP_CSRF, [
+    if (isMcpTransport(early.originalUrl)) return true;
+    const isSkipped = this.reflector.getAllAndOverride<boolean>(SKIP_CSRF, [
       context.getHandler(),
       context.getClass(),
     ]);
@@ -31,24 +37,13 @@ export class CsrfGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (skip || isPublic) {
-      return true;
-    }
-    const request = context.switchToHttp().getRequest<Request & { user?: AccessPayload }>();
-    if (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS") {
-      return true;
-    }
+    return isSkipped || isPublic;
+  }
+
+  private tokensMatch(request: Request & { user?: AccessPayload }): boolean {
     const cookie = readCookie(request, "csrf_token");
     const header = request.header("x-csrf-token");
     const issued = request.user?.csrf;
-    if (
-      typeof cookie !== "string" ||
-      cookie.length === 0 ||
-      cookie !== header ||
-      cookie !== issued
-    ) {
-      throw new ForbiddenException("csrf");
-    }
-    return true;
+    return typeof cookie === "string" && cookie.length > 0 && cookie === header && cookie === issued;
   }
 }

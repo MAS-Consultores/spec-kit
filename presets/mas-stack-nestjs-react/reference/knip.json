@@ -1,0 +1,41 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "includeEntryExports": false,
+  "ignore": [
+    "scripts/**",
+    ".dependency-cruiser.fixtures.cjs",
+    "templates/**"
+  ],
+  "ignoreDependencies": ["@tanstack/react-table", "zod", "@nestjs/testing", "@nestjs/schematics"],
+  "workspaces": {
+    "apps/api": {
+      "entry": [
+        "src/main.ts",
+        "src/modules/*/index.ts",
+        "src/modules/auth/auth.decorators.ts",
+        "src/**/*.spec.ts",
+        "test/**/*.ts"
+      ],
+      "project": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.ts"]
+    },
+    "apps/web": {
+      "entry": [
+        "index.html",
+        "src/icons/index.ts",
+        "src/shared/hooks/use-window-event.ts",
+        "src/shell/index.ts",
+        "src/features/*/index.ts",
+        "e2e/**/*.ts",
+        "src/**/*.spec.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"]
+    },
+    "packages/contracts": {
+      "entry": ["src/**/index.ts", "src/client.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/ui": {
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  }
+}

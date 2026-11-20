@@ -19,9 +19,10 @@ export class AuditInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const skipped = this.reflector.get<string | undefined>(NO_AUDIT, context.getHandler());
     const eventKey = this.reflector.get<string | undefined>(AUDIT_EVENT, context.getHandler());
-    if (skipped || !eventKey) return next.handle();
+    if (skipped !== undefined || eventKey === undefined || eventKey.length === 0) return next.handle();
     const request = context.switchToHttp().getRequest<RequestUser>();
-    const actorId = request.user?.sub && request.user.sub.length > 0 ? request.user.sub : "anonymous";
+    const subject = request.user?.sub;
+    const actorId = subject !== undefined && subject.length > 0 ? subject : "anonymous";
     return this.finish(next, eventKey, actorId);
   }
 

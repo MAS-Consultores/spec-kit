@@ -131,6 +131,20 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | L2-06 | `eslint-disable` exige justificación o ticket (`@eslint-community/eslint-plugin-eslint-comments` `require-description`). Desactivar `no-explicit-any` sigue prohibido aunque haya descripción | `apps/api/lint-fixtures/disable-without-reason.ts` y `disable-explicit-any.ts` |
 | L2-07 | un `*.guard.ts` no llama a `originalUrl.includes` ni a `url.includes` | `apps/api/lint-fixtures/mcp-bypass.guard.ts` (`mas/no-url-includes-in-guards`) |
 
+## Código limpio y contratos
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| L3-01 | un texto visible (excepción HTTP o toast) no pasa por i18n | `apps/api/lint-fixtures/hardcoded-message.controller.ts` (`mas/no-hardcoded-user-message`) en `pnpm lint` |
+| L3-02 | un formateador fija `'es-CL'` en vez del locale activo | `apps/web/lint-fixtures/fixed-locale.ts` (`mas/no-fixed-locale`) |
+| L3-03 | `response.json() as T` no valida el contrato | `apps/web/lint-fixtures/cast-fetch.ts` (`mas/no-cast-fetch-response`) |
+| L3-04 | un schema Zod de escritura no termina en `.strict()` | `apps/api/lint-fixtures/loose-write.ts` (`mas/zod-strict-writes`) |
+| L3-05 | un `catch` no relanza ni registra; un `catch` que solo relanza el mismo valor tampoco vale | `swallowed-catch.ts` (`mas/no-swallowed-catch`) y `useless-catch.ts` (`no-useless-catch`, ya activa en `eslint:recommended`) |
+| L3-06 | el `index.ts` de un módulo exporta el repositorio | `apps/api/lint-fixtures/modules/notes/index.ts` (`mas/barrel-exports-only-public`) |
+| L3-07 | un ciclo entre `*.spec.ts` no lo veía el grafo | `apps/api/lint-fixtures/spec-cycle/` (`no-circular`) dentro de `pnpm lint`; `depcruise apps packages` incluye specs y e2e |
+| L3-08 | un tipo de `packages/contracts` se vuelve a declarar en una app | `scripts/check-duplicate-contract-types.mjs` y el fixture rojo `scripts/fixtures/duplicate-types` |
+| L3-09 | un export, archivo o dependencia muerta entra al esqueleto | `knip` dentro de `pnpm lint` (job `reference` y `skeleton-boot`) |
+
 ## Migraciones seguras sobre datos existentes
 
 `pnpm lint` corre `scripts/lint-migrations.mjs` (las migraciones del esqueleto, sin base de datos) y `scripts/check-migration-fixtures.mjs` (cada fixture negativo sale distinto de 0 con su código). El job `skeleton-boot` aplica el script sobre Postgres.

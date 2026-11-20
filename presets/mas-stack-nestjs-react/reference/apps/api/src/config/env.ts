@@ -1,15 +1,5 @@
 import { z } from "zod";
 
-const names = [
-  "DATABASE_URL",
-  "JWT_ACCESS_SECRET",
-  "JWT_REFRESH_SECRET",
-  "LOGIN_THROTTLE_LIMIT",
-  "PORT",
-  "CORS_ORIGIN",
-  "TRUST_PROXY",
-] as const;
-
 export type AppEnv = {
   DATABASE_URL: string;
   JWT_ACCESS_SECRET: string;
@@ -65,5 +55,3 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     TRUST_PROXY: typeof trustProxy === "string" ? trustProxy : "",
   };
 }
-
-export const appEnvNames = names;

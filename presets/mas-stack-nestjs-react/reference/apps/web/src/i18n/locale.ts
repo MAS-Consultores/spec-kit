@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { i18n } from "../i18n";
 
-export const LOCALE_COOKIE = "locale";
+const LOCALE_COOKIE = "locale";
 
 export interface LocaleInput {
   readonly preference?: string | null;
@@ -11,7 +11,7 @@ export interface LocaleInput {
   readonly supported: readonly string[];
 }
 
-export type LocaleSource = "preference" | "cookie" | "browser" | "organization";
+type LocaleSource = "preference" | "cookie" | "browser" | "organization";
 
 export interface ResolvedLocale {
   readonly locale: string;
@@ -19,7 +19,7 @@ export interface ResolvedLocale {
 }
 
 function normalize(value: string | null | undefined): string | null {
-  if (value == null) return null;
+  if (value === null || value === undefined) return null;
   const trimmed = value.trim();
   if (trimmed === "") return null;
   return trimmed.replaceAll("_", "-");
@@ -27,7 +27,7 @@ function normalize(value: string | null | undefined): string | null {
 
 function pick(value: string | null | undefined, supported: ReadonlySet<string>): string | null {
   const next = normalize(value);
-  if (next == null || !supported.has(next)) return null;
+  if (next === null || !supported.has(next)) return null;
   return next;
 }
 
@@ -35,19 +35,19 @@ function pick(value: string | null | undefined, supported: ReadonlySet<string>):
 export function resolveLocale(input: LocaleInput): ResolvedLocale {
   const supported = new Set(input.supported);
   const preference = pick(input.preference, supported);
-  if (preference != null) return { locale: preference, source: "preference" };
+  if (preference !== null) return { locale: preference, source: "preference" };
   const cookie = pick(input.cookie, supported);
-  if (cookie != null) return { locale: cookie, source: "cookie" };
+  if (cookie !== null) return { locale: cookie, source: "cookie" };
   const browser = pick(input.browser, supported);
-  if (browser != null) return { locale: browser, source: "browser" };
+  if (browser !== null) return { locale: browser, source: "browser" };
   return { locale: input.organizationDefault, source: "organization" };
 }
 
 export function readLocaleCookie(cookie: string | null | undefined): string | null {
-  if (cookie == null || cookie === "") return null;
+  if (cookie === null || cookie === undefined || cookie === "") return null;
   const parts = cookie.split(";").map((part) => part.trim());
   const match = parts.find((part) => part.startsWith(`${LOCALE_COOKIE}=`));
-  if (match == null) return null;
+  if (match === undefined) return null;
   return decodeURIComponent(match.slice(LOCALE_COOKIE.length + 1));
 }
 

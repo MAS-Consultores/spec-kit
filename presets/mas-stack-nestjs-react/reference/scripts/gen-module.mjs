@@ -67,7 +67,7 @@ writeFileSync(
 
 writeFileSync(
   join(featureDir, "api", `${name}-api.ts`),
-  `export async function load${pascal}s(input: RequestInfo): Promise<unknown> {\n  const response = await fetch(input);\n  return response.json() as Promise<unknown>;\n}\n`,
+  `import { z } from "zod";\n\nconst ${name}ListSchema = z.object({ id: z.string() }).strict();\n\nexport async function load${pascal}s(input: RequestInfo): Promise<unknown> {\n  const response = await fetch(input);\n  const body: unknown = await response.json();\n  return ${name}ListSchema.parse(body);\n}\n`,
 );
 
 writeFileSync(

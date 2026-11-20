@@ -12,7 +12,7 @@ import { ThrottleRepository } from "./throttle.repository.js";
   providers: [ThrottleRepository, DbThrottlerStorage],
   exports: [DbThrottlerStorage],
 })
-export class ThrottleStorageModule {
+class ThrottleStorageModule {
   readonly label = "throttle-storage";
 }
 

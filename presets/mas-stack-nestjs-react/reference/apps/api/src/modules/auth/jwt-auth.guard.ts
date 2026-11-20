@@ -44,7 +44,7 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
     const token = readCookie(request, "access_token");
-    if (!token) {
+    if (token === undefined || token.length === 0) {
       throw new UnauthorizedException();
     }
     let payload: AccessPayload;
@@ -61,13 +61,13 @@ export class JwtAuthGuard implements CanActivate {
     payload: AccessPayload,
   ): Promise<boolean> {
     const user = await this.sessions.findStamp(payload.sub);
-    if (!user || !accessTokenStillValid(user, payload)) {
+    if (user === null || !accessTokenStillValid(user, payload)) {
       throw new UnauthorizedException();
     }
-    if (user.mustChangePassword && !restrictedSessionAllows(request.originalUrl)) {
+    if (user.shouldChangePassword && !restrictedSessionAllows(request.originalUrl)) {
       throw new ForbiddenException();
     }
-    request.user = payload;
+    Object.assign(request, { user: payload });
     return true;
   }
 }

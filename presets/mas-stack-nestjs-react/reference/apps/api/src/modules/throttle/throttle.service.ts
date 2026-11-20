@@ -13,6 +13,8 @@ interface StorageRecord {
 export class DbThrottlerStorage implements ThrottlerStorage {
   constructor(private readonly buckets: ThrottleRepository) {}
 
+  // ThrottlerStorage.increment is a five-argument interface. The names are not ours.
+  // eslint-disable-next-line max-params -- Nest throttler contract
   async increment(
     key: string,
     ttl: number,
@@ -22,12 +24,11 @@ export class DbThrottlerStorage implements ThrottlerStorage {
   ): Promise<StorageRecord> {
     const row = await this.buckets.consume(`${throttlerName}:${key}`, ttl, limit);
     const timeToExpire = Math.max(0, row.expiresAt.getTime() - Date.now());
-    const blocked = row.blocked;
     return {
       totalHits: row.hits,
       timeToExpire,
-      isBlocked: blocked,
-      timeToBlockExpire: blocked ? timeToExpire : 0,
+      isBlocked: row.isBlocked,
+      timeToBlockExpire: row.isBlocked ? timeToExpire : 0,
     };
   }
 }

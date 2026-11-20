@@ -2,6 +2,9 @@ import eslint from "@eslint/js";
 import comments from "@eslint-community/eslint-plugin-eslint-comments";
 import boundaries from "eslint-plugin-boundaries";
 import importX from "eslint-plugin-import-x";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+import reactHooks from "eslint-plugin-react-hooks";
+import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
 import mas, { boundaryElements, boundaryRule, envAllowFiles } from "./eslint/mas-plugin.js";
 
@@ -14,6 +17,7 @@ export default tseslint.config(
       "import-x": importX,
       "@eslint-community/eslint-comments": comments,
       mas,
+      sonarjs,
     },
     settings: {
       "boundaries/elements": boundaryElements,
@@ -75,6 +79,56 @@ export default tseslint.config(
       "mas/no-module-translation": "error",
       "mas/no-literal-copy": "error",
       "mas/require-audit-on-mutations": "error",
+      "mas/no-hardcoded-user-message": "error",
+      "mas/no-fixed-locale": "error",
+      "mas/no-cast-fetch-response": "error",
+      "mas/zod-strict-writes": "error",
+      "mas/no-swallowed-catch": "error",
+      "mas/barrel-exports-only-public": "error",
+      complexity: ["error", { max: 10 }],
+      "max-depth": ["error", 3],
+      "max-params": ["error", 3],
+      "sonarjs/cognitive-complexity": ["error", 15],
+      "no-nested-ternary": "error",
+      "no-else-return": "error",
+      "sonarjs/no-identical-functions": "error",
+      "sonarjs/no-duplicate-string": "error",
+      "sonarjs/no-collapsible-if": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "@typescript-eslint/explicit-module-boundary-types": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        { selector: "parameter", format: ["camelCase"], leadingUnderscore: "allow" },
+        {
+          selector: ["variable", "parameter", "classProperty", "typeProperty"],
+          types: ["boolean"],
+          format: ["PascalCase", "camelCase", "UPPER_CASE"],
+          prefix: ["is", "has", "can", "should"],
+        },
+      ],
+      "@typescript-eslint/prefer-readonly": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "no-param-reassign": ["error", { props: true }],
+      "prefer-const": "error",
+      eqeqeq: "error",
+      "no-console": "error",
+    },
+  },
+  {
+    files: ["apps/web/**/*.{ts,tsx}"],
+    plugins: { "react-hooks": reactHooks, "jsx-a11y": jsxA11y },
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "error",
     },
   },
   {

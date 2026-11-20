@@ -8,8 +8,8 @@ function readSeedUrl(): string {
     return seedDatabaseUrl(process.env);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "SEED_DATABASE_URL is required";
-    console.error(`ERROR: ${message}`);
-    process.exit(1);
+    process.stderr.write(`ERROR: ${message}\n`);
+    throw error;
   }
 }
 
@@ -17,4 +17,4 @@ const url = readSeedUrl();
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(new pg.Pool({ connectionString: url })) });
 await prisma.$disconnect();
-console.log("seed ok");
+process.stdout.write("seed ok\n");

@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { VersioningType } from "@nestjs/common";
+import { Logger, VersioningType } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -15,7 +15,7 @@ async function main(): Promise<void> {
   app.use(cookieParser());
   const config = app.get(ConfigService);
   const corsOrigin = configString(config, "CORS_ORIGIN");
-  if (corsOrigin) {
+  if (corsOrigin.length > 0) {
     app.enableCors({
       origin: corsOrigin.split(",").map((origin) => origin.trim()).filter((origin) => origin.length > 0),
       credentials: true,
@@ -30,6 +30,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(error);
+  Logger.error(error instanceof Error ? error.message : "api failed to start");
   process.exit(1);
 });

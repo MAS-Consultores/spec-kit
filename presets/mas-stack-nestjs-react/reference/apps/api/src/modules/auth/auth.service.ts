@@ -22,17 +22,23 @@ function storedPasswordHash(user: AuthUserRecord | null): string | null {
 }
 
 /** Every login 401 is decided only after a real hash or the dummy hash was verified. */
-function loginRejected(user: AuthUserRecord | null, passwordValid: boolean): boolean {
-  if (!user || !passwordValid || storedPasswordHash(user) === null) {
+function loginRejected(user: AuthUserRecord | null, isPasswordValid: boolean): boolean {
+  if (user === null || !isPasswordValid || storedPasswordHash(user) === null) {
     return true;
   }
-  if (user.active === false || user.locked === true || user.blocked === true) {
+  if (user.isActive === false || user.isLocked === true || user.isBlocked === true) {
     return true;
   }
-  if (user.emailVerified === false) {
+  if (user.isEmailVerified === false) {
     return true;
   }
   return false;
+}
+
+function cookieLines(header: unknown): string[] {
+  if (Array.isArray(header)) return header.map((line) => String(line));
+  if (typeof header === "string") return [header];
+  return [];
 }
 
 function hashToken(token: string): string {
@@ -50,8 +56,8 @@ export class AuthService {
   async login(body: unknown, res: Response): Promise<{ csrfToken: string }> {
     const input = loginSchema.parse(body);
     const user = await this.users.findUserByEmail(input.email);
-    const valid = await this.verifyPresentedPassword(storedPasswordHash(user), input.password);
-    if (!user || loginRejected(user, valid)) {
+    const isValid = await this.verifyPresentedPassword(storedPasswordHash(user), input.password);
+    if (user === null || loginRejected(user, isValid)) {
       throw new UnauthorizedException();
     }
     await this.issue(res, user, randomUUID());
@@ -59,20 +65,20 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string | undefined, res: Response): Promise<{ csrfToken: string }> {
-    if (!refreshToken) {
+    if (refreshToken === undefined || refreshToken.length === 0) {
       throw new UnauthorizedException();
     }
     const payload = this.readRefresh(refreshToken);
     const row = await this.users.findRefreshByHash(hashToken(refreshToken));
-    if (!row || row.revokedAt || row.expiresAt.getTime() < Date.now()) {
-      if (row?.revokedAt) {
+    if (row === null || row.revokedAt !== null || row.expiresAt.getTime() < Date.now()) {
+      if (row !== null && row.revokedAt !== null) {
         await this.users.revokeFamily(row.familyId);
       }
       throw new UnauthorizedException();
     }
     await this.users.revokeById(row.id);
     const user = await this.users.findUserById(payload.sub);
-    if (!user || !refreshIssuedAfterPasswordChange(user, payload.iat)) {
+    if (user === null || !refreshIssuedAfterPasswordChange(user, payload.iat)) {
       throw new UnauthorizedException();
     }
     await this.issue(res, user, row.familyId);
@@ -125,7 +131,7 @@ export class AuthService {
 
   private readCsrf(res: Response): string {
     const header = res.getHeader("set-cookie");
-    const lines = Array.isArray(header) ? header : typeof header === "string" ? [header] : [];
+    const lines = cookieLines(header);
     const match = lines.join("\n").match(/csrf_token=([^;]+)/);
     return match?.[1] ?? "";
   }

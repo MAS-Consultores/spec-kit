@@ -5,7 +5,7 @@ import { Public } from "../auth/index.js";
 export class HealthController {
   @Public()
   @Get()
-  health(): { ok: true } {
-    return { ok: true };
+  health(): { isOk: true } {
+    return { isOk: true };
   }
 }

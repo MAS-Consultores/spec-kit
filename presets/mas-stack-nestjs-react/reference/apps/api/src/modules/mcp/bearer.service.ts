@@ -15,7 +15,7 @@ export class BearerVerifier implements McpTokenVerifier {
     try {
       const payload = this.jwt.verify<AccessPayload>(token);
       const user = await this.sessions.findStamp(payload.sub);
-      if (!user || user.mustChangePassword || !accessTokenStillValid(user, payload)) {
+      if (user === null || user.shouldChangePassword || !accessTokenStillValid(user, payload)) {
         return null;
       }
       return {
@@ -25,8 +25,9 @@ export class BearerVerifier implements McpTokenVerifier {
         expiresAt: Math.floor(Date.now() / 1000) + 15 * 60,
         resource: new URL("http://127.0.0.1/api/v1/mcp"),
       };
-    } catch {
-      return null;
+    } catch (error: unknown) {
+      if (error instanceof Error) return null;
+      throw error;
     }
   }
 }

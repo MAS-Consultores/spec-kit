@@ -39,7 +39,7 @@ export async function freePort(): Promise<number> {
   const server = net.createServer();
   await listen(server, 0);
   const address = server.address();
-  if (!address || typeof address === "string") {
+  if (address === null || typeof address === "string") {
     await closeServer(server);
     throw new Error("Could not bind a free port");
   }
@@ -51,11 +51,11 @@ export async function freePort(): Promise<number> {
 function canBind(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
-    let settled = false;
-    const finish = (value: boolean): void => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
+    let isSettled = false;
+    const finish = (isBound: boolean): void => {
+      if (isSettled) return;
+      isSettled = true;
+      resolve(isBound);
     };
     server.once("error", () => {
       finish(false);
@@ -74,16 +74,17 @@ async function httpOk(url: string): Promise<boolean> {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(500) });
     return response.ok;
-  } catch {
-    return false;
+  } catch (error: unknown) {
+    if (error instanceof Error) return false;
+    throw error;
   }
 }
 
 export async function portsUsable(ports: E2ePorts): Promise<boolean> {
-  const apiUp = await httpOk(`http://127.0.0.1:${String(ports.api)}/api/v1/health`);
-  const webUp = await httpOk(`http://127.0.0.1:${String(ports.web)}/`);
-  if (apiUp && webUp) return true;
-  if (apiUp || webUp) return false;
+  const isApiUp = await httpOk(`http://127.0.0.1:${String(ports.api)}/api/v1/health`);
+  const isWebUp = await httpOk(`http://127.0.0.1:${String(ports.web)}/`);
+  if (isApiUp && isWebUp) return true;
+  if (isApiUp || isWebUp) return false;
   return (await canBind(ports.api)) && (await canBind(ports.web));
 }
 
@@ -144,7 +145,7 @@ async function runSelfTest(): Promise<void> {
   if (stale.api === chosen.api && stale.web === chosen.web) {
     throw new Error("an expired cache was reused");
   }
-  console.log("e2e-ports ok");
+  process.stdout.write("e2e-ports ok\n");
 }
 
 if (process.argv.includes("--self-test")) {
@@ -156,7 +157,7 @@ if (process.argv.includes("--self-test")) {
     })
     .catch((error: unknown) => {
       clearInterval(keepalive);
-      console.error(error);
+      process.stderr.write(`${error instanceof Error ? error.message : "ports self-test failed"}\n`);
       process.exit(1);
     });
 }

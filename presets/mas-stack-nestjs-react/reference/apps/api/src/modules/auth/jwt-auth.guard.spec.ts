@@ -23,7 +23,7 @@ function context(type: string, token?: string, url = "/api/v1/auth/me"): Executi
     switchToHttp: () => ({
       getRequest: () => ({
         originalUrl: url,
-        cookies: token ? { access_token: token } : {},
+        cookies: token !== undefined && token.length > 0 ? { access_token: token } : {},
       }),
       getResponse: () => ({}),
       getNext: () => undefined,
@@ -41,7 +41,7 @@ describe("JwtAuthGuard", () => {
   const open: SessionStamp = {
     tokenVersion: 0,
     passwordChangedAt: null,
-    mustChangePassword: false,
+    shouldChangePassword: false,
   };
 
   function guard(stamp: SessionStamp | null = open): JwtAuthGuard {
@@ -73,12 +73,12 @@ describe("JwtAuthGuard", () => {
   it("rejects an access token from before the password change or an older version", async () => {
     const changed = new Date(Date.now() + 60_000);
     await expect(
-      guard({ tokenVersion: 0, passwordChangedAt: changed, mustChangePassword: false }).canActivate(
+      guard({ tokenVersion: 0, passwordChangedAt: changed, shouldChangePassword: false }).canActivate(
         context("http", token()),
       ),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(
-      guard({ tokenVersion: 1, passwordChangedAt: null, mustChangePassword: false }).canActivate(
+      guard({ tokenVersion: 1, passwordChangedAt: null, shouldChangePassword: false }).canActivate(
         context("http", token(0)),
       ),
     ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -88,7 +88,7 @@ describe("JwtAuthGuard", () => {
     const restricted: SessionStamp = {
       tokenVersion: 0,
       passwordChangedAt: null,
-      mustChangePassword: true,
+      shouldChangePassword: true,
     };
     await expect(
       guard(restricted).canActivate(context("http", token(), "/api/v1/records")),

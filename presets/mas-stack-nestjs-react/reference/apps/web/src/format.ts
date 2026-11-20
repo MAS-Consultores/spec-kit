@@ -6,13 +6,13 @@ export function formatRut(raw: string): string {
   return `${withDots}-${dv}`;
 }
 
-export function formatDate(value: Date): string {
-  return new Intl.DateTimeFormat("es-CL", {
+export function formatDate(value: Date, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
     timeZone: "UTC",
   }).format(value);
 }
 
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("es-CL").format(value);
+export function formatNumber(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale).format(value);
 }

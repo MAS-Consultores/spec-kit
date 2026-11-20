@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { formatDate, formatNumber, formatRut } from "../../../format";
 
 export function HomePage(): ReactElement {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <main>
       <h1>{t("title")}</h1>
@@ -12,14 +12,12 @@ export function HomePage(): ReactElement {
         {t("rutLabel")}: {formatRut("123456785")}
       </p>
       <p>
-        {t("dateLabel")}: {formatDate(new Date("2026-11-13T00:00:00Z"))}
+        {t("dateLabel")}: {formatDate(new Date("2026-11-13T00:00:00Z"), i18n.language)}
       </p>
       <p>
-        {t("numberLabel")}: {formatNumber(1234.5)}
+        {t("numberLabel")}: {formatNumber(1234.5, i18n.language)}
       </p>
       <Button type="button">{t("create")}</Button>
     </main>
   );
 }
-
-export default HomePage;

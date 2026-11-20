@@ -185,6 +185,13 @@ const eslint = new ESLint({
         "mas/no-module-translation": "error",
         "mas/no-literal-copy": "error",
         "mas/require-audit-on-mutations": "error",
+        "mas/no-hardcoded-user-message": "error",
+        "mas/no-fixed-locale": "error",
+        "mas/no-cast-fetch-response": "error",
+        "mas/zod-strict-writes": "error",
+        "mas/no-swallowed-catch": "error",
+        "mas/barrel-exports-only-public": "error",
+        "no-useless-catch": "error",
         "import-x/no-cycle": "error",
         "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
         "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
@@ -205,6 +212,37 @@ const eslint = new ESLint({
     },
   ],
 });
+
+cases.push(
+  {
+    file: "apps/api/lint-fixtures/hardcoded-message.controller.ts",
+    expects: [{ ruleId: "mas/no-hardcoded-user-message", includes: "i18n" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/fixed-locale.ts",
+    expects: [{ ruleId: "mas/no-fixed-locale", includes: "active locale" }],
+  },
+  {
+    file: "apps/web/lint-fixtures/cast-fetch.ts",
+    expects: [{ ruleId: "mas/no-cast-fetch-response", includes: "Zod" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/loose-write.ts",
+    expects: [{ ruleId: "mas/zod-strict-writes", includes: ".strict()" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/swallowed-catch.ts",
+    expects: [{ ruleId: "mas/no-swallowed-catch", includes: "rethrow" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/useless-catch.ts",
+    expects: [{ ruleId: "no-useless-catch" }],
+  },
+  {
+    file: "apps/api/lint-fixtures/modules/notes/index.ts",
+    expects: [{ ruleId: "mas/barrel-exports-only-public", includes: "public API" }],
+  },
+);
 
 let failed = false;
 for (const item of cases) {
@@ -277,6 +315,36 @@ const textCases = [
     code: 'import { useTranslation } from "react-i18next";\nconst adminNav = [{ to: "/admin", labelKey: "nav.admin" }];\nexport function Menu(): React.ReactElement {\n  const { t } = useTranslation();\n  return <nav>{adminNav.map((item) => <span key={item.to}>{t(item.labelKey)}</span>)}</nav>;\n}\n',
     forbid: ["mas/no-module-translation", "mas/no-literal-copy"],
   },
+  {
+    name: "http error uses an i18n key",
+    filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.controller.ts"),
+    code: 'import { BadRequestException } from "@nestjs/common";\nexport function fail(): void {\n  throw new BadRequestException({ i18nKey: "errors.note" });\n}\n',
+    forbid: ["mas/no-hardcoded-user-message"],
+  },
+  {
+    name: "formatter receives the active locale",
+    filePath: join(referenceRoot, "apps/web/src/format.ts"),
+    code: "export function label(value: Date, locale: string): string {\n  return new Intl.DateTimeFormat(locale).format(value);\n}\n",
+    forbid: ["mas/no-fixed-locale"],
+  },
+  {
+    name: "fetch body is parsed with zod",
+    filePath: join(referenceRoot, "apps/web/src/features/home/api/home-api.ts"),
+    code: 'import { z } from "zod";\nconst userSchema = z.object({ id: z.string() }).strict();\nexport async function load(input: RequestInfo): Promise<unknown> {\n  const response = await fetch(input);\n  const body: unknown = await response.json();\n  return userSchema.parse(body);\n}\n',
+    forbid: ["mas/no-cast-fetch-response", "mas/zod-strict-writes"],
+  },
+  {
+    name: "catch records and rethrows",
+    filePath: join(referenceRoot, "apps/api/src/modules/auth/auth.service.ts"),
+    code: 'const logger = { error(_message: string) { return undefined; } };\nexport function read(parse: () => string): string {\n  try {\n    return parse();\n  } catch (error: unknown) {\n    logger.error("read failed");\n    throw error;\n  }\n}\n',
+    forbid: ["mas/no-swallowed-catch", "no-useless-catch"],
+  },
+  {
+    name: "module index reexports the public class",
+    filePath: join(referenceRoot, "apps/api/src/modules/health/index.ts"),
+    code: 'export { HealthModule } from "./health.module.js";\n',
+    forbid: ["mas/barrel-exports-only-public"],
+  },
 ];
 for (const item of textCases) {
   const results = await eslint.lintText(item.code, { filePath: item.filePath });
@@ -314,5 +382,23 @@ try {
     process.exit(1);
   }
   console.log("fixture ok dependency-cruiser cycle");
+}
+try {
+  execFileSync(cruiseBin, ["apps/api/lint-fixtures/spec-cycle", "--config", ".dependency-cruiser.fixtures.cjs"], {
+    cwd: cruiseRoot,
+    stdio: "pipe",
+  });
+  console.error("dependency-cruiser accepted a spec cycle");
+  process.exit(1);
+} catch (error) {
+  const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
+  const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+  const text = `${stdout}\n${stderr}`;
+  if (!text.includes("no-circular") && !text.includes("circular")) {
+    console.error(text);
+    console.error("dependency-cruiser did not report the spec cycle");
+    process.exit(1);
+  }
+  console.log("fixture ok dependency-cruiser spec cycle");
 }
 console.log("lint-fixtures ok");

@@ -30,18 +30,18 @@ export class PermissionsGuard implements CanActivate {
     if (isPublic) {
       return true;
     }
-    const required = this.reflector.get<string>(CAN_KEY, context.getHandler());
-    const authenticated = this.reflector.get<boolean>(AUTHENTICATED, context.getHandler());
-    if (authenticated && !request.user) {
+    this.enforce(request, context);
+    return true;
+  }
+
+  private enforce(request: Request & { user?: AccessPayload }, context: ExecutionContext): void {
+    const required = this.reflector.get<string | undefined>(CAN_KEY, context.getHandler());
+    const isAuthenticated = this.reflector.get<boolean | undefined>(AUTHENTICATED, context.getHandler());
+    if (isAuthenticated === true && request.user === undefined) {
       throw new UnauthorizedException();
     }
-    if (!required) {
-      return true;
-    }
+    if (required === undefined || required.length === 0) return;
     const scopes = request.user?.scopes ?? [];
-    if (!scopes.includes(required)) {
-      throw new ForbiddenException("casl");
-    }
-    return true;
+    if (!scopes.includes(required)) throw new ForbiddenException();
   }
 }

@@ -37,7 +37,7 @@ const COLOR_IN_TEXT =
 
 let cachedConfig;
 
-export function loadIconConfig(cwd) {
+function loadIconConfig(cwd) {
   const path = join(cwd, "apps/web/ui.icons.json");
   if (!existsSync(path)) {
     return { library: "lucide-react", module: "apps/web/src/icons/index.ts" };

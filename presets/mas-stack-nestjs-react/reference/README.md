@@ -78,6 +78,30 @@ Cada mutación y cada evento de seguridad escribe en `audit_logs` y se filtra en
 3. Marca el handler con `@Audit('clave')`. Un opt-out solo vale con `@NoAudit('motivo')` y la misma justificación en la spec.
 4. No guardes contraseñas, hashes ni tokens en los metadatos. Una clave ausente del catálogo falla al registrar y también en `pnpm lint` (`mas/require-audit-on-mutations`).
 
+## Reglas de código limpio
+
+`pnpm lint` falla si el esqueleto no cumple estas reglas (todas en `error`). Antes de agregarlas se revisó `eslint:recommended` y `typescript-eslint` `strictTypeChecked`:
+
+- `no-useless-catch` ya venía en `eslint:recommended`. No se vuelve a declarar. El fixture `useless-catch.ts` sigue exigiéndola.
+- El texto JSX visible ya lo cubre `mas/no-literal-copy`. `mas/no-hardcoded-user-message` solo mira excepciones HTTP y toast/alert/notify.
+- `strictTypeChecked` no trae `switch-exhaustiveness-check`, `explicit-module-boundary-types`, `strict-boolean-expressions`, `naming-convention`, `prefer-readonly` ni `consistent-type-imports`. Esas sí se agregan.
+- `prefer-const` y `eqeqeq` no están en `eslint:recommended`. También se agregan.
+
+Reglas `mas/*` nuevas, cada una con fixture rojo y caso verde en `scripts/check-lint-fixtures.mjs`:
+
+- `mas/no-hardcoded-user-message`
+- `mas/no-fixed-locale` (no pisa `i18n.init({ lng: "es-CL" })`; solo formateadores)
+- `mas/no-cast-fetch-response`
+- `mas/zod-strict-writes`
+- `mas/no-swallowed-catch`
+- `mas/barrel-exports-only-public`
+
+Plugins en la última estable usada por el esqueleto: `eslint-plugin-sonarjs`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`. En error: `complexity` 10, `max-depth` 3, `max-params` 3, `sonarjs/cognitive-complexity` 15, `no-nested-ternary`, `no-else-return`, `sonarjs/no-identical-functions`, `sonarjs/no-duplicate-string`, `sonarjs/no-collapsible-if`, `@typescript-eslint/switch-exhaustiveness-check`, `explicit-module-boundary-types`, `strict-boolean-expressions`, `naming-convention` (tipos PascalCase, el resto camelCase, booleanos `is`/`has`/`can`/`should`), `prefer-readonly`, `consistent-type-imports`, `no-param-reassign` con `props`, `prefer-const`, `eqeqeq`, `no-console` (en Nest, `Logger`), `react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps` y `jsx-a11y` recommended en `apps/web`.
+
+`dependency-cruiser` recorre `apps` y `packages`, incluidos `*.spec.ts` y e2e. Un ciclo de specs está en `apps/api/lint-fixtures/spec-cycle`. `scripts/check-duplicate-contract-types.mjs` falla si una app redeclara un `export type` o `export interface` de `packages/contracts`. `knip` corre dentro de `pnpm lint`. Los scripts de la raíz y los fixtures de esos scripts quedan fuera de knip: el modo workspace no los trata como paquete y `package.json` ya los invoca.
+
+Un `eslint-disable` sigue exigiendo `--` y un motivo. No hay excepciones globales.
+
 ## Known warnings that do not fail CI
 
 Prisma 7 prints that Node majors above 24 are outside its narrow preinstall table. The Active LTS (26) is inside `engines.node` (`>=24`) and the warning is not a failure. pnpm may warn that some Nest packages declare peers up to Nest 11. Those peers are allowed in `pnpm-workspace.yaml` `peerDependencyRules`. Do not use `pnpm approve --all`.

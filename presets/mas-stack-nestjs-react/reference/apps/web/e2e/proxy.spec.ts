@@ -5,5 +5,5 @@ test("health is served through the web origin", async ({ page }) => {
   expect(response.ok()).toBeTruthy();
   expect(response.url()).toContain("/api/v1/health");
   const body: unknown = await response.json();
-  expect(body).toEqual({ ok: true });
+  expect(body).toEqual({ isOk: true });
 });

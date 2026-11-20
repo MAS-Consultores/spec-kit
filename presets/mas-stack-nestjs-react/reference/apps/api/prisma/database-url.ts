@@ -17,15 +17,16 @@ export function migrationDatabaseUrl(env: NodeJS.ProcessEnv): string {
   return value;
 }
 
-export function databaseHost(url: string): string | null {
+function databaseHost(url: string): string | null {
   try {
     return new URL(url).hostname.replace(/^\[|\]$/g, "").toLowerCase();
-  } catch {
-    return null;
+  } catch (error: unknown) {
+    if (error instanceof Error) return null;
+    throw error;
   }
 }
 
-export function isLoopbackDatabaseUrl(url: string): boolean {
+function isLoopbackDatabaseUrl(url: string): boolean {
   const host = databaseHost(url);
   return host === "127.0.0.1" || host === "localhost" || host === "::1";
 }
@@ -33,8 +34,8 @@ export function isLoopbackDatabaseUrl(url: string): boolean {
 export function seedDatabaseUrl(env: NodeJS.ProcessEnv): string {
   const seed = env["SEED_DATABASE_URL"];
   const database = env["DATABASE_URL"];
-  const seedUnset = typeof seed !== "string" || seed.trim() === "";
-  if (!seedUnset) {
+  const isSeedUnset = typeof seed !== "string" || seed.trim() === "";
+  if (!isSeedUnset && typeof seed === "string") {
     if (seed === database) {
       throw new Error("SEED_DATABASE_URL must differ from DATABASE_URL.");
     }

@@ -6,9 +6,9 @@ describe("es-CL", () => {
     expect(formatRut("123456785")).toBe("12.345.678-5");
   });
   it("formats a date", () => {
-    expect(formatDate(new Date("2026-11-13T00:00:00Z"))).toContain("13");
+    expect(formatDate(new Date("2026-11-13T00:00:00Z"), "es-CL")).toContain("13");
   });
   it("formats a number", () => {
-    expect(formatNumber(1234.5)).toBe("1.234,5");
+    expect(formatNumber(1234.5, "es-CL")).toBe("1.234,5");
   });
 });

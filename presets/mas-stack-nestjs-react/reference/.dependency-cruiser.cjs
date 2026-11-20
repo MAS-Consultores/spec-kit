@@ -51,6 +51,7 @@ module.exports = {
   options: {
     doNotFollow: { path: "node_modules" },
     exclude: { path: "(^|/)(node_modules|dist|generated|lint-fixtures|routeTree\\.gen\\.ts)" },
+    // *.spec.ts and e2e stay in the graph. Do not add them to exclude.
     tsPreCompilationDeps: true,
   },
 };

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 export default function globalSetup(): void {
   const seed = process.env["SEED_DATABASE_URL"];
-  if (!seed) {
+  if (seed === undefined || seed.length === 0) {
     throw new Error("SEED_DATABASE_URL is required for Playwright global setup");
   }
   execFileSync("node", ["scripts/truncate-e2e.mjs"], {

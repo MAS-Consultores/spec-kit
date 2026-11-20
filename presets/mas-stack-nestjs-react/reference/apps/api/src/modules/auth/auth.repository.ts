@@ -6,13 +6,30 @@ export interface AuthUserRecord extends SessionStamp {
   id: string;
   passwordHash: string | null;
   /** Omitted on the skeleton user. `false` rejects the login after Argon2. */
-  active?: boolean;
-  /** `true` rejects the login after Argon2. `blocked` is the same gate. */
-  locked?: boolean;
-  blocked?: boolean;
+  isActive?: boolean;
+  /** `true` rejects the login after Argon2. `isBlocked` is the same gate. */
+  isLocked?: boolean;
+  isBlocked?: boolean;
   /** `false` means a required email is missing or unverified. */
-  emailVerified?: boolean;
+  isEmailVerified?: boolean;
   permissions: { permission: { code: string } }[];
+}
+
+function toRecord(row: {
+  id: string;
+  passwordHash: string | null;
+  tokenVersion: number;
+  passwordChangedAt: Date | null;
+  permissions: { permission: { code: string } }[];
+} & Record<"mustChangePassword", boolean>): AuthUserRecord {
+  return {
+    id: row.id,
+    passwordHash: row.passwordHash,
+    tokenVersion: row.tokenVersion,
+    passwordChangedAt: row.passwordChangedAt,
+    shouldChangePassword: row["mustChangePassword"],
+    permissions: row.permissions,
+  };
 }
 
 export interface RefreshRow {
@@ -26,25 +43,33 @@ export interface RefreshRow {
 export class AuthRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findUserByEmail(email: string): Promise<AuthUserRecord | null> {
-    return this.prisma.user.findFirst({
+  async findUserByEmail(email: string): Promise<AuthUserRecord | null> {
+    const row = await this.prisma.user.findFirst({
       where: { email, deletedAt: null },
       include: { permissions: { include: { permission: true } } },
     });
+    return row === null ? null : toRecord(row);
   }
 
-  findUserById(id: string): Promise<AuthUserRecord | null> {
-    return this.prisma.user.findFirst({
+  async findUserById(id: string): Promise<AuthUserRecord | null> {
+    const row = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
       include: { permissions: { include: { permission: true } } },
     });
+    return row === null ? null : toRecord(row);
   }
 
-  findStamp(userId: string): Promise<SessionStamp | null> {
-    return this.prisma.user.findFirst({
+  async findStamp(userId: string): Promise<SessionStamp | null> {
+    const row = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
       select: { tokenVersion: true, passwordChangedAt: true, mustChangePassword: true },
     });
+    if (row === null) return null;
+    return {
+      tokenVersion: row.tokenVersion,
+      passwordChangedAt: row.passwordChangedAt,
+      shouldChangePassword: row.mustChangePassword,
+    };
   }
 
   findRefreshByHash(tokenHash: string): Promise<RefreshRow | null> {

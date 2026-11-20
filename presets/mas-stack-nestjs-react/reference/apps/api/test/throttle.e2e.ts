@@ -8,6 +8,10 @@ import { AppModule } from "../src/app.module.js";
 import { PrismaService } from "../src/modules/prisma/index.js";
 import { ThrottleRepository } from "../src/modules/throttle/throttle.repository.js";
 
+const loginPath = "/api/v1/auth/login";
+const throttleEmail = "throttle@infra.test";
+const throttlePassword = "rotation-secret";
+
 describe("throttler", () => {
   let app: Awaited<ReturnType<typeof NestFactory.create>>;
   beforeAll(async () => {
@@ -28,11 +32,11 @@ describe("throttler", () => {
       throw new Error("HTTP server missing");
     }
     const agent = request(value as Parameters<typeof request>[0]);
-    await agent.post("/api/v1/auth/login").send({ email: "throttle@infra.test", password: "rotation-secret" });
-    await agent.post("/api/v1/auth/login").send({ email: "throttle@infra.test", password: "rotation-secret" });
+    await agent.post(loginPath).send({ email: throttleEmail, password: throttlePassword });
+    await agent.post(loginPath).send({ email: throttleEmail, password: throttlePassword });
     const limited = await agent
-      .post("/api/v1/auth/login")
-      .send({ email: "throttle@infra.test", password: "rotation-secret" });
+      .post(loginPath)
+      .send({ email: throttleEmail, password: throttlePassword });
     expect(limited.status).toBe(429);
   });
 
@@ -44,7 +48,7 @@ describe("throttler", () => {
     const rounds = await Promise.all(Array.from({ length: 20 }, () => buckets.consume(key, 60_000, 5)));
     const hits = rounds.map((row) => row.hits).sort((left, right) => left - right);
     expect(hits).toEqual(Array.from({ length: 20 }, (_unused, index) => index + 1));
-    expect(rounds.filter((row) => row.blocked)).toHaveLength(15);
+    expect(rounds.filter((row) => row.isBlocked)).toHaveLength(15);
     const left = await prisma.$queryRaw<{ hits: number }[]>`SELECT hits FROM rate_limit_buckets WHERE key = ${key}`;
     expect(left[0]?.hits).toBe(20);
   });

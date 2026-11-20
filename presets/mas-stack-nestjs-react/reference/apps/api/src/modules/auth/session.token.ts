@@ -9,13 +9,13 @@ export interface AccessPayload {
 export interface SessionStamp {
   tokenVersion: number;
   passwordChangedAt: Date | null;
-  mustChangePassword: boolean;
+  shouldChangePassword: boolean;
 }
 
 export function businessScopes(
   user: SessionStamp & { permissions: { permission: { code: string } }[] },
 ): string[] {
-  if (user.mustChangePassword) {
+  if (user.shouldChangePassword) {
     return [];
   }
   return user.permissions.map((row) => row.permission.code);
@@ -26,7 +26,7 @@ export function accessTokenStillValid(user: SessionStamp, payload: AccessPayload
   if (payload.ver !== user.tokenVersion) {
     return false;
   }
-  if (user.passwordChangedAt) {
+  if (user.passwordChangedAt !== null) {
     const issuedMs = typeof payload.iat === "number" ? payload.iat * 1000 : 0;
     if (issuedMs <= user.passwordChangedAt.getTime()) {
       return false;
@@ -36,7 +36,7 @@ export function accessTokenStillValid(user: SessionStamp, payload: AccessPayload
 }
 
 /** Path only. A query or fragment that mentions a bypass must not count. */
-export function requestPath(url: string): string {
+function requestPath(url: string): string {
   const withoutHash = url.split("#")[0] ?? "";
   return withoutHash.split("?")[0] ?? "";
 }
@@ -55,7 +55,7 @@ export function refreshIssuedAfterPasswordChange(
   user: SessionStamp,
   issuedAtSeconds: number | undefined,
 ): boolean {
-  if (!user.passwordChangedAt) {
+  if (user.passwordChangedAt === null) {
     return true;
   }
   const issuedMs = typeof issuedAtSeconds === "number" ? issuedAtSeconds * 1000 : 0;
