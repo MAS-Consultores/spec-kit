@@ -8,6 +8,14 @@ import {
   type ImageKind,
 } from "./normalize-image.js";
 
+function firstVariant(buffers: readonly Buffer[]): Buffer {
+  const output = buffers[0];
+  if (output === undefined) {
+    throw new Error("image variant missing");
+  }
+  return output;
+}
+
 async function orientedJpeg(): Promise<Buffer> {
   const pixels = Buffer.from([255, 0, 0, 0, 0, 255]);
   return sharp(pixels, { raw: { width: 2, height: 1, channels: 3 } })
@@ -42,7 +50,7 @@ describe("normalize image", () => {
     const size = IMAGE_VARIANTS[kind][0];
     const rendered = await renderImageSet(source, kind, "jpeg");
     expect(rendered).toHaveLength(IMAGE_VARIANTS[kind].length);
-    const output = rendered[0];
+    const output = firstVariant(rendered);
     expect(output.equals(source)).toBe(false);
     const after = await sharp(output).metadata();
     expect(after.width).toBe(size.width);
