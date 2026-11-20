@@ -2,6 +2,14 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.3+mas.2] - 2026-11-20
+
+Estándares nuevos del preset `nestjs-react`:
+
+- Subida de archivos: el linter exige `multipart` con `limits.fileSize` y validación de tipo. El JSON en base64 queda limitado a 1 MiB y requiere una supresión justificada.
+- Librerías aprobadas y parsers: no se escriben a mano lectores de xlsx, CSV, ZIP, XML ni PDF. Se usan exceljs, csv-parse, page.pdf, pdf-lib y unpdf. La regla `mas/no-handrolled-format-parsers` prohíbe el paquete `xlsx` y un PDF armado a mano.
+- Paquete de reglas `mas/*`: HTML, correo MJML, timers en warn, gráficos, fechas, tipo real del archivo, LLM, secretos, helmet, throttle y formularios. Las imágenes aceptan solo PNG y JPG; sharp genera variantes fijas. BullMQ queda pendiente de decisión.
+
 ## [1.4.3+mas.1] - 2026-11-20
 
 MAS fork release based on upstream Spec Kit 1.4.3. Package version uses the local `+mas.N` convention; Git tags for this fork remain `vX.Y.Z-mas.N`.
