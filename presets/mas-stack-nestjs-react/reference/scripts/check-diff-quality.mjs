@@ -1,0 +1,143 @@
+/**
+ * Promotes adoption-rule warnings to errors on lines added in the diff.
+ * Existing code stays at warn. New or modified lines fail the check.
+ *
+ *   node scripts/check-diff-quality.mjs --self-test
+ *   node scripts/check-diff-quality.mjs --base origin/main
+ *
+ * Paso a error total: en eslint.config.js sube `no-magic-numbers` y
+ * `mas/no-commented-code` de "warn" a "error", borra esas reglas de
+ * ADOPTION_RULES y deja de depender del diff. Documentado en
+ * docs/quality-loop.md del preset.
+ */
+import { execFileSync } from "node:child_process";
+import { relative } from "node:path";
+import { ESLint } from "eslint";
+
+export const ADOPTION_RULES = ["no-magic-numbers", "mas/no-commented-code"];
+
+export function addedLineMap(diffText) {
+  const map = new Map();
+  let file = "";
+  let newLine = 0;
+  for (const line of diffText.split("\n")) {
+    const fileMatch = /^\+\+\+ b\/(.*)$/.exec(line);
+    if (fileMatch) {
+      file = fileMatch[1] ?? "";
+      if (!map.has(file)) map.set(file, new Set());
+      continue;
+    }
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (hunk) {
+      newLine = Number(hunk[1]);
+      continue;
+    }
+    if (!file || line.startsWith("---") || line.startsWith("diff ") || line.startsWith("index ")) continue;
+    if (line.startsWith("+")) {
+      map.get(file)?.add(newLine);
+      newLine += 1;
+      continue;
+    }
+    if (line.startsWith("-")) continue;
+    if (line.startsWith("\\")) continue;
+    newLine += 1;
+  }
+  return map;
+}
+
+export function findingsOnAddedLines(messages, added, rules = ADOPTION_RULES) {
+  return messages.filter(
+    (message) =>
+      rules.includes(message.ruleId) &&
+      (message.severity === 1 || message.severity === 2) &&
+      added.has(message.line),
+  );
+}
+
+function selfTest() {
+  const added = new Set([4]);
+  const warned = [{ ruleId: "no-magic-numbers", severity: 1, line: 4, message: "magic" }];
+  const oldLine = [{ ruleId: "no-magic-numbers", severity: 1, line: 2, message: "magic" }];
+  const other = [{ ruleId: "no-console", severity: 2, line: 4, message: "console" }];
+  if (findingsOnAddedLines(warned, added).length !== 1) {
+    console.error("self-test: una línea nueva con no-magic-numbers debe fallar");
+    process.exit(1);
+  }
+  if (findingsOnAddedLines(oldLine, added).length !== 0) {
+    console.error("self-test: un warning en una línea que no cambió no es hallazgo nuevo");
+    process.exit(1);
+  }
+  if (findingsOnAddedLines(other, added).length !== 0) {
+    console.error("self-test: una regla fuera de adopción no entra al diff");
+    process.exit(1);
+  }
+  const parsed = addedLineMap("diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1,2 +1,3 @@\n keep\n-old\n+const wait = 15;\n");
+  if (!parsed.get("a.ts")?.has(2)) {
+    console.error("self-test: el parser no marcó la línea agregada");
+    process.exit(1);
+  }
+  console.log("check-diff-quality self-test ok");
+}
+
+async function lintDiff() {
+  const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+  const gitRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
+  const prefix = relative(gitRoot, root);
+  const baseFlag = process.argv.indexOf("--base");
+  const base = baseFlag === -1 ? "HEAD" : (process.argv[baseFlag + 1] ?? "HEAD");
+  let diffText = "";
+  try {
+    diffText = execFileSync("git", ["diff", "-U0", base, "--", prefix || "."], {
+      cwd: gitRoot,
+      encoding: "utf8",
+    });
+  } catch (error) {
+    const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+    diffText = stdout;
+  }
+  const map = addedLineMap(diffText);
+  if (prefix) {
+    for (const file of [...map.keys()]) {
+      if (!file.startsWith(`${prefix}/`)) {
+        map.delete(file);
+        continue;
+      }
+      const local = file.slice(prefix.length + 1);
+      map.set(local, map.get(file) ?? new Set());
+      map.delete(file);
+    }
+  }
+  const files = [...map.keys()].filter(
+    (file) =>
+      /\.(ts|tsx|js|mjs)$/.test(file) &&
+      !file.includes("lint-fixtures/") &&
+      !file.includes("scripts/") &&
+      (map.get(file)?.size ?? 0) > 0,
+  );
+  if (files.length === 0) {
+    console.log("check-diff-quality: sin líneas nuevas de producto");
+    return;
+  }
+  const eslint = new ESLint({ cwd: root, overrideConfigFile: true });
+  const results = await eslint.lintFiles(files);
+  const problems = [];
+  for (const result of results) {
+    const relativePath = result.filePath.startsWith(`${root}/`) ? result.filePath.slice(root.length + 1) : result.filePath;
+    const added = map.get(relativePath) ?? map.get(result.filePath) ?? new Set();
+    for (const hit of findingsOnAddedLines(result.messages, added)) {
+      problems.push(`${relativePath}:${hit.line} ${hit.ruleId} ${hit.message}`);
+    }
+  }
+  if (problems.length > 0) {
+    console.error("código nuevo o modificado con reglas de adopción (warn en lo viejo, error en el diff):");
+    for (const problem of problems) console.error(problem);
+    process.exit(1);
+  }
+  console.log("check-diff-quality ok");
+}
+
+const isMain = process.argv[1] && new URL(process.argv[1], "file:").href === import.meta.url;
+if (isMain) {
+  if (process.argv.includes("--self-test")) selfTest();
+  else await lintDiff();
+}

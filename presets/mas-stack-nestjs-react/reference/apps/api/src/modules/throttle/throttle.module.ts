@@ -3,12 +3,13 @@ import { ConfigService } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { configNumber } from "../../config/read.js";
+import { PlatformModule } from "../platform/index.js";
 import { PrismaModule } from "../prisma/index.js";
 import { DbThrottlerStorage } from "./throttle.service.js";
 import { ThrottleRepository } from "./throttle.repository.js";
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PlatformModule],
   providers: [ThrottleRepository, DbThrottlerStorage],
   exports: [DbThrottlerStorage],
 })

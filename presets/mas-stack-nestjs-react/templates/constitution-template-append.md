@@ -201,6 +201,27 @@ The stack does not include example modules, data, users, or screens. Every domai
 
 The skeleton keeps generic infrastructure only: health, guards, CASL wiring, the Prisma module, config, and the identity tables the auth design needs (`User`, `Permission`, `UserPermission`, `RefreshToken`) plus append-only `AuditLog`. It does not seed those tables. The first feature defines domain models and any accounts. `/speckit.analyze` MUST mark **CRITICAL** when the project contains demonstration code or seed (a notes or widgets slice, `notes:*` or `widgets:*`, `replace-example-slice`, or an `example.com` account).
 
+### Código limpio y quality gates
+
+El skill `clean-code-typescript` (adaptado de `ertugrul-dmr/clean-code-skills`, `skills/typescript`, licencia MIT; ver `NOTICE`) se carga en `/speckit.implement` y `/speckit.converge`. Obliga lo que el linter no mide: nombres en inglés que dicen el efecto (N7), sin parámetros booleanos de modo (F3), ley de Demeter (G36), guard clauses y tests de bordes (T5). G23 (polimorfismo en vez de if/else) es sugerencia. T9 (tests unitarios de menos de 100 ms) solo se menciona. No se aplican reglas de comentarios estilo Java.
+
+Reglas medibles, en `pnpm lint`:
+
+- F1: `mas/max-callable-params` máximo 3. Los constructores NestJS con DI no cuentan. `max-params` de ESLint queda apagado para no duplicar el conteo
+- G30: `sonarjs/cognitive-complexity` ≤ 15, `max-depth` 3, `max-lines-per-function` 60. Los tests no cuentan para el tope de líneas
+- `@typescript-eslint/no-explicit-any` es error en todo el esqueleto, incluidos contratos, DTOs y exports públicos. Desactivarlo sigue prohibido
+- C5: `mas/no-commented-code` en warn. G25: `no-magic-numbers` en warn (permitidos -1, 0, 1 y los códigos HTTP; tests excluidos)
+- knip (código, exports, archivos y dependencias sin uso) y `sonarjs/no-identical-functions` más jscpd
+- `mas/no-hidden-service-deps`: un `*.service.ts` no llama a `Date.now()`, `new Date()` sin argumento ni `Math.random()`, y no hace `new` de una clase con efectos. Inyecta `SystemClock` e `SystemIdGenerator` de `apps/api/src/modules/platform`
+
+Adopción: lo existente queda en warn y entra al trinquete `quality-baseline.json` (por regla y archivo, más clones de jscpd y hallazgos de knip). El CI falla si un conteo sube. Si baja, el mismo PR corre `node scripts/check-quality-baseline.mjs --update`. `scripts/check-diff-quality.mjs` trata warn de adopción como error en las líneas nuevas del diff. El paso a error total está en `docs/quality-loop.md`.
+
+`/speckit.converge` (y cualquier corrección de bugs) corre el quality loop: tras implementar y tras cada ronda, lint, knip, jscpd y dependency-cruiser, hasta 3 vueltas. Termina con cero hallazgos nuevos o con la excepción escrita (archivo, regla, motivo).
+
+Cobertura: líneas y ramas del diff ≥ 80 % (`vitest --coverage` y `scripts/check-diff-coverage.mjs`). Sin umbral global. Un componente web que supera el umbral de condicionales MUST tener un `*.test.tsx` de Testing Library. `tsconfig` MUST usar `strict`, `noUncheckedIndexedAccess` y `exactOptionalPropertyTypes`. ESLint MUST usar `typescript-eslint/strictTypeChecked`. Cada PR corre gitleaks (`.github/workflows/gitleaks.yml` y el job del preset).
+
+`/speckit.analyze` MUST citar el código de regla (F1, F3, G5, G30, G36, N7, C5, T5) y MUST marcar **HIGH** cuando falte el test del componente o la cobertura del diff, y **CRITICAL** cuando un service esconda el reloj o el azar.
+
 ### Modularidad estricta
 
 Todo proyecto generado con este preset MUST cumplir estas reglas. Cada una nombra el control que la hace fallar (`pnpm lint` ejecuta ESLint, dependency-cruiser y los fixtures negativos).

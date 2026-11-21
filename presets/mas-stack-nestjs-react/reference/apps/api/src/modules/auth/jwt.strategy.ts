@@ -22,12 +22,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: AccessPayload): AccessPayload {
-    return {
+    const next: AccessPayload = {
       sub: payload.sub,
       scopes: payload.scopes,
       csrf: payload.csrf,
       ver: payload.ver,
-      iat: payload.iat,
     };
+    if (typeof payload.iat === "number") {
+      next.iat = payload.iat;
+    }
+    return next;
   }
 }

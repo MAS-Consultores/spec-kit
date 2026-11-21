@@ -64,6 +64,10 @@ provides:
       file: "commands/speckit.implement.md"
       description: "NestJS + React test completion gate"
       strategy: "wrap"
+    - type: "command"
+      name: "speckit.converge"
+      file: "commands/speckit.converge.md"
+      description: "NestJS + React quality loop"
 
 tags:
   - "mas"

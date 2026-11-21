@@ -24,7 +24,7 @@ run("git", ["commit", "-m", "fitness snapshot", "--allow-empty", "--no-verify"])
 try {
   for (const domain of domains) run("node", ["scripts/gen-module.mjs", domain]);
   run("pnpm", ["db:generate"]);
-  run("pnpm", ["lint"]);
+  run("pnpm", ["lint", "--", "--skip-jscpd-ratchet"]);
   run("pnpm", ["typecheck"]);
   run("pnpm", ["test"]);
   run("pnpm", ["build"]);

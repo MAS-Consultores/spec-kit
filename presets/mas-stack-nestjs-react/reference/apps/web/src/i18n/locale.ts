@@ -58,13 +58,14 @@ export function readBrowserLocale(language: string | null | undefined): string |
 export function useApplyLocale(input: LocaleInput): void {
   const { preference, cookie, browser, organizationDefault, supported } = input;
   useEffect(() => {
-    const next = resolveLocale({
-      preference,
-      cookie,
-      browser,
+    const resolved: LocaleInput = {
       organizationDefault,
       supported,
-    }).locale;
+      ...(preference !== undefined ? { preference } : {}),
+      ...(cookie !== undefined ? { cookie } : {}),
+      ...(browser !== undefined ? { browser } : {}),
+    };
+    const next = resolveLocale(resolved).locale;
     if (i18n.language !== next) {
       void i18n.changeLanguage(next);
     }

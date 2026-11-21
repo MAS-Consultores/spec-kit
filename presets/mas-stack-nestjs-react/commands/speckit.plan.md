@@ -54,6 +54,8 @@ The plan MUST follow **Migraciones seguras sobre datos existentes** in the stack
 - [ ] `DROP COLUMN`, `DROP TABLE`, renames, and other destructive statements carry `-- mas:allow-destructive <motivo>` and ship as a later contract migration
 - [ ] `tasks.md` includes `pnpm lint` (migration lint plus negative fixtures) and the `upgrade-on-data` CI job copied from `.specify/reference/.github/workflows/upgrade-on-data.yml`
 
+The plan MUST name how the feature will pass the quality loop (`docs/quality-loop.md`): diff coverage at 80% for new lines and branches, a Testing Library test for a component with logic, and `Clock` / `IdGenerator` instead of hidden time or randomness in services. G23 stays a suggestion.
+
 The plan MUST follow **Modularidad estricta** in the stack constitution: one Nest module per domain, repository ownership, per-domain contracts and Prisma files, lazy feature routes, and `pnpm gen:module` when a domain is new. Controllers stay thin (`mas/thin-controllers`): they delegate to a service. Prisma (`@prisma/client`, `PrismaService`) stays in `*.repository.ts` and the Prisma module. dependency-cruiser (`no-circular`, `no-foreign-module-internals`, `no-controller-prisma`) runs inside `pnpm lint`.
 
 `plan.md` MUST include a section titled **Reutilización**. That section reviews the common modules that already exist and decides, for each capability in the feature, whether it is generic (it goes to a common module) or specific to the feature. Importing tabular files, uploading files or images, and sending mail are generic. Read the skeleton guides `.specify/presets/mas-stack-nestjs-react/templates/common-modules/tabular-import.md`, `file-upload.md`, and `mail.md`. Do not plan those pipelines inside a business module.

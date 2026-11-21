@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
@@ -8,6 +8,10 @@ import type { Response } from "express";
 import { configString } from "../../config/read.js";
 import { AuthRepository, type AuthUserRecord } from "./auth.repository.js";
 import { businessScopes, refreshIssuedAfterPasswordChange } from "./session.token.js";
+import { SystemClock, SystemIdGenerator } from "../platform/index.js";
+
+const REFRESH_TTL_MS = 604_800_000;
+const CSRF_BYTES = 16;
 
 /** Argon2id (m=65536, t=3, p=4), the same parameters as real password hashes. */
 export const DUMMY_PASSWORD_HASH =
@@ -51,6 +55,8 @@ export class AuthService {
     private readonly users: AuthRepository,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly clock: SystemClock,
+    private readonly ids: SystemIdGenerator,
   ) {}
 
   async login(body: unknown, res: Response): Promise<{ csrfToken: string }> {
@@ -60,7 +66,7 @@ export class AuthService {
     if (user === null || loginRejected(user, isValid)) {
       throw new UnauthorizedException();
     }
-    await this.issue(res, user, randomUUID());
+    await this.issue(res, user, this.ids.uuid());
     return { csrfToken: this.readCsrf(res) };
   }
 
@@ -70,7 +76,7 @@ export class AuthService {
     }
     const payload = this.readRefresh(refreshToken);
     const row = await this.users.findRefreshByHash(hashToken(refreshToken));
-    if (row === null || row.revokedAt !== null || row.expiresAt.getTime() < Date.now()) {
+    if (row === null || row.revokedAt !== null || row.expiresAt.getTime() < this.clock.now()) {
       if (row !== null && row.revokedAt !== null) {
         await this.users.revokeFamily(row.familyId);
       }
@@ -87,7 +93,7 @@ export class AuthService {
 
   async logout(userId: string, res: Response): Promise<{ csrfToken: string }> {
     await this.users.revokeSessions(userId);
-    const csrf = randomBytes(16).toString("hex");
+    const csrf = this.ids.bytes(CSRF_BYTES).toString("hex");
     res.clearCookie("access_token", { path: "/" });
     res.clearCookie("refresh_token", { path: "/api/v1/auth" });
     res.cookie("csrf_token", csrf, { httpOnly: false, sameSite: "lax", path: "/" });
@@ -109,20 +115,20 @@ export class AuthService {
   }
 
   private async issue(res: Response, user: AuthUserRecord, familyId: string): Promise<void> {
-    const csrf = randomBytes(16).toString("hex");
+    const csrf = this.ids.bytes(CSRF_BYTES).toString("hex");
     const access = this.jwt.sign(
       { sub: user.id, scopes: businessScopes(user), csrf, ver: user.tokenVersion },
       { expiresIn: "15m" },
     );
     const refresh = this.jwt.sign(
-      { sub: user.id, family: familyId, jti: randomUUID() },
+      { sub: user.id, family: familyId, jti: this.ids.uuid() },
       { secret: configString(this.config, "JWT_REFRESH_SECRET"), expiresIn: "7d" },
     );
     await this.users.createRefresh({
       userId: user.id,
       familyId,
       tokenHash: hashToken(refresh),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(this.clock.now() + REFRESH_TTL_MS),
     });
     res.cookie("access_token", access, { httpOnly: true, sameSite: "lax", path: "/" });
     res.cookie("refresh_token", refresh, { httpOnly: true, sameSite: "lax", path: "/api/v1/auth" });

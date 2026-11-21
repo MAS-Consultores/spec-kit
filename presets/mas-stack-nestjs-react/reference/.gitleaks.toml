@@ -1,0 +1,13 @@
+title = "MAS nestjs-react"
+
+[allowlist]
+description = "Fixtures, tests, and examples are not production secrets"
+paths = [
+  '''lint-fixtures''',
+  '''scripts/fixtures''',
+  '''(.*)_test\.go''',
+  '''(.*)\.spec\.ts''',
+  '''(.*)\.e2e\.ts''',
+  '''e2e/''',
+  '''\.env\.example''',
+]
