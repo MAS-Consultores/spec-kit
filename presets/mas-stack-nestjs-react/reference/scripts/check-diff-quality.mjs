@@ -17,7 +17,8 @@
  * Documentado en docs/quality-loop.md del preset.
  */
 import { execFileSync } from "node:child_process";
-import { relative } from "node:path";
+import { fileURLToPath } from "node:url";
+import { relative, resolve } from "node:path";
 
 export const ADOPTION_RULES = ["no-magic-numbers", "mas/no-commented-code", "mas/no-hidden-service-deps"];
 
@@ -194,7 +195,7 @@ async function lintDiff() {
   console.log("check-diff-quality ok");
 }
 
-const isMain = process.argv[1] && new URL(process.argv[1], "file:").href === import.meta.url;
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
 if (isMain) {
   if (process.argv.includes("--self-test")) selfTest();
   else await lintDiff();

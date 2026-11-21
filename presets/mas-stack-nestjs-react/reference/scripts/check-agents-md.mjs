@@ -6,7 +6,8 @@
  *   node scripts/check-agents-md.mjs --self-test
  */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const REQUIRED_AGENTS = [
   "AGENTS.md",
@@ -91,7 +92,7 @@ function selfTest() {
   console.log("check-agents-md self-test ok");
 }
 
-const isMain = process.argv[1] && new URL(process.argv[1], "file:").href === import.meta.url;
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
 if (isMain) {
   if (process.argv.includes("--self-test")) {
     selfTest();

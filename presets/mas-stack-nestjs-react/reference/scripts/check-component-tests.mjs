@@ -3,7 +3,8 @@
  * Threshold: 3 conditionals (if, ternary, switch case, && / ||).
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { resolveComponentRoots } from "./quality-gate-config.mjs";
 
 const THRESHOLD = 3;
@@ -28,6 +29,7 @@ function walk(dir, acc) {
       walk(path, acc);
       continue;
     }
+    if (entry === "main.tsx") continue;
     if (path.endsWith(".tsx") && !path.endsWith(".test.tsx") && !path.endsWith(".spec.tsx")) acc.push(path);
   }
 }
@@ -89,7 +91,7 @@ function selfTest() {
   console.log("check-component-tests self-test ok");
 }
 
-const isMain = process.argv[1] && new URL(process.argv[1], "file:").href === import.meta.url;
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
 if (!isMain) {
   // imported by tests
 } else if (process.argv.includes("--self-test")) {
