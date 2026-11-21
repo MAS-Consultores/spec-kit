@@ -4,7 +4,7 @@
  * ports are free or both servers still answer. A port that is taken and does
  * not answer is discarded so the next run does not attach to a dead listener.
  */
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -106,20 +106,58 @@ function readCached(file: string, freshMs: number, now: number): E2ePorts | unde
   return undefined;
 }
 
-export async function choosePorts(options: {
+async function choosePortsOnce(options: {
   file: string;
-  freshMs?: number;
-  now?: number;
+  freshMs: number;
+  now: number;
 }): Promise<E2ePorts> {
-  const freshMs = options.freshMs ?? 60_000;
-  const now = options.now ?? Date.now();
-  const cached = readCached(options.file, freshMs, now);
+  const cached = readCached(options.file, options.freshMs, options.now);
   if (cached && (await portsUsable(cached))) {
     return cached;
   }
   const ports = { api: await freePort(), web: await freePort() };
   writeFileSync(options.file, JSON.stringify(ports));
   return ports;
+}
+
+const PORT_LOCK_TIMEOUT_MS = 5_000;
+const PORT_LOCK_RETRY_MS = 15;
+
+async function withPortLock<T>(lockDir: string, body: () => Promise<T>): Promise<T> {
+  const started = Date.now();
+  for (;;) {
+    try {
+      mkdirSync(lockDir);
+      break;
+    } catch (error: unknown) {
+      const code = typeof error === "object" && error !== null && "code" in error ? error.code : "";
+      if (code !== "EEXIST") throw error;
+      if (Date.now() - started > PORT_LOCK_TIMEOUT_MS) {
+        throw new Error("e2e port lock timed out");
+      }
+      await new Promise((resolve) => {
+        setTimeout(resolve, PORT_LOCK_RETRY_MS);
+      });
+    }
+  }
+  try {
+    return await body();
+  } finally {
+    rmSync(lockDir, { recursive: true, force: true });
+  }
+}
+
+export async function choosePorts(options: {
+  file: string;
+  freshMs?: number;
+  now?: number;
+  lock?: boolean;
+}): Promise<E2ePorts> {
+  const freshMs = options.freshMs ?? 60_000;
+  const now = options.now ?? Date.now();
+  const once = (): Promise<E2ePorts> => choosePortsOnce({ file: options.file, freshMs, now });
+  if (options.lock === false) return once();
+  return withPortLock(`${options.file}.lock`, once);
 }
 
 async function runSelfTest(): Promise<void> {
@@ -144,6 +182,22 @@ async function runSelfTest(): Promise<void> {
   const stale = await choosePorts({ file, freshMs: 60_000, now: Date.now() + 120_000 });
   if (stale.api === chosen.api && stale.web === chosen.web) {
     throw new Error("an expired cache was reused");
+  }
+  const raceFile = join(dir, "race.json");
+  const [unlockedA, unlockedB] = await Promise.all([
+    choosePorts({ file: raceFile, lock: false }),
+    choosePorts({ file: raceFile, lock: false }),
+  ]);
+  if (unlockedA.api === unlockedB.api && unlockedA.web === unlockedB.web) {
+    throw new Error("unlocked parallel choosePorts did not diverge");
+  }
+  rmSync(raceFile, { force: true });
+  const [lockedA, lockedB] = await Promise.all([
+    choosePorts({ file: raceFile }),
+    choosePorts({ file: raceFile }),
+  ]);
+  if (lockedA.api !== lockedB.api || lockedA.web !== lockedB.web) {
+    throw new Error("locked parallel choosePorts returned different ports");
   }
   process.stdout.write("e2e-ports ok\n");
 }

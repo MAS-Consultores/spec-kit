@@ -10,6 +10,7 @@ Clean code y quality gates del preset `nestjs-react`:
 - Skill `clean-code-typescript`, adaptada de `ertugrul-dmr/clean-code-skills` (MIT, `skills/typescript`). Cubre N7, F3, G36, guard clauses y T5. G23 es sugerencia. T9 solo se menciona en unitarios. `/speckit.converge` y el quality loop (hasta 3 vueltas) reportan el código de regla y no terminan con hallazgos nuevos sin una excepción escrita.
 - Cobertura del diff al 80 % (líneas y ramas, sin umbral global), test de componente con Testing Library, `Clock` e `IdGenerator` inyectados, `exactOptionalPropertyTypes` y gitleaks en cada PR.
 - El trinquete de jscpd ignora archivos sin seguimiento, así el snapshot de `check-gen-fitness` no cuenta los dos dominios desechables como clones nuevos.
+- El e2e web elige los puertos de Playwright bajo un candado. Sin él, dos cargas paralelas de la config se quedan con puertos distintos y el navegador recibe `ERR_CONNECTION_REFUSED`.
 
 ## [1.4.3+mas.2] - 2026-11-20
 
