@@ -19,7 +19,7 @@ El mismo loop vale para un agente que solo arregla un bug. No se declara el arre
 
 ## Error en código nuevo
 
-`no-magic-numbers` y `mas/no-commented-code` están en `warn` para el árbol actual. `scripts/check-diff-quality.mjs` los trata como error en las líneas que el diff agrega (`DIFF_BASE`, por defecto `HEAD`).
+`no-magic-numbers` y `mas/no-commented-code` están en `warn` para el árbol actual. `scripts/check-diff-quality.mjs` los trata como error en las líneas que el diff agrega (`--base`, por defecto `HEAD`).
 
 ## Paso a error total
 

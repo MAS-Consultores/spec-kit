@@ -3,7 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import type { McpTokenVerifier } from "@nestjs/mcp";
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { SessionLookup, accessTokenStillValid, type AccessPayload } from "../auth/index.js";
-import type { Clock } from "../platform/index.js";
+import { SystemClock } from "../platform/index.js";
 
 const ACCESS_TTL_SECONDS = 900;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -13,7 +13,7 @@ export class BearerVerifier implements McpTokenVerifier {
   constructor(
     private readonly jwt: JwtService,
     private readonly sessions: SessionLookup,
-    private readonly clock: Clock,
+    private readonly clock: SystemClock,
   ) {}
 
   async verifyAccessToken(token: string): Promise<AuthInfo | null> {

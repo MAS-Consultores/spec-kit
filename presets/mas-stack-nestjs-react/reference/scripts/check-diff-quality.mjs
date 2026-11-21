@@ -3,7 +3,7 @@
  * Existing code stays at warn. New or modified lines fail the check.
  *
  *   node scripts/check-diff-quality.mjs --self-test
- *   DIFF_BASE=origin/main node scripts/check-diff-quality.mjs
+ *   node scripts/check-diff-quality.mjs --base origin/main
  *
  * Paso a error total: en eslint.config.js sube `no-magic-numbers` y
  * `mas/no-commented-code` de "warn" a "error", borra esas reglas de
@@ -83,7 +83,8 @@ async function lintDiff() {
   const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
   const gitRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
   const prefix = relative(gitRoot, root);
-  const base = process.env.DIFF_BASE || "HEAD";
+  const baseFlag = process.argv.indexOf("--base");
+  const base = baseFlag === -1 ? "HEAD" : (process.argv[baseFlag + 1] ?? "HEAD");
   let diffText = "";
   try {
     diffText = execFileSync("git", ["diff", "-U0", base, "--", prefix || "."], {

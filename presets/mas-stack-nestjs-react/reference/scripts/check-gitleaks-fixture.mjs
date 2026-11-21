@@ -30,7 +30,8 @@ function selfTest() {
     console.error("self-test: un archivo limpio no dispara la regla");
     process.exit(1);
   }
-  const bin = process.env.GITLEAKS_BIN;
+  const binFlag = process.argv.indexOf("--gitleaks");
+  const bin = binFlag === -1 ? "" : process.argv[binFlag + 1];
   if (bin) {
     const dir = mkdtempSync(join(tmpdir(), "gitleaks-fixture-"));
     writeFileSync(join(dir, "leak.ts"), SECRET + "\n");
