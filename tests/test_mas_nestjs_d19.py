@@ -297,11 +297,21 @@ def test_d19_06_bundle_over_the_limit_fails_the_gate(tmp_path: Path) -> None:
     bundle = repo / "apps" / "web" / "dist" / "assets" / "index.js"
     bundle.parent.mkdir(parents=True)
     bundle.write_bytes(os.urandom(800 * 1024))
+    npm = shutil.which("npm") or shutil.which("npm.cmd")
+    if npm is None:
+        program = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "nodejs" / "npm.cmd"
+        npm = str(program) if program.exists() else ""
+    if not npm:
+        if platform.system() == "Linux":
+            pytest.fail("en Linux npm tiene que estar para instalar size-limit 14.3.0")
+        pytest.skip("npm no está en este runner y size-limit 14.3.0 no se puede instalar")
     install = subprocess.run(
-        ["npm", "install", "--ignore-scripts", "--no-audit", "--no-fund"],
+        [npm, "install", "--ignore-scripts", "--no-audit", "--no-fund"],
         cwd=repo,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     assert install.returncode == 0, install.stderr
