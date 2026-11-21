@@ -44,6 +44,7 @@ Sin lcov ese gate sale distinto de cero.
 Solo librerías de esta lista:
 `.specify/presets/mas-stack-nestjs-react/templates/approved-libraries.md`.
 Si no está ahí, no la agregues.
+La autorización de la API es `@casl/ability` 7.1.3, junto a los guards.
 
 No desactives una regla `mas/*`.
 No subas un conteo de `quality-baseline.json`.

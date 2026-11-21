@@ -126,6 +126,12 @@ No hay mecanismo aprobado. BullMQ y `@nestjs/bullmq` no están en esta lista. `@
 
 `mas/no-timer-scheduling` (warn) marca `setInterval` en la API y `setTimeout` de 1000 ms o más. El plan MUST justificar el mecanismo elegido. Un `setTimeout` de menos de 1000 ms puede quedar para un timeout de protocolo.
 
+## Autorización
+
+| Uso | Librería | Estado |
+| --- | --- | --- |
+| Autorización por abilities, junto a los guards (`@Can`, `@Authenticated`, `@Public`) | `@casl/ability` 7.1.3 | Aprobada. El esqueleto ya la declara en `apps/api`. `pnpm casl` corre `scripts/check-casl.ts` |
+
 ## Correo
 
 | Uso | Librería | Estado |
