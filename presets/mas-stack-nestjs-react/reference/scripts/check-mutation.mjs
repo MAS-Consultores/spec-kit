@@ -55,16 +55,37 @@ function git(cwd, args) {
 
 function diffSinceMergeBase(root, argv = process.argv, env = process.env) {
   const base = resolveMergeBase(root, argv, env);
-  if (!base) return { base: null, files: [] };
+  if (!base) return { ok: false, reason: "sin base resoluble", stderr: "", base: null, files: [] };
   const result = spawnSync("git", ["diff", "--name-only", "--diff-filter=ACMR", base, "HEAD"], {
     cwd: root,
     encoding: "utf8",
   });
-  if (result.status !== 0) return { base, files: [] };
+  if (result.status !== 0) {
+    return {
+      ok: false,
+      reason: `git diff salió ${result.status ?? "null"}`,
+      stderr: result.stderr ?? "",
+      base,
+      files: [],
+    };
+  }
   return {
+    ok: true,
+    reason: "",
+    stderr: "",
     base,
     files: result.stdout.split("\n").map((line) => line.trim()).filter(Boolean),
   };
+}
+
+export function perTestCoverageOk(report) {
+  const files = report && typeof report === "object" ? report.files : null;
+  if (!files || typeof files !== "object") return false;
+  const mutants = Object.values(files).flatMap((file) => (file && Array.isArray(file.mutants) ? file.mutants : []));
+  if (mutants.length === 0) return false;
+  const scored = mutants.filter((mutant) => mutant.status === "Killed" || mutant.status === "Survived" || mutant.status === "Timeout");
+  if (scored.length === 0) return mutants.some((mutant) => mutant.status === "NoCoverage" || mutant.status === "Ignored");
+  return scored.every((mutant) => Array.isArray(mutant.coveredBy));
 }
 
 function cleanEnv() {
@@ -231,37 +252,64 @@ function main() {
   }
   const root = gatesRoot();
   const diff = diffSinceMergeBase(root);
+  if (!diff.ok) {
+    console.error(`mutation: no se pudo calcular el diff (${diff.reason})`);
+    if (diff.stderr) console.error(diff.stderr);
+    process.exit(1);
+  }
   const plan = mutationPlan(gates, diff.files);
   for (const warning of plan.warnings) console.log(`warn ${warning}`);
   if (plan.mutate.length === 0) {
-    const baseLabel = diff.base ?? "desconocida";
-    console.log(`mutation: sin archivos mutables en el diff (base ${baseLabel})`);
+    console.log(`mutation: sin archivos mutables en el diff (base ${diff.base})`);
     return;
   }
   console.log(`mutate ${plan.mutate.join(" ")} threshold ${plan.threshold}`);
   if (!process.argv.includes("--run")) return;
   const apiPrefix = "apps/api/";
   const relative = plan.mutate.map((file) => (file.startsWith(apiPrefix) ? file.slice(apiPrefix.length) : file));
-  const configDir = mkdtempSync(join(tmpdir(), "stryker-config-"));
-  const configFile = join(configDir, "stryker.config.json");
   const incrementalFile = join(root, "apps/api/.stryker-incremental.json");
-  writeFileSync(configFile, JSON.stringify({
-    testRunner: "vitest",
-    plugins: [vitestRunner],
-    reporters: ["clear-text"],
-    coverageAnalysis: "perTest",
-    concurrency: 2,
-    mutate: relative,
-    incremental: true,
-    incrementalFile,
-    thresholds: { high: plan.threshold, low: plan.threshold, break: plan.threshold },
-  }));
-  const result = spawnSync("pnpm", ["exec", "stryker", "run", configFile], {
-    cwd: join(root, "apps/api"),
-    stdio: "inherit",
-  });
-  rmSync(configDir, { recursive: true, force: true });
-  process.exit(result.status ?? 1);
+  const apiRoot = join(root, "apps/api");
+  const run = (incremental) => {
+    const configDir = mkdtempSync(join(tmpdir(), "stryker-config-"));
+    const configFile = join(configDir, "stryker.config.json");
+    writeFileSync(configFile, JSON.stringify({
+      testRunner: "vitest",
+      plugins: [vitestRunner],
+      reporters: ["clear-text", "json"],
+      coverageAnalysis: "perTest",
+      concurrency: 2,
+      mutate: relative,
+      incremental,
+      incrementalFile,
+      thresholds: { high: plan.threshold, low: plan.threshold, break: plan.threshold },
+    }));
+    const result = spawnSync("pnpm", ["exec", "stryker", "run", configFile], {
+      cwd: apiRoot,
+      stdio: "inherit",
+    });
+    rmSync(configDir, { recursive: true, force: true });
+    return result.status ?? 1;
+  };
+  let status = run(existsSync(incrementalFile));
+  const reportPath = join(apiRoot, "reports", "mutation", "mutation.json");
+  const readReport = () => {
+    try {
+      return JSON.parse(readFileSync(reportPath, "utf8"));
+    } catch {
+      return null;
+    }
+  };
+  if (status === 0 && existsSync(incrementalFile) && !perTestCoverageOk(readReport())) {
+    console.error("Stryker no reportó cobertura perTest; se descarta el incremental y se corre completo");
+    rmSync(incrementalFile, { force: true });
+    status = run(false);
+  }
+  if (status !== 0) process.exit(status);
+  if (!perTestCoverageOk(readReport())) {
+    console.error("Stryker no reportó cobertura perTest; el resultado incremental no es válido");
+    rmSync(incrementalFile, { force: true });
+    process.exit(1);
+  }
 }
 
 function existsGates(root) {

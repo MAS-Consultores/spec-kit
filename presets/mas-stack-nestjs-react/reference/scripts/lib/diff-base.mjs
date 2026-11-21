@@ -5,6 +5,14 @@
  */
 import { execFileSync } from "node:child_process";
 
+export class GitDiffError extends Error {
+  constructor(message, stderr = "") {
+    super(message);
+    this.name = "GitDiffError";
+    this.stderr = stderr;
+  }
+}
+
 export function candidateRefs(argv, env) {
   const baseFlag = argv.indexOf("--base");
   const explicit = baseFlag === -1 ? "" : (argv[baseFlag + 1] ?? "");
@@ -44,8 +52,9 @@ export function diffNames(cwd, ref, filter) {
       stdio: ["ignore", "pipe", "pipe"],
     });
     return stdout.split("\n").map((line) => line.trim()).filter(Boolean);
-  } catch {
-    return [];
+  } catch (error) {
+    const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
+    throw new GitDiffError(`git diff ${ref} falló`, stderr.trim());
   }
 }
 
@@ -53,8 +62,7 @@ export function diffNames(cwd, ref, filter) {
 export function changedSinceBase(cwd, filter, argv = process.argv, env = process.env) {
   const names = new Set(diffNames(cwd, "HEAD", filter));
   const base = resolveMergeBase(cwd, argv, env);
-  if (base) {
-    for (const name of diffNames(cwd, base, filter)) names.add(name);
-  }
+  if (!base) throw new GitDiffError("sin base para el diff");
+  for (const name of diffNames(cwd, base, filter)) names.add(name);
   return names;
 }

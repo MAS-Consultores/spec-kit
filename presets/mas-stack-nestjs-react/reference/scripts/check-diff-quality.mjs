@@ -118,17 +118,22 @@ async function lintDiff() {
     return;
   }
   const base = resolveMergeBase(gitRoot);
+  if (!base) {
+    console.error("check-diff-quality: sin base para el diff");
+    process.exit(1);
+  }
   let diffText = "";
-  if (base) {
-    try {
-      diffText = execFileSync("git", ["diff", "-U0", base, "--", prefix || "."], {
-        cwd: gitRoot,
-        encoding: "utf8",
-      });
-    } catch (error) {
-      const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
-      diffText = stdout;
-    }
+  try {
+    diffText = execFileSync("git", ["diff", "-U0", base, "--", prefix || "."], {
+      cwd: gitRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
+    console.error("check-diff-quality: git diff falló");
+    if (stderr) console.error(stderr);
+    process.exit(1);
   }
   const map = addedLineMap(diffText);
   if (prefix) {

@@ -1,5 +1,8 @@
 name: e2e-critical
 
+permissions:
+  contents: read
+
 on:
   pull_request:
 

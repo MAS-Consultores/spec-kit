@@ -427,7 +427,11 @@ def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker(tmp_path: Path
     bindir.mkdir()
     log = repo / "pnpm.log"
     (bindir / "pnpm").write_text(
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\nexit 0\n",
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\n"
+        "mkdir -p reports/mutation\n"
+        "printf '%s\\n' '{\"files\":{\"src/a.ts\":{\"mutants\":[{\"status\":\"Killed\",\"coveredBy\":[\"t\"]}]}}}' > reports/mutation/mutation.json\n"
+        "exit 0\n",
         encoding="utf-8",
     )
     (bindir / "pnpm").chmod(0o755)
@@ -445,3 +449,145 @@ def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker(tmp_path: Path
     assert ran.returncode == 0, ran.stdout + ran.stderr
     assert "sin archivos mutables" not in ran.stdout
     assert "exec stryker run" in log.read_text(encoding="utf-8")
+
+
+def _workflow_permissions(document: object) -> bool:
+    if not isinstance(document, dict):
+        return False
+    permissions = document.get("permissions")
+    if isinstance(permissions, dict) and permissions.get("contents") == "read":
+        return True
+    jobs = document.get("jobs")
+    if not isinstance(jobs, dict) or not jobs:
+        return False
+    for job in jobs.values():
+        job_permissions = job.get("permissions") if isinstance(job, dict) else None
+        if not isinstance(job_permissions, dict) or job_permissions.get("contents") != "read":
+            return False
+    return True
+
+
+def test_d19_09_failed_diff_missing_base_permissions_and_incremental(tmp_path: Path) -> None:
+    repo = tmp_path / "one"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "mutation@example.com")
+    _git(repo, "config", "user.name", "mutation")
+    (repo / "quality-gates.json").write_text(
+        json.dumps({"mutation": {"modules": ["auth"], "threshold": 80, "paths": {"auth": "apps/api/src/modules/auth"}}}),
+        encoding="utf-8",
+    )
+    service = repo / "apps/api/src/modules/auth/auth.service.ts"
+    service.parent.mkdir(parents=True)
+    service.write_text("export const value = 1;\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "only")
+    alone = subprocess.run(["node", str(SCRIPT)], cwd=repo, capture_output=True, text=True, env=_clean_env(), check=False)
+    assert alone.returncode != 0, alone.stdout
+    assert "sin archivos mutables" not in alone.stdout
+    assert "sin base" in alone.stderr
+
+    if os.name == "nt":
+        workflows = REFERENCE / ".github" / "workflows"
+        for path in workflows.glob("*.yml"):
+            document = yaml.safe_load(path.read_text(encoding="utf-8"))
+            assert _workflow_permissions(document), path.name
+        return
+
+    seeded = tmp_path / "seeded"
+    seeded.mkdir()
+    _git(seeded, "init", "-q", "-b", "main")
+    _git(seeded, "config", "user.email", "mutation@example.com")
+    _git(seeded, "config", "user.name", "mutation")
+    (seeded / "quality-gates.json").write_text((repo / "quality-gates.json").read_text(encoding="utf-8"), encoding="utf-8")
+    _git(seeded, "add", "quality-gates.json")
+    _git(seeded, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "base")
+    auth = seeded / "apps/api/src/modules/auth/auth.service.ts"
+    auth.parent.mkdir(parents=True)
+    auth.write_text("export const value = 1;\n", encoding="utf-8")
+    _git(seeded, "add", ".")
+    _git(seeded, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature")
+    _git(seeded, "update-ref", "refs/remotes/origin/main", "HEAD~1")
+    _git(seeded, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    git_stub = bindir / "git"
+    git_stub.write_text(
+        "#!/bin/sh\n"
+        "for arg in \"$@\"; do\n"
+        "  if [ \"$arg\" = diff ]; then echo diff-roto >&2; exit 1; fi\n"
+        "done\n"
+        "exec /usr/bin/git \"$@\"\n",
+        encoding="utf-8",
+    )
+    git_stub.chmod(0o755)
+    env = _clean_env()
+    env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+    broken = subprocess.run(["node", str(SCRIPT)], cwd=seeded, capture_output=True, text=True, env=env, check=False)
+    assert broken.returncode != 0, broken.stdout
+    assert "sin archivos mutables" not in broken.stdout
+    assert "diff-roto" in broken.stderr
+
+    probe = tmp_path / "probe.mjs"
+    probe.write_text(
+        "import { diffNames } from " + json.dumps(str(REFERENCE / "scripts" / "lib" / "diff-base.mjs")) + ";\n"
+        "try { diffNames(process.cwd(), 'HEAD', 'ACMR'); console.log('swallowed'); }\n"
+        "catch (error) { console.error(error.stderr || error.message); process.exit(2); }\n",
+        encoding="utf-8",
+    )
+    swallowed = subprocess.run(["node", str(probe)], cwd=seeded, capture_output=True, text=True, env=env, check=False)
+    assert swallowed.returncode == 2, swallowed.stdout
+    assert "diff-roto" in swallowed.stderr
+
+    workflows = REFERENCE / ".github" / "workflows"
+    for path in workflows.glob("*.yml"):
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert _workflow_permissions(document), path.name
+    quality = yaml.safe_load((workflows / "diff-quality.yml").read_text(encoding="utf-8"))
+    cache = next(step for step in quality["jobs"]["mutation"]["steps"] if step.get("uses", "").startswith("actions/cache"))
+    assert "apps/api/src/**/*.ts" in cache["with"]["key"]
+
+    if os.name == "nt":
+        return
+    covered = tmp_path / "covered"
+    covered.mkdir()
+    _git(covered, "init", "-q", "-b", "main")
+    _git(covered, "config", "user.email", "mutation@example.com")
+    _git(covered, "config", "user.name", "mutation")
+    (covered / "quality-gates.json").write_text((repo / "quality-gates.json").read_text(encoding="utf-8"), encoding="utf-8")
+    _git(covered, "add", "quality-gates.json")
+    _git(covered, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "base")
+    target = covered / "apps/api/src/modules/auth/auth.service.ts"
+    target.parent.mkdir(parents=True)
+    target.write_text("export const value = 1;\n", encoding="utf-8")
+    _git(covered, "add", ".")
+    _git(covered, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature")
+    _git(covered, "update-ref", "refs/remotes/origin/main", "HEAD~1")
+    _git(covered, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    pnpm_dir = tmp_path / "pnpm-bin"
+    pnpm_dir.mkdir()
+    count = tmp_path / "count"
+    (pnpm_dir / "pnpm").write_text(
+        "#!/bin/sh\n"
+        "n=0\n"
+        "if [ -f \"$COUNT\" ]; then n=$(cat \"$COUNT\"); fi\n"
+        "n=$((n+1))\n"
+        "printf '%s' \"$n\" > \"$COUNT\"\n"
+        "mkdir -p reports/mutation\n"
+        "if [ \"$n\" = 1 ]; then\n"
+        "  printf '%s\\n' '{\"files\":{\"src/a.ts\":{\"mutants\":[{\"status\":\"Killed\"}]}}}' > reports/mutation/mutation.json\n"
+        "else\n"
+        "  printf '%s\\n' '{\"files\":{\"src/a.ts\":{\"mutants\":[{\"status\":\"Killed\",\"coveredBy\":[\"t\"]}]}}}' > reports/mutation/mutation.json\n"
+        "fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    (pnpm_dir / "pnpm").chmod(0o755)
+    (covered / "apps/api/.stryker-incremental.json").write_text("{}\n", encoding="utf-8")
+    run_env = _clean_env()
+    run_env["PATH"] = f"{pnpm_dir}{os.pathsep}{run_env.get('PATH', '')}"
+    run_env["COUNT"] = str(count)
+    retried = subprocess.run(["node", str(SCRIPT), "--run"], cwd=covered, capture_output=True, text=True, env=run_env, check=False)
+    assert retried.returncode == 0, retried.stdout + retried.stderr
+    assert count.read_text(encoding="utf-8") == "2"
+    assert "se descarta el incremental" in retried.stderr

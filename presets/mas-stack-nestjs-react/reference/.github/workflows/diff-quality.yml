@@ -1,5 +1,8 @@
 name: Diff quality
 
+permissions:
+  contents: read
+
 on:
   pull_request:
 
@@ -87,7 +90,7 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: apps/api/.stryker-incremental.json
-          key: stryker-incremental-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'quality-gates.json', 'scripts/check-mutation.mjs') }}
+          key: stryker-incremental-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'quality-gates.json', 'scripts/check-mutation.mjs', 'apps/api/src/**/*.ts', 'apps/api/**/*.spec.ts') }}
 
       - name: Mutation
         run: node scripts/check-mutation.mjs --run

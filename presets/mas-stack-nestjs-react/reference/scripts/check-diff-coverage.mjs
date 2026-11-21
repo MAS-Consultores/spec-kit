@@ -107,11 +107,21 @@ function collectDiff() {
     ? override
     : execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
   const base = resolveMergeBase(gitRoot);
-  if (!base) return "";
+  if (!base) {
+    console.error("check-diff-coverage: sin base para el diff");
+    process.exit(1);
+  }
   try {
-    return execFileSync("git", ["diff", "-U0", base], { cwd: gitRoot, encoding: "utf8" });
+    return execFileSync("git", ["diff", "-U0", base], {
+      cwd: gitRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
   } catch (error) {
-    return error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+    const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
+    console.error("check-diff-coverage: git diff falló");
+    if (stderr) console.error(stderr);
+    process.exit(1);
   }
 }
 

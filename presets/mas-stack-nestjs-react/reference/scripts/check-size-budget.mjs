@@ -8,7 +8,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, w
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { changedSinceBase } from "./lib/diff-base.mjs";
+import { changedSinceBase, GitDiffError } from "./lib/diff-base.mjs";
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -79,14 +79,16 @@ function selfTest() {
     const dir = join(root, "apps", "api", "src", "modules", "auth");
     execFileSync("mkdir", ["-p", dir]);
     writeFileSync(join(dir, "old.ts"), "export const a = 1;\nexport const b = 2;\nexport const c = 3;\nexport const d = 4;\n", "utf8");
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: root });
+    execFileSync("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], { cwd: root });
+    execFileSync("git", ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], { cwd: root });
     const warned = reviewSize(root);
     if (warned.errors.length || warned.warnings.length === 0) {
       console.error("un archivo viejo por encima del tope tiene que avisar, no fallar");
       process.exit(1);
     }
-    execFileSync("git", ["init", "-q"], { cwd: root });
-    execFileSync("git", ["add", "."], { cwd: root });
-    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: root });
     writeFileSync(join(dir, "new.ts"), "export const a = 1;\nexport const b = 2;\nexport const c = 3;\nexport const d = 4;\n", "utf8");
     execFileSync("git", ["add", "apps/api/src/modules/auth/new.ts"], { cwd: root });
     const failed = reviewSize(root);
@@ -115,10 +117,14 @@ function selfTest() {
     console.error(".size-limit.json no cubre el bundle inicial");
     process.exit(1);
   }
-  const live = reviewSize(referenceRoot);
-  if (live.errors.length) {
-    console.error(live.errors.join("\n"));
-    process.exit(1);
+  try {
+    const live = reviewSize(referenceRoot);
+    if (live.errors.length) {
+      console.error(live.errors.join("\n"));
+      process.exit(1);
+    }
+  } catch (error) {
+    if (!(error instanceof GitDiffError)) throw error;
   }
   console.log("check-size-budget self-test ok");
 }
@@ -157,12 +163,21 @@ function enforceBundle(root) {
 if (process.argv.includes("--self-test")) selfTest();
 else {
   const root = process.cwd();
-  const live = reviewSize(root);
+  let live = { errors: [], warnings: [] };
+  let diffError = null;
+  try {
+    live = reviewSize(root);
+  } catch (error) {
+    diffError = error;
+    console.error(error instanceof Error ? error.message : String(error));
+    if (error instanceof GitDiffError && error.stderr) console.error(error.stderr);
+  }
   for (const warning of live.warnings) console.log(`warn ${warning}`);
   if (live.errors.length) {
     console.error(live.errors.join("\n"));
     process.exit(1);
   }
   enforceBundle(root);
+  if (diffError) process.exit(1);
   console.log("check-size-budget ok");
 }

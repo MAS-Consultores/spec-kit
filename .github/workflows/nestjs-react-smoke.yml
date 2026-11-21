@@ -510,6 +510,10 @@ jobs:
             --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
           cp -a "$work/.specify/reference/." "$work/"
           cd "$work"
+          git add -A
+          git -c commit.gpgsign=false commit -q -m base
+          git update-ref refs/remotes/origin/main HEAD
+          git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
           pnpm install --frozen-lockfile
           eslint_cache_src="${GITHUB_WORKSPACE}/presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint"
           eslint_cache_dst="${work}/node_modules/.cache/eslint"
@@ -724,6 +728,10 @@ jobs:
             --ignore-agent-tools --script sh --skip-external-skills --non-interactive --force
           cp -a "$work/.specify/reference/." "$work/"
           cd "$work"
+          git add -A
+          git -c commit.gpgsign=false commit -q -m base
+          git update-ref refs/remotes/origin/main HEAD
+          git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
           pnpm install --frozen-lockfile
           eslint_cache_src="${GITHUB_WORKSPACE}/presets/mas-stack-nestjs-react/reference/node_modules/.cache/eslint"
           eslint_cache_dst="${work}/node_modules/.cache/eslint"
