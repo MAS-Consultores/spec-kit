@@ -26,7 +26,10 @@ El test del service es un spec al lado. El e2e vive en `apps/api/test`.
 Cada handler lleva `@Public()`, `@Authenticated()` o `@Can`.
 Un público es `@Public()` y la spec dice por qué. Lo exige `scripts/check-casl.ts` (`pnpm casl`).
 Validá la entrada con el DTO de `{{scope-contracts}}`.
-Filtrá las filas en el repository. Sin columna tenant. El criterio está en `.specify/memory/constitution.md`.
+Filtrá las filas en el repository. Sin columna tenant.
+La autorización es `@casl/ability` 7.1.3, junto a los guards.
+Está en `.specify/presets/mas-stack-nestjs-react/templates/approved-libraries.md`.
+El criterio de filas está en `.specify/memory/constitution.md`.
 No uses `$queryRawUnsafe`. No hay regla con ese nombre: Prisma sigue en el repository.
 Archivos con tipo real y tope: `mas/multipart-upload-limits` y `mas/no-client-file-type-trust`.
 No loguees secretos ni datos personales. El redact está en `.specify/memory/security-guidelines.md`.
