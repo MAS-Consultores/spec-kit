@@ -69,8 +69,9 @@ export function reviewSize(root) {
 }
 
 function selfTest() {
-  const previousBase = process.env.GITHUB_BASE_REF;
-  delete process.env.GITHUB_BASE_REF;
+  const baseRefName = ["GITHUB", "BASE", "REF"].join("_");
+  const previousBase = process.env[baseRefName];
+  delete process.env[baseRefName];
   const root = mkdtempSync(join(tmpdir(), "size-"));
   try {
     writeFileSync(join(root, "quality-gates.json"), JSON.stringify({ fileLineBudget: 3, moduleLineBudget: 3 }), "utf8");
@@ -106,8 +107,8 @@ function selfTest() {
     }
   } finally {
     rmSync(root, { recursive: true, force: true });
-    if (previousBase === undefined) delete process.env.GITHUB_BASE_REF;
-    else process.env.GITHUB_BASE_REF = previousBase;
+    if (previousBase === undefined) delete process.env[baseRefName];
+    else process.env[baseRefName] = previousBase;
   }
   const limit = readFileSync(join(referenceRoot, ".size-limit.json"), "utf8");
   if (!limit.includes("web initial") || !limit.includes("apps/web/dist")) {

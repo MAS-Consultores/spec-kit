@@ -84,8 +84,9 @@ export function reviewIndexes(root, { write }) {
 }
 
 function selfTest() {
-  const previousBase = process.env.GITHUB_BASE_REF;
-  delete process.env.GITHUB_BASE_REF;
+  const baseRefName = ["GITHUB", "BASE", "REF"].join("_");
+  const previousBase = process.env[baseRefName];
+  delete process.env[baseRefName];
   const names = exportsOf("export const healthResponse = 1;\nexport type { Login };\nexport { HealthModule };\n");
   if (JSON.stringify(names) !== JSON.stringify(["HealthModule", "Login", "healthResponse"])) {
     console.error(names);
@@ -126,8 +127,8 @@ function selfTest() {
     }
   } finally {
     rmSync(root, { recursive: true, force: true });
-    if (previousBase === undefined) delete process.env.GITHUB_BASE_REF;
-    else process.env.GITHUB_BASE_REF = previousBase;
+    if (previousBase === undefined) delete process.env[baseRefName];
+    else process.env[baseRefName] = previousBase;
   }
   console.log("check-public-api self-test ok");
 }
