@@ -5,14 +5,21 @@
  *
  *   node scripts/check-mutation.mjs --self-test
  *   node scripts/check-mutation.mjs --run
+ *
+ * The diff is `merge-base(HEAD, base)..HEAD`, not the dirty working tree.
+ * Base resolution: `--base`, then `GITHUB_BASE_REF`, then the default branch
+ * (`origin/HEAD`), `origin/main`, `origin/master`, then `HEAD^`.
  */
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
+const vitestRunner = "@stryker-mutator/vitest-runner";
+const vitestRunnerVersion = "10.1.1";
 
 export function mutationPlan(gates, changedFiles) {
   const modules = gates.mutation?.modules ?? [];
@@ -26,7 +33,7 @@ export function mutationPlan(gates, changedFiles) {
       return folder && (file === folder || file.startsWith(`${folder}/`));
     });
     if (!moduleName) continue;
-    if (file.endsWith(".spec.ts") || file.endsWith(".test.ts")) continue;
+    if (!file.endsWith(".ts") || file.endsWith(".spec.ts") || file.endsWith(".test.ts")) continue;
     mutate.push(file);
   }
   for (const name of modules) {
@@ -39,13 +46,74 @@ function readGates(root) {
   return JSON.parse(readFileSync(join(root, "quality-gates.json"), "utf8"));
 }
 
-function changedFiles(root) {
-  const result = spawnSync("git", ["diff", "--name-only", "--diff-filter=ACMR", "HEAD"], {
+function git(cwd, args) {
+  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+}
+
+export function candidateRefs(argv, env) {
+  const baseFlag = argv.indexOf("--base");
+  const explicit = baseFlag === -1 ? "" : (argv[baseFlag + 1] ?? "");
+  const fallback = [];
+  const githubBase = env.GITHUB_BASE_REF ?? "";
+  if (explicit) fallback.push(explicit);
+  if (githubBase) fallback.push(`origin/${githubBase}`, githubBase);
+  fallback.push("origin/HEAD", "origin/main", "origin/master", "HEAD^");
+  return [...new Set(fallback.filter(Boolean))];
+}
+
+export function resolveMergeBase(cwd, argv = process.argv, env = process.env) {
+  for (const ref of candidateRefs(argv, env)) {
+    try {
+      git(cwd, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+    } catch {
+      continue;
+    }
+    try {
+      return git(cwd, ["merge-base", "HEAD", ref]);
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+function changedFiles(root, argv = process.argv, env = process.env) {
+  const base = resolveMergeBase(root, argv, env);
+  if (!base) return [];
+  const result = spawnSync("git", ["diff", "--name-only", "--diff-filter=ACMR", base, "HEAD"], {
     cwd: root,
     encoding: "utf8",
   });
   if (result.status !== 0) return [];
   return result.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+function cleanEnv() {
+  const env = { ...process.env };
+  delete env.GITHUB_BASE_REF;
+  return env;
+}
+
+function assertVitestRunner() {
+  const pkg = JSON.parse(readFileSync(join(referenceRoot, "package.json"), "utf8"));
+  if (pkg.devDependencies?.[vitestRunner] !== vitestRunnerVersion) {
+    console.error(`falta ${vitestRunner} ${vitestRunnerVersion}`);
+    process.exit(1);
+  }
+  const lock = readFileSync(join(referenceRoot, "pnpm-lock.yaml"), "utf8");
+  if (!lock.includes(`'${vitestRunner}@${vitestRunnerVersion}'`)) {
+    console.error("el lockfile no fija el runner de vitest");
+    process.exit(1);
+  }
+  if (!existsSync(join(referenceRoot, "node_modules"))) return;
+  const require = createRequire(join(referenceRoot, "package.json"));
+  try {
+    require.resolve(vitestRunner);
+  } catch (error) {
+    console.error("el runner vitest está declarado y no se resuelve");
+    console.error(error);
+    process.exit(1);
+  }
 }
 
 function selfTest() {
@@ -94,6 +162,76 @@ function selfTest() {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+  const refs = candidateRefs(["node", "check-mutation.mjs"], {});
+  if (refs.includes("origin/testing") || refs[0] !== "origin/HEAD") {
+    console.error("el fallback no puede quedar en testing");
+    process.exit(1);
+  }
+  const script = fileURLToPath(import.meta.url);
+  const committed = mkdtempSync(join(tmpdir(), "mutation-git-"));
+  try {
+    const run = (args) => spawnSync(process.execPath, [script, ...args], { cwd: committed, encoding: "utf8", env: cleanEnv() });
+    git(committed, ["init", "-q"]);
+    git(committed, ["config", "user.email", "mutation@example.com"]);
+    git(committed, ["config", "user.name", "mutation"]);
+    writeFileSync(join(committed, "quality-gates.json"), JSON.stringify({
+      mutation: { modules: ["auth"], threshold: 80, paths: { auth: "apps/api/src/modules/auth" } },
+    }));
+    git(committed, ["add", "quality-gates.json"]);
+    git(committed, ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "base"]);
+    const service = join(committed, "apps/api/src/modules/auth/auth.service.ts");
+    mkdirSync(join(committed, "apps/api/src/modules/auth"), { recursive: true });
+    writeFileSync(service, "export const value = 1;\n");
+    git(committed, ["add", "."]);
+    git(committed, ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature"]);
+    const dirty = run([]);
+    if (dirty.status !== 0 || !dirty.stdout.includes("apps/api/src/modules/auth/auth.service.ts")) {
+      console.error("un diff ya commiteado no puede saltarse la mutación");
+      console.error(dirty.stdout);
+      console.error(dirty.stderr);
+      process.exit(1);
+    }
+    if (dirty.stdout.includes("sin diff")) {
+      console.error("el gate se saltó con un diff commiteado");
+      process.exit(1);
+    }
+  } finally {
+    rmSync(committed, { recursive: true, force: true });
+  }
+  const branched = mkdtempSync(join(tmpdir(), "mutation-base-"));
+  try {
+    const run = (args) => spawnSync(process.execPath, [script, ...args], { cwd: branched, encoding: "utf8", env: cleanEnv() });
+    git(branched, ["init", "-q", "-b", "main"]);
+    git(branched, ["config", "user.email", "mutation@example.com"]);
+    git(branched, ["config", "user.name", "mutation"]);
+    writeFileSync(join(branched, "quality-gates.json"), JSON.stringify({
+      mutation: { modules: ["auth"], threshold: 80, paths: { auth: "apps/api/src/modules/auth" } },
+    }));
+    git(branched, ["add", "quality-gates.json"]);
+    git(branched, ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "base"]);
+    const service = join(branched, "apps/api/src/modules/auth/auth.service.ts");
+    mkdirSync(join(branched, "apps/api/src/modules/auth"), { recursive: true });
+    writeFileSync(service, "export const value = 1;\n");
+    git(branched, ["add", "."]);
+    git(branched, ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature"]);
+    writeFileSync(join(branched, "README.md"), "nota\n");
+    git(branched, ["add", "README.md"]);
+    git(branched, ["-c", "commit.gpgsign=false", "commit", "-q", "-m", "nota"]);
+    git(branched, ["update-ref", "refs/remotes/origin/main", "HEAD~2"]);
+    git(branched, ["update-ref", "refs/remotes/origin/testing", "HEAD"]);
+    git(branched, ["update-ref", "refs/remotes/origin/master", "HEAD"]);
+    git(branched, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
+    const picked = run([]);
+    if (picked.status !== 0 || !picked.stdout.includes("apps/api/src/modules/auth/auth.service.ts") || picked.stdout.includes("sin diff")) {
+      console.error("el fallback tiene que usar la rama por defecto, no testing");
+      console.error(picked.stdout);
+      console.error(picked.stderr);
+      process.exit(1);
+    }
+  } finally {
+    rmSync(branched, { recursive: true, force: true });
+  }
+  assertVitestRunner();
   const product = readGates(referenceRoot);
   if (!product.mutation?.modules?.includes("auth") || product.mutation.threshold < 1) {
     console.error("quality-gates.json no configura la mutación");
@@ -120,10 +258,25 @@ function main() {
   }
   console.log(`mutate ${plan.mutate.join(" ")} threshold ${plan.threshold}`);
   if (!process.argv.includes("--run")) return;
-  const result = spawnSync("pnpm", ["exec", "stryker", "run", "--mutate", plan.mutate.join(",")], {
-    cwd: gatesRoot(),
+  const root = gatesRoot();
+  const apiPrefix = "apps/api/";
+  const relative = plan.mutate.map((file) => (file.startsWith(apiPrefix) ? file.slice(apiPrefix.length) : file));
+  const configDir = mkdtempSync(join(tmpdir(), "stryker-config-"));
+  const configFile = join(configDir, "stryker.config.json");
+  writeFileSync(configFile, JSON.stringify({
+    testRunner: "vitest",
+    plugins: [vitestRunner],
+    reporters: ["clear-text"],
+    coverageAnalysis: "perTest",
+    concurrency: 2,
+    mutate: relative,
+    thresholds: { high: plan.threshold, low: plan.threshold, break: plan.threshold },
+  }));
+  const result = spawnSync("pnpm", ["exec", "stryker", "run", configFile], {
+    cwd: join(root, "apps/api"),
     stdio: "inherit",
   });
+  rmSync(configDir, { recursive: true, force: true });
   process.exit(result.status ?? 1);
 }
 

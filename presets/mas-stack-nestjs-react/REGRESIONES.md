@@ -254,6 +254,12 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D18-08 | una feature no tenía ningún E2E `@critical` | `scripts/check-critical-e2e.mjs --self-test`. El job `e2e-critical` es bloqueante. La protección de ramas la configura Manuel |
 | D18-09 | un test fuera de la fidelidad visual tomaba una captura | `scripts/check-visual-policy.mjs --self-test`. El job `visual` tiene `timeout-minutes: 2` y bloquea: en CI entró en 25 s |
 
+## Gate de mutación (v1.4.3-mas.4.1)
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D19-01 | en CI, con el árbol limpio, el diff contra el working tree salía vacío y el gate se saltaba; además faltaba `@stryker-mutator/vitest-runner` | `tests/test_mas_nestjs_d19.py`: en un repo con dos commits el archivo entra al plan y no se imprime «sin diff». `scripts/check-mutation.mjs --self-test` cae a `origin/HEAD` (no a `testing`) y resuelve el runner 10.1.1 cuando `node_modules` está instalado |
+
 ## Versiones probadas
 
 `specify init --stack nestjs-react` copia `pnpm-lock.yaml` y los `package.json` del esqueleto a `.specify/reference/`. Lo comprueba `test_reference_lockfile_is_what_init_installs`. El job `reference` hace `pnpm install --frozen-lockfile` sobre esa copia. Renovate solo actualiza el esqueleto (`renovate.json`); ese PR tiene que pasar este workflow. Así se cumple «última estable» sin resolver versiones en cada proyecto.
