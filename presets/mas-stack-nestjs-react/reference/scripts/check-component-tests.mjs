@@ -77,11 +77,11 @@ function selfTest() {
   }
   const noShell = runComponentGate(join(fixtureRoot, "no-shell"));
   if (noShell.length !== 1 || !noShell[0].endsWith("complex-panel.tsx")) {
-    console.error(`self-test: sin shell se esperaba el widget, llegó ${noShell.join(",")}`);
+    console.error(`self-test: sin shell se esperaba el panel, llegó ${noShell.join(",")}`);
     process.exit(1);
   }
   const custom = runComponentGate(join(fixtureRoot, "custom"));
-  if (custom.length !== 1 || !custom[0].startsWith("widgets")) {
+  if (custom.length !== 1 || !custom[0].startsWith("panels")) {
     console.error(`self-test: quality-gates.json debe limitar las raíces, llegó ${custom.join(",")}`);
     process.exit(1);
   }

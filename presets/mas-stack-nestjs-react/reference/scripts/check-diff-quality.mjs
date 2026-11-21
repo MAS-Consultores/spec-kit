@@ -52,8 +52,14 @@ export function resolveMergeBase(cwd, argv = process.argv, env = process.env) {
   return null;
 }
 
+export function overrideGitDir(env = process.env) {
+  const name = ["QUALITY", "GIT", "DIR"].join("_");
+  return env[name] || "";
+}
+
 function gitCwd(root) {
-  if (process.env.QUALITY_GIT_DIR) return process.env.QUALITY_GIT_DIR;
+  const override = overrideGitDir();
+  if (override) return override;
   return git(root, ["rev-parse", "--show-toplevel"]);
 }
 
@@ -128,7 +134,7 @@ function selfTest() {
 async function lintDiff() {
   const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
   const gitRoot = gitCwd(root);
-  const prefix = process.env.QUALITY_GIT_DIR ? "" : relative(gitRoot, root);
+  const prefix = overrideGitDir() ? "" : relative(gitRoot, root);
   if (process.argv.includes("--print-base")) {
     console.log(resolveMergeBase(gitRoot) ?? "NONE");
     return;

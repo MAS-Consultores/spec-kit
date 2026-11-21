@@ -234,7 +234,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | --- | --- | --- |
 | D17-01 | el diff de calidad comparaba contra `HEAD` y ESLint arrancaba con `overrideConfigFile: true`, así que un checkout limpio de CI no veía el PR ni las reglas del proyecto | `tests/test_mas_nestjs_d17.py`: `--print-base` imprime el merge-base de `GITHUB_BASE_REF`. El script no usa `overrideConfigFile`. `.github/workflows/diff-quality.yml` hace `fetch-depth: 0` |
 | D17-02 | sin `--lcov` y `--diff` el gate de cobertura salía 0, y `pnpm lint` solo corría el self-test | el mismo test: el script sin flags sale distinto de 0; `pnpm verify` contiene `--gate` y `pnpm lint` solo `--self-test` |
-| D17-03 | el gate de componentes exigía `apps/web/src/shell` | `check-component-tests.mjs --self-test` imprime `no-shell ok` (fixture sin esa carpeta, y `quality-gates.json` que apunta a `widgets`) |
+| D17-03 | el gate de componentes exigía `apps/web/src/shell` | `check-component-tests.mjs --self-test` imprime `no-shell ok` (fixture sin esa carpeta, y `quality-gates.json` que apunta a `panels`) |
 | D17-04 | el self-test del trinquete leía `scripts/check-gen-fitness.mjs` | `check-quality-baseline.mjs --self-test` acepta un temporal llamado `check-module-fitness.mjs` vía `jscpdSkipScripts` |
 | D17-05 | dependency-cruiser no resolvía `exports`, y knip no tenía ignores de producto | `.dependency-cruiser.cjs` tiene `enhancedResolveOptions`. `knip.product.json` existe y `run-knip.mjs` lo fusiona |
 | D17-06 | `mas/no-hidden-service-deps` estaba en error y rompía `Date.now()` / `new Date()` ya presentes | `eslint.config.js` lo deja en `warn`. `ADOPTION_RULES` lo incluye. El self-test de `check-diff-quality.mjs` falla si esa regla aparece en una línea nueva |

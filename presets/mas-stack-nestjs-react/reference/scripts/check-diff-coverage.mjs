@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addedLineMap, resolveMergeBase } from "./check-diff-quality.mjs";
+import { addedLineMap, overrideGitDir, resolveMergeBase } from "./check-diff-quality.mjs";
 
 const DEFAULT_THRESHOLD = 0.8;
 
@@ -88,8 +88,9 @@ function projectRoot() {
 
 function collectDiff() {
   const root = projectRoot();
-  const gitRoot = process.env.QUALITY_GIT_DIR
-    ? process.env.QUALITY_GIT_DIR
+  const override = overrideGitDir();
+  const gitRoot = override
+    ? override
     : execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
   const base = resolveMergeBase(gitRoot);
   if (!base) return "";
