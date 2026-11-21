@@ -626,10 +626,10 @@ def test_d19_10_empty_or_low_score_and_empty_covered_by_fail(tmp_path: Path) -> 
     probe = tmp_path / "score.mjs"
     probe.write_text(
         "import { mutationScore, perTestCoverageOk } from "
-        + json.dumps(str(SCRIPT))
+        + json.dumps(SCRIPT.as_uri())
         + ";\n"
         "import { gitDiffFailureText } from "
-        + json.dumps(str(REFERENCE / "scripts" / "check-diff-coverage.mjs"))
+        + json.dumps((REFERENCE / "scripts" / "check-diff-coverage.mjs").as_uri())
         + ";\n"
         "const ignored = { files: { a: { mutants: [{ status: 'Ignored' }, { status: 'NoCoverage' }] } } };\n"
         "if (perTestCoverageOk(ignored) || Number.isFinite(mutationScore(ignored))) process.exit(2);\n"
