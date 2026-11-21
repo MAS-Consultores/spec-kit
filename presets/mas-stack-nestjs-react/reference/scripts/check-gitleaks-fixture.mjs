@@ -41,10 +41,14 @@ function selfTest() {
   const bin = binFlag === -1 ? "" : process.argv[binFlag + 1];
   if (bin) {
     const dir = mkdtempSync(join(tmpdir(), "gitleaks-fixture-"));
-    writeFileSync(join(dir, "leak.ts"), SECRET + "\n");
+    writeFileSync(
+      join(dir, "leak.ts"),
+      "export const key = \"AKIAA1B2C3D4E5F6G7H8\";\nexport const aws_secret_access_key = \"abcdefghijklmnopqrstuvwxyz0123456789ABCD\";\n",
+      "utf8",
+    );
     let failed = false;
     try {
-      execFileSync(bin, ["detect", "--no-git", "--source", dir, "--redact", "--exit-code", "1"], { stdio: "pipe" });
+      execFileSync(bin, ["detect", "--no-git", "--source", dir, "--redact", "--exit-code", "1", "--config", configPath], { stdio: "pipe" });
     } catch {
       failed = true;
     }

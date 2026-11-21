@@ -3,7 +3,7 @@
  * new in the diff and over the budget is an error. size-limit covers the
  * initial web bundle when apps/web/dist exists; the config is always required.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
@@ -123,13 +123,33 @@ function selfTest() {
   console.log("check-size-budget self-test ok");
 }
 
+function enforceBundle(root) {
+  if (!existsSync(join(root, "apps", "web", "dist"))) return;
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  if (pkg.devDependencies?.["size-limit"] !== "14.3.0") {
+    console.error("size-limit tiene que ser 14.3.0");
+    process.exit(1);
+  }
+  const local = join(root, "node_modules", "size-limit", "bin.js");
+  const result = existsSync(local)
+    ? spawnSync(process.execPath, [local], { cwd: root, encoding: "utf8" })
+    : spawnSync("pnpm", ["exec", "size-limit"], { cwd: root, encoding: "utf8" });
+  if ((result.status ?? 1) !== 0) {
+    if (result.stdout) console.error(result.stdout);
+    if (result.stderr) console.error(result.stderr);
+    process.exit(result.status || 1);
+  }
+}
+
 if (process.argv.includes("--self-test")) selfTest();
 else {
-  const live = reviewSize(process.cwd());
+  const root = process.cwd();
+  const live = reviewSize(root);
   for (const warning of live.warnings) console.log(`warn ${warning}`);
   if (live.errors.length) {
     console.error(live.errors.join("\n"));
     process.exit(1);
   }
+  enforceBundle(root);
   console.log("check-size-budget ok");
 }

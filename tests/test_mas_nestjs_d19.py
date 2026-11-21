@@ -4,8 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+import platform
+import shutil
+import stat
 import subprocess
+import tarfile
+import urllib.request
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 REFERENCE = REPO / "presets" / "mas-stack-nestjs-react" / "reference"
@@ -98,17 +105,76 @@ def _commit(repo: Path, message: str) -> None:
     _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", message)
 
 
-def test_d19_02_gitleaks_config_keeps_default_rules() -> None:
-    config = (REFERENCE / ".gitleaks.toml").read_text(encoding="utf-8")
-    assert "useDefault = true" in config
+GITLEAKS_VERSION = "8.24.3"
+ACCESS_KEY = "AKIAA1B2C3D4E5F6G7H8"
+SECRET_KEY = "abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+
+
+def _gitleaks_archive() -> str:
+    machine = platform.machine().lower()
+    system = platform.system().lower()
+    if system == "linux" and machine in {"x86_64", "amd64"}:
+        return f"gitleaks_{GITLEAKS_VERSION}_linux_x64.tar.gz"
+    if system == "linux" and machine in {"aarch64", "arm64"}:
+        return f"gitleaks_{GITLEAKS_VERSION}_linux_arm64.tar.gz"
+    return ""
+
+
+def _gitleaks_bin() -> Path:
+    found = shutil.which("gitleaks")
+    if found:
+        version = subprocess.run([found, "version"], capture_output=True, text=True, check=False)
+        if version.returncode == 0 and version.stdout.strip().startswith("8.24."):
+            return Path(found)
+    archive = _gitleaks_archive()
+    if not archive:
+        pytest.skip("gitleaks 8.24.x no está en este runner")
+    dest = Path("/tmp") / f"gitleaks-{GITLEAKS_VERSION}"
+    binary = dest / "gitleaks"
+    if not binary.exists():
+        dest.mkdir(parents=True, exist_ok=True)
+        url = f"https://github.com/gitleaks/gitleaks/releases/download/v{GITLEAKS_VERSION}/{archive}"
+        blob = dest / archive
+        try:
+            urllib.request.urlretrieve(url, blob)
+            with tarfile.open(blob) as packed:
+                try:
+                    packed.extract("gitleaks", dest, filter="data")
+                except TypeError:
+                    packed.extract("gitleaks", dest)
+        except (OSError, tarfile.TarError, urllib.error.URLError) as error:
+            pytest.fail(f"en Linux gitleaks {GITLEAKS_VERSION} tiene que instalarse: {error}")
+        binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+    version = subprocess.run([str(binary), "version"], capture_output=True, text=True, check=False)
+    if version.returncode != 0 or not version.stdout.strip().startswith("8.24."):
+        pytest.fail(f"gitleaks no quedó en 8.24.x: {version.stdout} {version.stderr}")
+    return binary
+
+
+def test_d19_02_gitleaks_rejects_committed_aws_secrets(tmp_path: Path) -> None:
+    binary = _gitleaks_bin()
+    assert len(SECRET_KEY) == 40
+    assert ACCESS_KEY != "AKIAIOSFODNN7EXAMPLE"
+    assert "EXAMPLEKEY" not in SECRET_KEY
+    repo = tmp_path / "repo"
+    _init(repo)
+    (repo / ".gitleaks.toml").write_text((REFERENCE / ".gitleaks.toml").read_text(encoding="utf-8"), encoding="utf-8")
+    (repo / "leak.ts").write_text(
+        f'export const key = "{ACCESS_KEY}";\nexport const aws_secret_access_key = "{SECRET_KEY}";\n',
+        encoding="utf-8",
+    )
+    _commit(repo, "leak")
     result = subprocess.run(
-        ["node", str(REFERENCE / "scripts" / "check-gitleaks-fixture.mjs"), "--self-test"],
-        cwd=REFERENCE,
+        [str(binary), "detect", "--config", ".gitleaks.toml", "--exit-code", "1", "--redact", "--no-banner"],
+        cwd=repo,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
-    assert result.returncode == 0, result.stderr
+    assert result.returncode != 0, result.stdout
+    assert "leaks found: 2" in result.stderr or "leaks found: 2" in result.stdout
 
 
 def test_d19_03_committed_public_export_without_justification_is_an_error(tmp_path: Path) -> None:
@@ -214,3 +280,32 @@ process.stdout.write(JSON.stringify({ ok: result.ok, lineTotal: result.lineTotal
     payload = json.loads(result.stdout)
     assert payload["ok"] is False
     assert payload["lineTotal"] >= 1
+
+
+def test_d19_06_bundle_over_the_limit_fails_the_gate(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "package.json").write_text(
+        json.dumps({"private": True, "devDependencies": {"size-limit": "14.3.0", "@size-limit/file": "14.3.0"}}),
+        encoding="utf-8",
+    )
+    (repo / "quality-gates.json").write_text("{}\n", encoding="utf-8")
+    (repo / ".size-limit.json").write_text(
+        '[{"name":"web initial","path":"apps/web/dist/assets/*.js","limit":"500 kB"}]\n',
+        encoding="utf-8",
+    )
+    bundle = repo / "apps" / "web" / "dist" / "assets" / "index.js"
+    bundle.parent.mkdir(parents=True)
+    bundle.write_bytes(os.urandom(800 * 1024))
+    install = subprocess.run(
+        ["npm", "install", "--ignore-scripts", "--no-audit", "--no-fund"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert install.returncode == 0, install.stderr
+    result = _node([str(REFERENCE / "scripts" / "check-size-budget.mjs")], repo)
+    assert result.returncode != 0, result.stdout
+    combined = f"{result.stdout}\n{result.stderr}"
+    assert "exceeded" in combined
