@@ -71,8 +71,31 @@ function knipCount() {
   }
 }
 
+function untrackedFiles() {
+  const listed = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  return new Set(
+    listed
+      .split("\n")
+      .map((line) => line.trim().replaceAll("\\", "/"))
+      .filter(Boolean),
+  );
+}
+
 function jscpdStats() {
   const output = mkdtempSync(join(tmpdir(), "jscpd-"));
+  const ignore = [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/generated/**",
+    "**/lint-fixtures/**",
+    "**/*.spec.ts",
+    "**/*.e2e.ts",
+    "**/coverage/**",
+    ...untrackedFiles(),
+  ];
   try {
     execFileSync(
       "pnpm",
@@ -91,7 +114,7 @@ function jscpdStats() {
         output,
         "--silent",
         "--ignore",
-        "**/node_modules/**,**/dist/**,**/generated/**,**/lint-fixtures/**,**/*.spec.ts,**/*.e2e.ts,**/coverage/**",
+        ignore.join(","),
       ],
       { cwd: root, stdio: "pipe" },
     );
