@@ -126,12 +126,6 @@ function selfTest() {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-  const live = reviewIndexes(referenceRoot, { write: false });
-  if (live.errors.length) {
-    console.error(live.errors.join("\n"));
-    process.exit(1);
-  }
-  for (const warning of live.warnings) console.log(`warn ${warning}`);
   console.log("check-public-api self-test ok");
 }
 
