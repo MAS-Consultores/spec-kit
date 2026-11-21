@@ -19,7 +19,7 @@ La historia de usuario lleva e2e de Playwright con axe.
 
 `dangerouslySetInnerHTML` solo con DOMPurify (`mas/no-dangerous-html-unsanitized`).
 La sesión va en cookie httpOnly. No guardes tokens en `localStorage`.
-Ocultar un botón no autoriza: el permiso lo decide la API con CASL.
+Ocultar un botón no autoriza: el permiso lo decide la API.
 Ningún `VITE_` lleva clave, secreto ni token (`mas/no-secret-in-client`).
 Detalle: `.specify/memory/security-guidelines.md`.
 
