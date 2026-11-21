@@ -48,24 +48,19 @@ export async function freePort(): Promise<number> {
   return port;
 }
 
-function canBind(port: number): Promise<boolean> {
+function isListening(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    const server = net.createServer();
-    let isSettled = false;
-    const finish = (isBound: boolean): void => {
-      if (isSettled) return;
-      isSettled = true;
-      resolve(isBound);
+    const socket = net.connect({ port, host: "127.0.0.1" });
+    const finish = (isOpen: boolean): void => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(isOpen);
     };
-    server.once("error", () => {
-      finish(false);
+    socket.once("connect", () => {
+      finish(true);
     });
-    server.listen(port, "127.0.0.1", () => {
-      setImmediate(() => {
-        server.close(() => {
-          finish(true);
-        });
-      });
+    socket.once("error", () => {
+      finish(false);
     });
   });
 }
@@ -80,18 +75,21 @@ async function httpOk(url: string): Promise<boolean> {
   }
 }
 
-export async function portsUsable(ports: E2ePorts): Promise<boolean> {
+export async function portsUsable(ports: E2ePorts, ageMs = Number.POSITIVE_INFINITY): Promise<boolean> {
   const isApiUp = await httpOk(`http://127.0.0.1:${String(ports.api)}/api/v1/health`);
   const isWebUp = await httpOk(`http://127.0.0.1:${String(ports.web)}/`);
   if (isApiUp && isWebUp) return true;
   if (isApiUp || isWebUp) return false;
-  return (await canBind(ports.api)) && (await canBind(ports.web));
+  const isBusy = (await isListening(ports.api)) || (await isListening(ports.web));
+  if (isBusy) return false;
+  return ageMs < 15_000;
 }
 
-function readCached(file: string, freshMs: number, now: number): E2ePorts | undefined {
+function readCached(file: string, freshMs: number, now: number): { ports: E2ePorts; ageMs: number } | undefined {
   if (!existsSync(file)) return undefined;
   const stat = statSync(file);
-  if (now - stat.mtimeMs > freshMs) return undefined;
+  const ageMs = now - stat.mtimeMs;
+  if (ageMs > freshMs) return undefined;
   const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
   if (
     typeof parsed === "object" &&
@@ -101,7 +99,7 @@ function readCached(file: string, freshMs: number, now: number): E2ePorts | unde
     typeof parsed.api === "number" &&
     typeof parsed.web === "number"
   ) {
-    return { api: parsed.api, web: parsed.web };
+    return { ports: { api: parsed.api, web: parsed.web }, ageMs };
   }
   return undefined;
 }
@@ -112,8 +110,8 @@ async function choosePortsOnce(options: {
   now: number;
 }): Promise<E2ePorts> {
   const cached = readCached(options.file, options.freshMs, options.now);
-  if (cached && (await portsUsable(cached))) {
-    return cached;
+  if (cached && (await portsUsable(cached.ports, cached.ageMs))) {
+    return cached.ports;
   }
   const ports = { api: await freePort(), web: await freePort() };
   writeFileSync(options.file, JSON.stringify(ports));
