@@ -133,13 +133,16 @@ Tests MUST exercise real production code; gates MUST pass before merge:
 
 ### No Screenshots in Tests
 
-Playwright and Vitest MUST NOT generate or store screenshots or image snapshots:
+Playwright and Vitest MUST NOT generate or store screenshots or image snapshots, with one exception: visual fidelity tests against the prototype (`toHaveScreenshot` in `apps/web/e2e/visual/`, baselines versioned, screens listed in `apps/web/e2e/visual/fidelity-map.json`).
+
 - `playwright.config.ts` MUST set `screenshot: 'off'`
-- MUST NOT use `page.screenshot()`, `toHaveScreenshot()`, or image snapshot matchers
+- MUST NOT use `page.screenshot()`, `toHaveScreenshot()`, or image snapshot matchers outside `apps/web/e2e/visual/`
+- The visual job is informative when it cannot finish in two minutes. Animations stay disabled, the clock and the locale are fixed, and the diff tolerance is `maxDiffPixelRatio`
+- An agent may look at the cropped diff image of a failed screen, at most two rounds. The agent MUST NOT take an ad hoc screenshot
 
 ### No Ad Hoc Screenshots by AI Agents
 
-AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.implement`, demos, or pilots—not with Playwright, not with a browser, and not with scripts. Visual review is performed by a human (revisión visual humana). Playwright + axe-core gates, including computed Tailwind style verification, remain mandatory and MUST run without screenshots (`screenshot: 'off'`; no `toHaveScreenshot()`; no `page.screenshot()`).
+AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.implement`, demos, or pilots—not with Playwright, not with a browser, and not with scripts. Visual review of product work is performed by a human (revisión visual humana), except the opted-in fidelity baselines above. Playwright + axe-core gates, including computed Tailwind style verification, remain mandatory and MUST run without screenshots (`screenshot: 'off'`; no `toHaveScreenshot()` outside `apps/web/e2e/visual/`; no `page.screenshot()`).
 
 ### Authentication and MCP Security
 

@@ -2,7 +2,8 @@ name: NestJS React stack smoke
 
 on:
   push:
-    branches: ["nestjs-react-support"]
+    branches: ["nestjs-react-support", "release/v1.4.3-mas.4"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -561,8 +562,9 @@ jobs:
             fi
             sleep 1
           done
-          curl -fsS "http://127.0.0.1:3999/api/v1/health"
+          curl -fsS "http://127.0.0.1:3999/api/v1/health" -o /tmp/health.json
           test "$ready" -eq 1
+          node scripts/check-api-contract.mjs --response /tmp/health.json
           cleanup_api
           api_pid=""
           trap - EXIT
@@ -603,6 +605,18 @@ jobs:
           node --experimental-strip-types apps/web/e2e/ports.ts --self-test
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
           node scripts/check-gen-fitness.mjs
+          mkdir -p "$GITHUB_WORKSPACE/harness-artifact"
+          if [ -f .specify/telemetry/runs.jsonl ]; then
+            cp .specify/telemetry/runs.jsonl "$GITHUB_WORKSPACE/harness-artifact/runs.jsonl"
+          fi
+
+      - name: Upload harness telemetry
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: harness-telemetry
+          path: harness-artifact/runs.jsonl
+          if-no-files-found: ignore
 
   skeleton-boot:
     runs-on: ubuntu-latest

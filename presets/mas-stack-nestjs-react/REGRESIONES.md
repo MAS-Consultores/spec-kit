@@ -240,6 +240,20 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D17-06 | `mas/no-hidden-service-deps` estaba en error y rompía `Date.now()` / `new Date()` ya presentes | `eslint.config.js` lo deja en `warn`. `ADOPTION_RULES` lo incluye. El self-test de `check-diff-quality.mjs` falla si esa regla aparece en una línea nueva |
 | D17-07 | el esqueleto no traía `AGENTS.md`, o un puntero nombraba un archivo que no existe | `scripts/check-agents-md.mjs --self-test`: falta un archivo, falla; un link a `no-such.md` falla; un `{{placeholder}}` y un archivo real pasan. `pnpm verify` corre el chequeo sobre los cuatro archivos |
 
+## Gates de la v1.4.3-mas.4
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D18-01 | la mutación corría el árbol entero o no tenía umbral | `scripts/check-mutation.mjs --self-test`: un archivo fuera de nómina, permisos y auth no entra; `auth.service.ts` sí; sin `threshold` el gate sale distinto de 0 |
+| D18-02 | un `index.ts` nuevo o tocado cambiaba exports sin snapshot ni motivo | `scripts/check-public-api.mjs --self-test`: sin snapshot es error; con diff y sin `JUSTIFICATION.md` es error; con el motivo pasa. Lo que no está en el diff solo avisa |
+| D18-03 | un archivo nuevo pasaba de 300 líneas, o faltaba el tope del bundle | `scripts/check-size-budget.mjs --self-test`: lo viejo avisa; lo nuevo en el diff es error. `.size-limit.json` nombra `web initial` |
+| D18-04 | la respuesta traía un campo que el contrato no nombra | `scripts/check-api-contract.mjs --self-test`: el campo extra es error; un campo viejo ausente avisa |
+| D18-05 | el CI no corría audit ni Semgrep | `.github/workflows/security.yml` contiene `pnpm audit` y `semgrep` |
+| D18-06 | la misma regla quedaba activa en ESLint y en oxlint, o al apagarla bajaba el trinquete | `scripts/check-oxlint-split.mjs --self-test` imprime `counts-equal`. El plugin va al final. El trinquete y el diff definen `HARNESS_ESLINT_FULL`. Un `oxlint-disable` solo es `hueco` |
+| D18-07 | verify no dejaba rastro del gate | `scripts/harness-telemetry.mjs --self-test` escribe una línea JSON sin secretos. El workflow de reference sube el artefacto `harness-telemetry` |
+| D18-08 | una feature no tenía ningún E2E `@critical` | `scripts/check-critical-e2e.mjs --self-test`. El job `e2e-critical` es bloqueante. La protección de ramas la configura Manuel |
+| D18-09 | un test fuera de la fidelidad visual tomaba una captura | `scripts/check-visual-policy.mjs --self-test`. El job `visual` tiene `timeout-minutes: 2` y `continue-on-error: true` |
+
 ## Versiones probadas
 
 `specify init --stack nestjs-react` copia `pnpm-lock.yaml` y los `package.json` del esqueleto a `.specify/reference/`. Lo comprueba `test_reference_lockfile_is_what_init_installs`. El job `reference` hace `pnpm install --frozen-lockfile` sobre esa copia. Renovate solo actualiza el esqueleto (`renovate.json`); ese PR tiene que pasar este workflow. Así se cumple «última estable» sin resolver versiones en cada proyecto.

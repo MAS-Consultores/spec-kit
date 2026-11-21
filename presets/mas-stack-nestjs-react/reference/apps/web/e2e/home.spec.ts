@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-test("home is in es-CL and has no axe violations", async ({ page }) => {
+test("home is in es-CL and has no axe violations", { tag: "@critical" }, async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Inicio" })).toBeVisible();
   await expect(page.getByText("12.345.678-5")).toBeVisible();

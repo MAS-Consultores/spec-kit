@@ -4,6 +4,11 @@ Aplica a `/speckit.converge` y a cualquier agente que corrija bugs sobre este st
 
 ## Loop
 
+Dos bucles:
+
+1. Rápido, sobre los archivos tocados: `pnpm exec oxlint` (menos de 200 ms).
+2. Al cerrar cada tarea: ESLint sobre esos archivos y después `pnpm verify`. El CI repite ese cierre.
+
 Después de implementar, y después de cada ronda de corrección, sobre lo que cambió:
 
 1. `pnpm lint` (reglas clean code, capas, knip, jscpd vía el trinquete, dependency-cruiser, fixtures).

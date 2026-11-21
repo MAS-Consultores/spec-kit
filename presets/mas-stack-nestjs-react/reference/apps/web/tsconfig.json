@@ -11,5 +11,5 @@
       "@demo/ui/*": ["../../packages/ui/src/*"]
     }
   },
-  "include": ["src", "e2e", "playwright.config.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "e2e", "playwright.config.ts", "playwright.critical.config.ts", "playwright.visual.config.ts", "vite.config.ts", "vitest.config.ts"]
 }

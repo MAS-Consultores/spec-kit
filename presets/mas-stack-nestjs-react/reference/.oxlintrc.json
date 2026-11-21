@@ -1,0 +1,48 @@
+{
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "plugins": ["typescript", "react", "import"],
+  "rules": {
+    "max-params": ["error", 3],
+    "max-depth": ["error", 3],
+    "typescript/no-explicit-any": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "import/no-cycle": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/*.service.ts",
+        "**/*.guard.ts",
+        "**/*.controller.ts",
+        "**/*.interceptor.ts",
+        "**/*.strategy.ts",
+        "**/*.repository.ts",
+        "**/*.module.ts"
+      ],
+      "rules": {
+        "max-params": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/generated/**",
+    "**/lint-fixtures/**",
+    "scripts/**",
+    "templates/**",
+    "**/*.cjs",
+    "**/*.mjs",
+    "eslint/**",
+    ".specify/**"
+  ]
+}

@@ -1,0 +1,25 @@
+name: Security scan
+
+on:
+  pull_request:
+
+jobs:
+  audit-and-semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit
+        run: pnpm audit --audit-level=high
+
+      - name: Semgrep
+        run: pipx install semgrep==1.186.0 && semgrep scan --config .semgrep.yml --error --metrics=off

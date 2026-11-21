@@ -1,3 +1,17 @@
 {
-  "componentRoots": ["apps/web/src"]
+  "componentRoots": ["apps/web/src"],
+  "fileLineBudget": 300,
+  "moduleLineBudget": 4000,
+  "features": [
+    { "name": "home", "spec": "apps/web/e2e/home.spec.ts" }
+  ],
+  "mutation": {
+    "threshold": 80,
+    "modules": ["nomina", "permisos", "auth"],
+    "paths": {
+      "auth": "apps/api/src/modules/auth",
+      "permisos": "apps/api/src/modules/auth",
+      "nomina": "apps/api/src/modules/nomina"
+    }
+  }
 }

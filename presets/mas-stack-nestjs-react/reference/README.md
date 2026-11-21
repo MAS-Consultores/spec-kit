@@ -104,7 +104,7 @@ Un `eslint-disable` sigue exigiendo `--` y un motivo. No hay excepciones globale
 
 ## ESLint más rápido, mismas reglas
 
-Sigue siendo ESLint 10.15.0 (última estable; ya trae `--concurrency`). No se usa Oxlint ni Oxfmt. `parserOptions.projectService` ya estaba en `true` en `eslint.config.js`; no hay un `project` aparte.
+`pnpm lint` llama a ESLint con `--cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto`. Oxlint 1.94.0 corre antes, con `pnpm lint:fast`, sobre las reglas nativas de `.oxlintrc.json`. ESLint sigue siendo el gate del trinquete y del diff: esos scripts definen `HARNESS_ESLINT_FULL=1` para no apagar esas reglas. `parserOptions.projectService` ya estaba en `true` en `eslint.config.js`; no hay un `project` aparte.
 
 `pnpm lint` llama a ESLint con `--cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto`. La caché vive bajo `node_modules/`, que git ignora. El contenido del archivo es la clave, así que un cambio de texto invalida esa entrada aunque la fecha no cambie. Los jobs `reference` y `skeleton-boot` restauran esa carpeta con `actions/cache` y la copian al árbol temporal antes del lint completo. El gate de CI sigue siendo `pnpm lint` / `pnpm verify` sobre todo el esqueleto.
 
@@ -115,5 +115,7 @@ En un proyecto donde este esqueleto es la raíz de git, `pnpm install` deja `cor
 Prisma 7 prints that Node majors above 24 are outside its narrow preinstall table. The Active LTS (26) is inside `engines.node` (`>=24`) and the warning is not a failure. pnpm may warn that some Nest packages declare peers up to Nest 11. Those peers are allowed in `pnpm-workspace.yaml` `peerDependencyRules`. Do not use `pnpm approve --all`.
 
 `pnpm audit` ignores `GHSA-fc5q-39xc-vjpf` (picomatch ReDoS). The latest stable picomatch is 4.0.7 and the advisory lists no patched release. The package is transitive through shadcn and fast-glob.
+
+La protección de ramas, incluido exigir el check `e2e-critical` en `testing` y en `main`, la configura Manuel. Este esqueleto no llama a la API de GitHub para proteger ramas.
 
 `effect` 3.22.0 (pulled by Prisma 7.10.1 through `@prisma/config`) is overridden to 3.22.1 so `GHSA-7589-6fvf-x4pw` stays closed. Prisma itself stays 7.10.1.

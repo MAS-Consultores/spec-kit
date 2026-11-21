@@ -3,11 +3,17 @@ import comments from "@eslint-community/eslint-plugin-eslint-comments";
 import boundaries from "eslint-plugin-boundaries";
 import importX from "eslint-plugin-import-x";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import oxlint from "eslint-plugin-oxlint";
 import reactHooks from "eslint-plugin-react-hooks";
 import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
 import { restrictedImports } from "./eslint/package2-rules.js";
 import mas, { boundaryElements, boundaryRule, envAllowFiles } from "./eslint/mas-plugin.js";
+
+const oxlintOwnedOff =
+  process.env.HARNESS_ESLINT_FULL === "1"
+    ? []
+    : oxlint.buildFromOxlintConfigFile(new URL("./.oxlintrc.json", import.meta.url).pathname);
 
 export default tseslint.config(
   eslint.configs.recommended,
@@ -81,6 +87,7 @@ export default tseslint.config(
       ],
       "mas/no-process-env": "error",
       "mas/require-disable-justification": "error",
+      "mas/no-eslint-disable": "error",
       "mas/prisma-only-in-repositories": "error",
       "mas/no-global-module": "error",
       "mas/no-module-state": "error",
@@ -214,4 +221,5 @@ export default tseslint.config(
       "**/lint-fixtures/**",
     ],
   },
+  ...oxlintOwnedOff,
 );

@@ -34,6 +34,7 @@ async function warningCounts() {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
+    env: { ...process.env, HARNESS_ESLINT_FULL: "1" },
   });
   const results = JSON.parse(stdout);
   const counts = {};

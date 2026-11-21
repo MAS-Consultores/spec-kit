@@ -34,10 +34,17 @@ Flujo de ramas, configurable por el producto:
 
 `pnpm dev` levanta la API y la web.
 El script es `scripts/dev.mjs`.
-`pnpm verify` recorre lint, tipos, tests y los gates.
+`pnpm verify` recorre `pnpm lint:fast` (oxlint sobre el árbol) y después lint, tipos, tests y los gates.
 Verify en verde y el CI en verde son la definición de listo.
 La cobertura del diff es `scripts/check-diff-coverage.mjs`.
 Sin lcov ese gate sale distinto de cero.
+
+Dos bucles de lint:
+
+- El rápido, sobre los archivos tocados: `pnpm exec oxlint` (menos de 200 ms).
+- Al cerrar cada tarea: ESLint sobre los tocados y después `pnpm verify`. El CI hace lo mismo.
+
+Cada feature marca al menos su flujo principal con `@critical` en Playwright.
 
 ## No negociable
 
