@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const scanRoots = ["apps", "packages", "scripts"].map((name) => join(root, name));
-const skip = new Set(["node_modules", "dist", "generated", ".git", "coverage"]);
+const skip = new Set(["node_modules", "dist", "generated", "coverage", ".git"]);
 const note = "not" + "es";
 const widget = "wid" + "gets";
 const forbidden = new RegExp(
