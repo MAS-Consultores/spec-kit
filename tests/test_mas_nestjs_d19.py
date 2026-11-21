@@ -9,7 +9,6 @@ import shutil
 import stat
 import subprocess
 import tarfile
-import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -361,7 +360,7 @@ def test_d19_07_ci_without_dist_fails_and_the_workflow_builds_first(tmp_path: Pa
     assert build_at < gate_at
 
 
-def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker() -> None:
+def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker(tmp_path: Path) -> None:
     workflow_path = REFERENCE / ".github" / "workflows" / "diff-quality.yml"
     raw = workflow_path.read_text(encoding="utf-8")
     document = yaml.safe_load(raw)
@@ -386,63 +385,61 @@ def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker() -> None:
     assert "check-mutation.mjs --self-test" in verify
     assert "continue-on-error" not in raw.split("mutation:", 1)[1]
 
-    repo = Path(tempfile.mkdtemp())
-    try:
-        _git(repo, "init", "-q", "-b", "main")
-        _git(repo, "config", "user.email", "mutation@example.com")
-        _git(repo, "config", "user.name", "mutation")
-        (repo / "quality-gates.json").write_text(
-            json.dumps(
-                {
-                    "mutation": {
-                        "modules": ["auth"],
-                        "threshold": 80,
-                        "paths": {"auth": "apps/api/src/modules/auth"},
-                    }
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "mutation@example.com")
+    _git(repo, "config", "user.name", "mutation")
+    (repo / "quality-gates.json").write_text(
+        json.dumps(
+            {
+                "mutation": {
+                    "modules": ["auth"],
+                    "threshold": 80,
+                    "paths": {"auth": "apps/api/src/modules/auth"},
                 }
-            ),
-            encoding="utf-8",
-        )
-        _git(repo, "add", "quality-gates.json")
-        _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "base")
-        _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
-        _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
-        empty = subprocess.run(
-            ["node", str(SCRIPT), "--run"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            env=_clean_env(),
-            check=False,
-        )
-        assert empty.returncode == 0, empty.stderr
-        assert "mutation: sin archivos mutables en el diff (base " in empty.stdout
-        service = repo / "apps/api/src/modules/auth/auth.service.ts"
-        service.parent.mkdir(parents=True)
-        service.write_text("export const value = 1;\n", encoding="utf-8")
-        _git(repo, "add", ".")
-        _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature")
-        bindir = repo / "bin"
-        bindir.mkdir()
-        log = repo / "pnpm.log"
-        (bindir / "pnpm").write_text(
-            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\nexit 0\n",
-            encoding="utf-8",
-        )
-        (bindir / "pnpm").chmod(0o755)
-        env = _clean_env()
-        env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
-        env["PNPM_LOG"] = str(log)
-        ran = subprocess.run(
-            ["node", str(SCRIPT), "--run"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            env=env,
-            check=False,
-        )
-        assert ran.returncode == 0, ran.stderr
-        assert "sin archivos mutables" not in ran.stdout
-        assert "exec stryker run" in log.read_text(encoding="utf-8")
-    finally:
-        shutil.rmtree(repo)
+            }
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", "quality-gates.json")
+    _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "base")
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    empty = subprocess.run(
+        ["node", str(SCRIPT), "--run"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=_clean_env(),
+        check=False,
+    )
+    assert empty.returncode == 0, empty.stderr
+    assert "mutation: sin archivos mutables en el diff (base " in empty.stdout
+    service = repo / "apps/api/src/modules/auth/auth.service.ts"
+    service.parent.mkdir(parents=True)
+    service.write_text("export const value = 1;\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature")
+    bindir = repo / "bin"
+    bindir.mkdir()
+    log = repo / "pnpm.log"
+    (bindir / "pnpm").write_text(
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\nexit 0\n",
+        encoding="utf-8",
+    )
+    (bindir / "pnpm").chmod(0o755)
+    env = _clean_env()
+    env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+    env["PNPM_LOG"] = str(log)
+    ran = subprocess.run(
+        ["node", str(SCRIPT), "--run"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert ran.returncode == 0, ran.stderr
+    assert "sin archivos mutables" not in ran.stdout
+    assert "exec stryker run" in log.read_text(encoding="utf-8")
