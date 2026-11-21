@@ -7,6 +7,7 @@ apps/*/.snippet-check
 dist
 apps/api/src/generated
 .vitest-unit.json
+apps/api/.stryker-incremental.json
 .vitest-e2e.json
 playwright-report
 test-results

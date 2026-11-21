@@ -789,3 +789,70 @@ jobs:
           pnpm --filter @demo/web exec playwright install chromium
           pnpm --filter @demo/web exec node ../../scripts/ensure-playwright.mjs
           pnpm test:e2e:web
+
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Active LTS from index.json
+        id: node
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request, os
+          url = "https://nodejs.org/dist/index.json"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              payload = json.load(response)
+          hit = next(entry for entry in payload if isinstance(entry, dict) and entry.get("lts") is not False)
+          exact = hit["version"][1:]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"version={exact}\n")
+          print(exact)
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+
+      - name: Enable Corepack without writing to /usr
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Mutation on one changed auth file
+        run: |
+          set -euo pipefail
+          src="${GITHUB_WORKSPACE}/presets/mas-stack-nestjs-react/reference"
+          work="$(mktemp -d)"
+          cp -a "$src/." "$work/"
+          git -C "$work" init -q -b main
+          git -C "$work" config user.email smoke@example.com
+          git -C "$work" config user.name smoke
+          git -C "$work" add .
+          git -C "$work" -c commit.gpgsign=false commit -q -m base
+          git -C "$work" update-ref refs/remotes/origin/main HEAD
+          git -C "$work" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+          printf '\nexport const mutationProbe = 1;\n' >> "$work/apps/api/src/modules/auth/auth.service.ts"
+          git -C "$work" add apps/api/src/modules/auth/auth.service.ts
+          git -C "$work" -c commit.gpgsign=false commit -q -m "toca auth"
+          cd "$work"
+          pnpm install --frozen-lockfile
+          pnpm db:generate
+          pnpm --filter @demo/contracts build
+          node scripts/check-mutation.mjs --run

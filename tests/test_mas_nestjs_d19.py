@@ -358,3 +358,29 @@ def test_d19_07_ci_without_dist_fails_and_the_workflow_builds_first(tmp_path: Pa
     assert build_at is not None
     assert gate_at is not None
     assert build_at < gate_at
+
+
+def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker() -> None:
+    workflow_path = REFERENCE / ".github" / "workflows" / "diff-quality.yml"
+    raw = workflow_path.read_text(encoding="utf-8")
+    document = yaml.safe_load(raw)
+    trigger = document.get("on", document.get(True))
+    assert isinstance(trigger, dict)
+    assert "pull_request" in trigger
+    job = document["jobs"]["mutation"]
+    assert job.get("continue-on-error") in (None, False)
+    assert "if" not in job
+    runs = []
+    for step in job["steps"]:
+        assert step.get("continue-on-error") in (None, False)
+        if step.get("run"):
+            runs.append(str(step["run"]))
+    command = "node scripts/check-mutation.mjs --run"
+    assert any(command in run for run in runs)
+    checkout = next(step for step in job["steps"] if str(step.get("uses", "")).startswith("actions/checkout"))
+    assert checkout["with"]["fetch-depth"] == 0
+    package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
+    verify = package["scripts"]["verify"]
+    assert "check-mutation.mjs --run" not in verify
+    assert "check-mutation.mjs --self-test" in verify
+    assert "continue-on-error" not in raw.split("mutation:", 1)[1]

@@ -53,15 +53,18 @@ function git(cwd, args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
-function changedFiles(root, argv = process.argv, env = process.env) {
+function diffSinceMergeBase(root, argv = process.argv, env = process.env) {
   const base = resolveMergeBase(root, argv, env);
-  if (!base) return [];
+  if (!base) return { base: null, files: [] };
   const result = spawnSync("git", ["diff", "--name-only", "--diff-filter=ACMR", base, "HEAD"], {
     cwd: root,
     encoding: "utf8",
   });
-  if (result.status !== 0) return [];
-  return result.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  if (result.status !== 0) return { base, files: [] };
+  return {
+    base,
+    files: result.stdout.split("\n").map((line) => line.trim()).filter(Boolean),
+  };
 }
 
 function cleanEnv() {
@@ -226,19 +229,22 @@ function main() {
     console.error("mutation.threshold es obligatorio");
     process.exit(1);
   }
-  const plan = mutationPlan(gates, changedFiles(gatesRoot()));
+  const root = gatesRoot();
+  const diff = diffSinceMergeBase(root);
+  const plan = mutationPlan(gates, diff.files);
   for (const warning of plan.warnings) console.log(`warn ${warning}`);
   if (plan.mutate.length === 0) {
-    console.log("check-mutation: sin diff en módulos críticos");
+    const baseLabel = diff.base ?? "desconocida";
+    console.log(`mutation: sin archivos mutables en el diff (base ${baseLabel})`);
     return;
   }
   console.log(`mutate ${plan.mutate.join(" ")} threshold ${plan.threshold}`);
   if (!process.argv.includes("--run")) return;
-  const root = gatesRoot();
   const apiPrefix = "apps/api/";
   const relative = plan.mutate.map((file) => (file.startsWith(apiPrefix) ? file.slice(apiPrefix.length) : file));
   const configDir = mkdtempSync(join(tmpdir(), "stryker-config-"));
   const configFile = join(configDir, "stryker.config.json");
+  const incrementalFile = join(root, "apps/api/.stryker-incremental.json");
   writeFileSync(configFile, JSON.stringify({
     testRunner: "vitest",
     plugins: [vitestRunner],
@@ -246,6 +252,8 @@ function main() {
     coverageAnalysis: "perTest",
     concurrency: 2,
     mutate: relative,
+    incremental: true,
+    incrementalFile,
     thresholds: { high: plan.threshold, low: plan.threshold, break: plan.threshold },
   }));
   const result = spawnSync("pnpm", ["exec", "stryker", "run", configFile], {

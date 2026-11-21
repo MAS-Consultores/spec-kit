@@ -265,6 +265,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D19-05 | un archivo nuevo de `apps/api/src` ausente del lcov dejaba el ratio de cobertura en 1 | el mismo test: el diff commiteado de `apps/api/src/miss.ts`, con un lcov que no lo nombra, deja `ok` en falso y `lineTotal` ≥ 1 |
 | D19-06 | el gate de tamaño solo comprobaba que existiera `.size-limit.json` y un `apps/web/dist/assets/index.js` de 800 kB pasaba, mientras `size-limit` salía 1 | el mismo test: con `dist` presente, `check-size-budget.mjs` ejecuta size-limit 14.3.0 y sale distinto de 0. El job que hace `pnpm build` vuelve a correr el gate |
 | D19-07 | en el proyecto generado el CI corría el gate antes de que existiera `apps/web/dist` y, sin ese directorio, salía 0 | el mismo test: con `CI=true` y sin `dist` el gate sale distinto de 0. El YAML de `.github/workflows/diff-quality.yml` tiene un paso `pnpm build` y, después, `check-size-budget.mjs` |
+| D19-08 | `pnpm verify` corría Stryker (`check-mutation.mjs --run`) y un proyecto real tardaba 23 minutos | `tests/test_mas_nestjs_d19.py`: el YAML de `diff-quality.yml` declara el job `mutation`, corre `check-mutation.mjs --run` sin `continue-on-error` y el workflow es `pull_request` (el fallo del job falla el check). El script `verify` de `package.json` ya no contiene `--run`. Falla en `9b597375` y en `381b9c49`; pasa en HEAD |
 
 ## Versiones probadas
 
