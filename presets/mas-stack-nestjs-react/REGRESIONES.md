@@ -264,6 +264,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D19-04 | el tope de líneas y el presupuesto de módulo usaban `git diff HEAD`; un archivo nuevo ya commiteado no era error y un módulo por encima de 4000 líneas solo avisaba | el mismo test, con el diff commiteado y el árbol limpio: hay error por `new.ts` y por el módulo `auth` |
 | D19-05 | un archivo nuevo de `apps/api/src` ausente del lcov dejaba el ratio de cobertura en 1 | el mismo test: el diff commiteado de `apps/api/src/miss.ts`, con un lcov que no lo nombra, deja `ok` en falso y `lineTotal` ≥ 1 |
 | D19-06 | el gate de tamaño solo comprobaba que existiera `.size-limit.json` y un `apps/web/dist/assets/index.js` de 800 kB pasaba, mientras `size-limit` salía 1 | el mismo test: con `dist` presente, `check-size-budget.mjs` ejecuta size-limit 14.3.0 y sale distinto de 0. El job que hace `pnpm build` vuelve a correr el gate |
+| D19-07 | en el proyecto generado el CI corría el gate antes de que existiera `apps/web/dist` y, sin ese directorio, salía 0 | el mismo test: con `CI=true` y sin `dist` el gate sale distinto de 0. El YAML de `.github/workflows/diff-quality.yml` tiene un paso `pnpm build` y, después, `check-size-budget.mjs` |
 
 ## Versiones probadas
 

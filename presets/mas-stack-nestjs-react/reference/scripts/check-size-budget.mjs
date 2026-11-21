@@ -123,8 +123,21 @@ function selfTest() {
   console.log("check-size-budget self-test ok");
 }
 
+function bundleIsRequired(argv = process.argv, env = process.env) {
+  if (argv.includes("--allow-missing-bundle")) return false;
+  if (argv.includes("--require-bundle")) return true;
+  return env.CI === "true" || env.CI === "1";
+}
+
 function enforceBundle(root) {
-  if (!existsSync(join(root, "apps", "web", "dist"))) return;
+  if (!existsSync(join(root, "apps", "web", "dist"))) {
+    if (bundleIsRequired()) {
+      console.error("falta apps/web/dist; en CI el gate de tamaño corre después de pnpm build");
+      process.exit(1);
+    }
+    console.log("warn falta apps/web/dist; el bundle no se midió");
+    return;
+  }
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
   if (pkg.devDependencies?.["size-limit"] !== "14.3.0") {
     console.error("size-limit tiene que ser 14.3.0");

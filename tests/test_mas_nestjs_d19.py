@@ -13,6 +13,7 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO = Path(__file__).resolve().parents[1]
 REFERENCE = REPO / "presets" / "mas-stack-nestjs-react" / "reference"
@@ -76,7 +77,7 @@ def test_d19_01_committed_diff_is_measured_and_runner_is_declared(tmp_path: Path
 
 
 def _clean_env() -> dict[str, str]:
-    return {key: value for key, value in os.environ.items() if key != "GITHUB_BASE_REF"}
+    return {key: value for key, value in os.environ.items() if key not in {"GITHUB_BASE_REF", "CI"}}
 
 
 def _node(args: list[str], cwd: Path, *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -319,3 +320,41 @@ def test_d19_06_bundle_over_the_limit_fails_the_gate(tmp_path: Path) -> None:
     assert result.returncode != 0, result.stdout
     combined = f"{result.stdout}\n{result.stderr}"
     assert "exceeded" in combined
+
+
+def test_d19_07_ci_without_dist_fails_and_the_workflow_builds_first(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "quality-gates.json").write_text("{}\n", encoding="utf-8")
+    (repo / ".size-limit.json").write_text(
+        '[{"name":"web initial","path":"apps/web/dist/assets/*.js","limit":"500 kB"}]\n',
+        encoding="utf-8",
+    )
+    env = _clean_env()
+    env["CI"] = "true"
+    result = subprocess.run(
+        ["node", str(REFERENCE / "scripts" / "check-size-budget.mjs")],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        check=False,
+    )
+    assert result.returncode != 0, result.stdout
+    assert "apps/web/dist" in result.stderr
+
+    document = yaml.safe_load((REFERENCE / ".github" / "workflows" / "diff-quality.yml").read_text(encoding="utf-8"))
+    steps = document["jobs"]["diff-quality"]["steps"]
+    build_at = None
+    gate_at = None
+    for index, step in enumerate(steps):
+        lines = [line.strip() for line in str(step.get("run") or "").splitlines() if line.strip()]
+        if "pnpm build" in lines:
+            build_at = index
+        if any(line.split()[:2] == ["node", "scripts/check-size-budget.mjs"] or line.startswith("node scripts/check-size-budget.mjs") for line in lines):
+            gate_at = index
+    assert build_at is not None
+    assert gate_at is not None
+    assert build_at < gate_at

@@ -541,7 +541,7 @@ jobs:
             cp -a "$eslint_cache_dst/." "$eslint_cache_src/"
           fi
           pnpm build
-          node scripts/check-size-budget.mjs
+          node scripts/check-size-budget.mjs --require-bundle
           api_pid=""
           cleanup_api() {
             if [ -n "$api_pid" ]; then

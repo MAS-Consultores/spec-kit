@@ -42,3 +42,9 @@ jobs:
 
       - name: Diff coverage gate
         run: node scripts/check-diff-coverage.mjs --gate
+
+      - name: Build
+        run: pnpm build
+
+      - name: Bundle size
+        run: node scripts/check-size-budget.mjs --require-bundle
