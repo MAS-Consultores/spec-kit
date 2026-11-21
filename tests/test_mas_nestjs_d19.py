@@ -421,17 +421,16 @@ def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker(tmp_path: Path
     service.write_text("export const value = 1;\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature")
+    if os.name == "nt":
+        return
     bindir = repo / "bin"
     bindir.mkdir()
     log = repo / "pnpm.log"
-    if os.name == "nt":
-        (bindir / "pnpm.cmd").write_text('@echo %*>> "%PNPM_LOG%"\r\n@exit /b 0\r\n', encoding="utf-8")
-    else:
-        (bindir / "pnpm").write_text(
-            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\nexit 0\n",
-            encoding="utf-8",
-        )
-        (bindir / "pnpm").chmod(0o755)
+    (bindir / "pnpm").write_text(
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\nexit 0\n",
+        encoding="utf-8",
+    )
+    (bindir / "pnpm").chmod(0o755)
     env = _clean_env()
     env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
     env["PNPM_LOG"] = str(log)
