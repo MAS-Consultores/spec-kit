@@ -83,7 +83,6 @@ jobs:
   visual:
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    continue-on-error: true
     defaults:
       run:
         working-directory: presets/mas-stack-nestjs-react/reference

@@ -252,7 +252,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D18-06 | la misma regla quedaba activa en ESLint y en oxlint, o al apagarla bajaba el trinquete | `scripts/check-oxlint-split.mjs --self-test` imprime `counts-equal`. El plugin va al final. El trinquete y el diff definen `HARNESS_ESLINT_FULL`. Un `oxlint-disable` solo es `hueco` |
 | D18-07 | verify no dejaba rastro del gate | `scripts/harness-telemetry.mjs --self-test` escribe una línea JSON sin secretos. El workflow de reference sube el artefacto `harness-telemetry` |
 | D18-08 | una feature no tenía ningún E2E `@critical` | `scripts/check-critical-e2e.mjs --self-test`. El job `e2e-critical` es bloqueante. La protección de ramas la configura Manuel |
-| D18-09 | un test fuera de la fidelidad visual tomaba una captura | `scripts/check-visual-policy.mjs --self-test`. El job `visual` tiene `timeout-minutes: 2` y `continue-on-error: true` |
+| D18-09 | un test fuera de la fidelidad visual tomaba una captura | `scripts/check-visual-policy.mjs --self-test`. El job `visual` tiene `timeout-minutes: 2` y bloquea: en CI entró en 25 s |
 
 ## Versiones probadas
 

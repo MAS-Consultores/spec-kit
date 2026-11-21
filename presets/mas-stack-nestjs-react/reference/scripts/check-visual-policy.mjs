@@ -81,8 +81,8 @@ function selfTest() {
     process.exit(1);
   }
   const workflow = readFileSync(join(referenceRoot, ".github/workflows/visual.yml"), "utf8");
-  if (!workflow.includes("timeout-minutes: 2") || !workflow.includes("continue-on-error: true")) {
-    console.error("el job visual tiene que quedar informativo y cortar a los 2 minutos");
+  if (!workflow.includes("timeout-minutes: 2") || workflow.includes("continue-on-error")) {
+    console.error("el job visual tiene que cortar a los 2 minutos y, si entra en ese tope, bloquear");
     process.exit(1);
   }
   const live = screenshotViolations(referenceRoot);
