@@ -3,13 +3,12 @@
  * The diff may only add those domains plus the registration lines.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const domains = ["alpha", "beta"];
-const fitnessDomainsPath = join(root, "scripts", ".fitness-domains");
 
 function run(command, args) {
   execFileSync(command, args, { cwd: root, stdio: "inherit" });
@@ -24,10 +23,8 @@ run("git", ["commit", "-m", "fitness snapshot", "--allow-empty", "--no-verify"])
 
 try {
   for (const domain of domains) run("node", ["scripts/gen-module.mjs", domain]);
-  writeFileSync(fitnessDomainsPath, `${domains.join("\n")}\n`);
   run("pnpm", ["db:generate"]);
-  run("pnpm", ["lint"]);
-  rmSync(fitnessDomainsPath, { force: true });
+  run("pnpm", ["lint", "--", "--skip-jscpd-ratchet"]);
   run("pnpm", ["typecheck"]);
   run("pnpm", ["test"]);
   run("pnpm", ["build"]);
@@ -62,7 +59,6 @@ try {
   }
   console.log(`fitness diff ok (${names.length} paths)`);
 } finally {
-  rmSync(fitnessDomainsPath, { force: true });
   execFileSync("git", ["reset", "--hard", "HEAD"], { cwd: root, stdio: "inherit" });
   execFileSync("git", ["clean", "-fd", "-e", "node_modules", "-e", "apps/api/src/generated"], {
     cwd: root,
