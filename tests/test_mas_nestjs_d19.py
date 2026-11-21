@@ -424,11 +424,14 @@ def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker(tmp_path: Path
     bindir = repo / "bin"
     bindir.mkdir()
     log = repo / "pnpm.log"
-    (bindir / "pnpm").write_text(
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\nexit 0\n",
-        encoding="utf-8",
-    )
-    (bindir / "pnpm").chmod(0o755)
+    if os.name == "nt":
+        (bindir / "pnpm.cmd").write_text('@echo %*>> "%PNPM_LOG%"\r\n@exit /b 0\r\n', encoding="utf-8")
+    else:
+        (bindir / "pnpm").write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$PNPM_LOG\"\nexit 0\n",
+            encoding="utf-8",
+        )
+        (bindir / "pnpm").chmod(0o755)
     env = _clean_env()
     env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
     env["PNPM_LOG"] = str(log)
@@ -440,6 +443,6 @@ def test_d19_08_mutation_job_is_blocking_and_verify_skips_stryker(tmp_path: Path
         env=env,
         check=False,
     )
-    assert ran.returncode == 0, ran.stderr
+    assert ran.returncode == 0, ran.stdout + ran.stderr
     assert "sin archivos mutables" not in ran.stdout
     assert "exec stryker run" in log.read_text(encoding="utf-8")
