@@ -5,7 +5,7 @@
  * Touched files must stay equal or better (fewer warnings).
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ADOPTION_RULES } from "./check-diff-quality.mjs";
@@ -71,37 +71,19 @@ function knipCount() {
   }
 }
 
-const fitnessDomainsPath = join(root, "scripts", ".fitness-domains");
-
-function fitnessDomains() {
-  if (!existsSync(fitnessDomainsPath)) return [];
-  return readFileSync(fitnessDomainsPath, "utf8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => /^[a-z][a-z0-9]*$/.test(line));
+function skipsJscpd(argv) {
+  return argv.includes("--skip-jscpd-ratchet");
 }
 
-function isThrowawayPath(name, domains) {
-  const normalized = String(name ?? "").replaceAll("\\", "/");
-  return domains.some(
-    (domain) =>
-      normalized.includes(`/modules/${domain}/`) ||
-      normalized.includes(`/features/${domain}/`) ||
-      normalized.includes(`/contracts/src/${domain}/`) ||
-      normalized.endsWith(`/${domain}.prisma`),
-  );
-}
-
-export function clonesOutsideDomains(duplicates, domains) {
-  const list = Array.isArray(duplicates) ? duplicates : [];
-  if (domains.length === 0) return list;
-  return list.filter(
-    (clone) =>
-      !(
-        isThrowawayPath(clone.firstFile?.name, domains) &&
-        isThrowawayPath(clone.secondFile?.name, domains)
-      ),
-  );
+function jscpdProblems(current, baseline) {
+  const problems = [];
+  if (current.clones > (baseline.clones ?? 0)) {
+    problems.push(`jscpd clones: ${baseline.clones ?? 0} -> ${current.clones}`);
+  }
+  if (current.percentage > (baseline.percentage ?? 0) + 0.01) {
+    problems.push(`jscpd %: ${baseline.percentage ?? 0} -> ${current.percentage}`);
+  }
+  return problems;
 }
 
 function jscpdStats() {
@@ -148,11 +130,9 @@ function jscpdStats() {
   }
   const report = JSON.parse(readFileSync(reportPath, "utf8"));
   rmSync(output, { recursive: true, force: true });
-  const domains = fitnessDomains();
-  const kept = clonesOutsideDomains(report.duplicates, domains);
   return {
     percentage: Number(report.statistics?.total?.percentage ?? 0),
-    clones: domains.length === 0 ? Number(report.statistics?.total?.clones ?? kept.length) : kept.length,
+    clones: Number(report.statistics?.total?.clones ?? 0),
   };
 }
 
@@ -201,52 +181,21 @@ function selfTest() {
     console.error(`self-test jscpd: con umbral bajo clones=${found}, con umbral alto (apagado) clones=${ignored}`);
     process.exit(1);
   }
-  const tree = mkdtempSync(join(tmpdir(), "jscpd-fitness-"));
-  const throwOnly = mkdtempSync(join(tmpdir(), "jscpd-throw-"));
-  mkdirSync(join(tree, "real"), { recursive: true });
-  mkdirSync(join(tree, "apps/api/src/modules/alpha"), { recursive: true });
-  mkdirSync(join(tree, "apps/api/src/modules/beta"), { recursive: true });
-  mkdirSync(join(throwOnly, "apps/api/src/modules/alpha"), { recursive: true });
-  mkdirSync(join(throwOnly, "apps/api/src/modules/beta"), { recursive: true });
-  writeFileSync(join(tree, "real/one.ts"), body);
-  writeFileSync(join(tree, "real/two.ts"), body.replace("duplicate", "duplicateReal"));
-  const throwBody = "export function generated(record: string): string {\n  const label = record.trim();\n  const upper = label.toUpperCase();\n  const padded = upper.padEnd(8, \"x\");\n  return padded.slice(0, 8);\n}\n";
-  writeFileSync(join(tree, "apps/api/src/modules/alpha/a.ts"), throwBody);
-  writeFileSync(join(tree, "apps/api/src/modules/beta/b.ts"), throwBody.replace("throwaway", "throwawayCopy"));
-  writeFileSync(join(throwOnly, "apps/api/src/modules/alpha/a.ts"), throwBody);
-  writeFileSync(join(throwOnly, "apps/api/src/modules/beta/b.ts"), throwBody.replace("throwaway", "throwawayCopy"));
-  const fitnessOut = mkdtempSync(join(tmpdir(), "jscpd-fitness-out-"));
-  const throwOut = mkdtempSync(join(tmpdir(), "jscpd-throw-out-"));
-  const runJscpd = (source, dest) => {
-    try {
-      execFileSync("pnpm", ["exec", "jscpd", source, "--min-lines", "5", "--min-tokens", "20", "--reporters", "json", "--output", dest, "--silent"], { cwd: root, stdio: "pipe" });
-    } catch {
-      // reported via json
-    }
-    return JSON.parse(readFileSync(join(dest, "jscpd-report.json"), "utf8"));
-  };
-  const mixed = runJscpd(tree, fitnessOut);
-  const onlyThrowaway = runJscpd(throwOnly, throwOut);
-  const domains = ["alpha", "beta"];
-  const mixedAll = Array.isArray(mixed.duplicates) ? mixed.duplicates.length : 0;
-  const mixedKept = clonesOutsideDomains(mixed.duplicates, domains).length;
-  const throwAll = Array.isArray(onlyThrowaway.duplicates) ? onlyThrowaway.duplicates.length : 0;
-  const throwKept = clonesOutsideDomains(onlyThrowaway.duplicates, domains).length;
-  rmSync(tree, { recursive: true, force: true });
-  rmSync(throwOnly, { recursive: true, force: true });
-  rmSync(fitnessOut, { recursive: true, force: true });
-  rmSync(throwOut, { recursive: true, force: true });
-  if (mixedAll < 2 || throwAll < 1) {
-    console.error(`self-test fitness: sin exclusion mixed=${mixedAll} throwaway=${throwAll}`);
+  const raised = { clones: found, percentage: 1.44 };
+  const baseline = { clones: 0, percentage: 0 };
+  const enforced = jscpdProblems(raised, baseline);
+  const skipped = skipsJscpd(["--skip-jscpd-ratchet"]) ? [] : jscpdProblems(raised, baseline);
+  if (enforced.length === 0 || skipped.length !== 0 || skipsJscpd([])) {
+    console.error("self-test: un clon real debe subir el trinquete, y --skip-jscpd-ratchet lo omite");
     process.exit(1);
   }
-  if (throwKept !== 0 || mixedKept !== 1) {
-    console.error(`self-test fitness: con exclusion throwaway=${throwKept} real=${mixedKept}`);
-    process.exit(1);
-  }
-  const ratchet = mixedKept > 0 ? [`jscpd clones: 0 -> ${String(mixedKept)}`] : [];
-  if (ratchet.length === 0) {
-    console.error("self-test fitness: un clon real fuera de alpha/beta no sube el trinquete");
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  const fitnessSource = readFileSync(join(root, "scripts", "check-gen-fitness.mjs"), "utf8");
+  const verifySkips = pkg.scripts.verify.includes("--skip-jscpd-ratchet");
+  const lintSkips = pkg.scripts.lint.includes("--skip-jscpd-ratchet");
+  const fitnessSkips = fitnessSource.includes('"--skip-jscpd-ratchet"');
+  if (verifySkips || lintSkips || !fitnessSkips) {
+    console.error("self-test: --skip-jscpd-ratchet solo puede usarlo check-gen-fitness");
     process.exit(1);
   }
   console.log("check-quality-baseline self-test ok");
@@ -257,11 +206,16 @@ async function main() {
     selfTest();
     return;
   }
+  const skipJscpd = skipsJscpd(process.argv);
   const warnings = await warningCounts();
   const knip = knipCount();
-  const duplication = jscpdStats();
+  const duplication = skipJscpd ? { percentage: 0, clones: 0 } : jscpdStats();
   const next = { warnings, knip, jscpd: duplication };
   if (process.argv.includes("--update")) {
+    if (skipJscpd) {
+      console.error("--skip-jscpd-ratchet no puede actualizar la baseline");
+      process.exit(1);
+    }
     writeFileSync(baselinePath, `${JSON.stringify(next, null, 2)}\n`);
     console.log(`baseline actualizada en ${baselinePath}`);
     return;
@@ -272,15 +226,7 @@ async function main() {
     problems.push(...compareCounts(warnings[rule] ?? {}, baseline.warnings?.[rule] ?? {}, rule));
   }
   if (knip > (baseline.knip ?? 0)) problems.push(`knip: ${baseline.knip ?? 0} -> ${knip}`);
-  if (duplication.clones > (baseline.jscpd?.clones ?? 0)) {
-    problems.push(`jscpd clones: ${baseline.jscpd?.clones ?? 0} -> ${duplication.clones}`);
-  }
-  // scripts/.fitness-domains exists only while check-gen-fitness lints the
-  // throwaway domains. Their percentage includes those copies; the clone
-  // count above already drops pairs that sit entirely inside them.
-  if (fitnessDomains().length === 0 && duplication.percentage > (baseline.jscpd?.percentage ?? 0) + 0.01) {
-    problems.push(`jscpd %: ${baseline.jscpd?.percentage ?? 0} -> ${duplication.percentage}`);
-  }
+  if (!skipJscpd) problems.push(...jscpdProblems(duplication, baseline.jscpd ?? {}));
   if (problems.length > 0) {
     console.error("el trinquete subió. Si el conteo bajó, corre --update en el mismo PR.");
     for (const problem of problems) console.error(problem);
