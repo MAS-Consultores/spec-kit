@@ -120,6 +120,24 @@ def test_d17_05_dependency_cruiser_exports_and_product_knip() -> None:
     assert "mergeKnipConfig" in runner
 
 
+def test_d17_07_agents_md_files_and_real_paths() -> None:
+    script = SCRIPTS / "check-agents-md.mjs"
+    assert script.is_file()
+    package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
+    assert "check-agents-md.mjs" in package["scripts"]["verify"]
+    for relative in (
+        "AGENTS.md",
+        "apps/api/AGENTS.md",
+        "apps/web/AGENTS.md",
+        "packages/contracts/AGENTS.md",
+    ):
+        text = (REFERENCE / relative).read_text(encoding="utf-8").lower()
+        assert "screenshot" not in text
+    result = _run(["node", str(script), "--self-test"], SCRIPTS)
+    assert result.returncode == 0, result.stderr
+    assert "check-agents-md self-test ok" in result.stdout
+
+
 def test_d17_06_hidden_service_deps_are_an_adoption_rule() -> None:
     config = (REFERENCE / "eslint.config.js").read_text(encoding="utf-8")
     assert '"mas/no-hidden-service-deps": "warn"' in config

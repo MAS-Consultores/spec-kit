@@ -238,6 +238,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D17-04 | el self-test del trinquete leía `scripts/check-gen-fitness.mjs` | `check-quality-baseline.mjs --self-test` acepta un temporal llamado `check-module-fitness.mjs` vía `jscpdSkipScripts` |
 | D17-05 | dependency-cruiser no resolvía `exports`, y knip no tenía ignores de producto | `.dependency-cruiser.cjs` tiene `enhancedResolveOptions`. `knip.product.json` existe y `run-knip.mjs` lo fusiona |
 | D17-06 | `mas/no-hidden-service-deps` estaba en error y rompía `Date.now()` / `new Date()` ya presentes | `eslint.config.js` lo deja en `warn`. `ADOPTION_RULES` lo incluye. El self-test de `check-diff-quality.mjs` falla si esa regla aparece en una línea nueva |
+| D17-07 | el esqueleto no traía `AGENTS.md`, o un puntero nombraba un archivo que no existe | `scripts/check-agents-md.mjs --self-test`: falta un archivo, falla; un link a `no-such.md` falla; un `{{placeholder}}` y un archivo real pasan. `pnpm verify` corre el chequeo sobre los cuatro archivos |
 
 ## Versiones probadas
 
