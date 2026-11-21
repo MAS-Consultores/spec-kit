@@ -12,7 +12,7 @@ Antes de dar la feature por terminada, lista cada violación con su código: F1,
 
 ## Quality loop
 
-Tras implementar y tras cada ronda de corrección, corre sobre lo cambiado: lint (clean code y capas), knip, jscpd y dependency-cruiser. Si hay hallazgos, corrige y repite, hasta 3 vueltas. Termina solo con cero hallazgos nuevos o con cada excepción justificada en este reporte (archivo, regla, motivo).
+Después de cada edición corre `pnpm exec oxlint` sobre los archivos tocados (`pnpm lint:fast` cubre `apps` y `packages`). Tras implementar y tras cada ronda de corrección, corre sobre lo cambiado: esa pasada, luego lint (clean code y capas), knip, jscpd y dependency-cruiser. Si hay hallazgos, corrige y repite, hasta 3 vueltas. Termina solo con cero hallazgos nuevos o con cada excepción justificada en este reporte (archivo, regla, motivo).
 
 Un agente que corrige un bug usa el mismo loop. No hace falta una feature nueva para eso.
 

@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "import"],
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "rules": {
+    "max-depth": ["error", 3],
+    "eqeqeq": "error",
+    "prefer-const": "error",
+    "no-console": "error",
+    "no-else-return": "error",
+    "no-nested-ternary": "error",
+    "typescript/no-explicit-any": "error",
+    "react/rules-of-hooks": "error",
+    "import/no-cycle": "error"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/generated/**",
+    "**/lint-fixtures/**",
+    "**/coverage/**",
+    "scripts/**",
+    "templates/**",
+    "**/*.cjs",
+    ".specify/**"
+  ]
+}

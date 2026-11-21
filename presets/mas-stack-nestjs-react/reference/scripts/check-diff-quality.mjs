@@ -170,6 +170,7 @@ async function lintDiff() {
     return;
   }
   const { ESLint } = await import("eslint");
+  process.env.SPECIFY_ESLINT_FULL = "1";
   const eslint = new ESLint({ cwd: root });
   const results = await eslint.lintFiles(files);
   const problems = [];

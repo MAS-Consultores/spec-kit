@@ -6,7 +6,7 @@ Aplica a `/speckit.converge` y a cualquier agente que corrija bugs sobre este st
 
 Después de implementar, y después de cada ronda de corrección, sobre lo que cambió:
 
-1. `pnpm lint` (reglas clean code, capas, knip, jscpd vía el trinquete, dependency-cruiser, fixtures).
+1. Después de cada edición, `pnpm exec oxlint` sobre los archivos tocados (`pnpm lint:fast` recorre `apps` y `packages`). Luego `pnpm lint` (ESLint, capas, knip, jscpd vía el trinquete, dependency-cruiser, fixtures). `pnpm verify` corre `lint:fast` antes de ESLint. El trinquete y el diff cargan ESLint con `SPECIFY_ESLINT_FULL=1`, así que apagar el solape no baja esos conteos.
 2. Si hay hallazgos nuevos, el agente los corrige y vuelve a correr el loop.
 3. Máximo 3 vueltas.
 4. Solo se termina con cero hallazgos nuevos, o con cada excepción escrita en el reporte de converge: archivo, regla y motivo.

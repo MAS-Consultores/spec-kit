@@ -1,4 +1,6 @@
+import { fileURLToPath } from "node:url";
 import eslint from "@eslint/js";
+import oxlint from "eslint-plugin-oxlint";
 import comments from "@eslint-community/eslint-plugin-eslint-comments";
 import boundaries from "eslint-plugin-boundaries";
 import importX from "eslint-plugin-import-x";
@@ -8,6 +10,19 @@ import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
 import { restrictedImports } from "./eslint/package2-rules.js";
 import mas, { boundaryElements, boundaryRule, envAllowFiles } from "./eslint/mas-plugin.js";
+
+const ADOPTION_RULES = ["no-magic-numbers", "mas/no-commented-code", "mas/no-hidden-service-deps"];
+
+function oxlintOverlapOff() {
+  if (process.env.SPECIFY_ESLINT_FULL === "1") return [];
+  const configs = oxlint.buildFromOxlintConfigFile(fileURLToPath(new URL("./.oxlintrc.json", import.meta.url)));
+  return configs.map((config) => {
+    if (!config.rules) return config;
+    const rules = { ...config.rules };
+    for (const rule of ADOPTION_RULES) delete rules[rule];
+    return { ...config, rules };
+  });
+}
 
 export default tseslint.config(
   eslint.configs.recommended,
@@ -214,4 +229,5 @@ export default tseslint.config(
       "**/lint-fixtures/**",
     ],
   },
+  ...oxlintOverlapOff(),
 );

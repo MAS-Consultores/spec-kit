@@ -13,6 +13,7 @@ Parche del preset `nestjs-react` al sincronizar un producto con v1.4.3-mas.3:
 - dependency-cruiser trae `enhancedResolveOptions`. `knip.product.json` es el sitio de los ignores del producto.
 - `mas/no-hidden-service-deps` entra por adopción: warn en lo existente, error en las líneas nuevas.
 - `specify init --stack nestjs-react` deja cuatro `AGENTS.md` (raíz, api, web, contracts). `pnpm verify` falla si falta uno o si un path no existe. Un `{{placeholder}}` no se resuelve.
+- El preset corre oxlint 1.94.0 (`pnpm lint:fast`) antes de ESLint. `eslint-plugin-oxlint` 1.94.0 apaga el solape. El trinquete y el diff siguen contando con ESLint completo (`SPECIFY_ESLINT_FULL=1`).
 
 ## [1.4.3+mas.3] - 2026-11-20
 

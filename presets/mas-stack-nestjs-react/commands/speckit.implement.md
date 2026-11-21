@@ -40,7 +40,7 @@ Follow **Migraciones seguras sobre datos existentes**. Do not edit a migration t
 
 Read `.specify/presets/mas-stack-nestjs-react/skills/clean-code-typescript/SKILL.md` before editing. Names in English state the effect (N7). No boolean mode parameters (F3). Law of Demeter (G36). Guard clauses. Boundary tests (T5). Do not block on polymorphism instead of if/else (G23, suggestion only). The 100 ms test budget (T9) is a note for unit tests only.
 
-After this phase, and after every fix round, run the quality loop in `.specify/presets/mas-stack-nestjs-react/docs/quality-loop.md`: lint (clean code and layers), knip, jscpd, dependency-cruiser. Fix and repeat, at most 3 rounds. Finish only with no new findings, or with each exception written down (file, rule, reason). A bugfix agent uses the same loop.
+After each edit, run `pnpm exec oxlint` on the files just touched (`pnpm lint:fast` covers `apps` and `packages`). After this phase, and after every fix round, run the quality loop in `.specify/presets/mas-stack-nestjs-react/docs/quality-loop.md`: that oxlint pass, then lint (clean code and layers), knip, jscpd, dependency-cruiser. Fix and repeat, at most 3 rounds. Finish only with no new findings, or with each exception written down (file, rule, reason). A bugfix agent uses the same loop.
 
 New and modified lines are error for `no-magic-numbers`, `mas/no-commented-code`, and `mas/no-hidden-service-deps` via `scripts/check-diff-quality.mjs` even while those rules stay warn on existing code. Services inject `Clock` and `IdGenerator` from `modules/platform`. A web component past the complexity threshold needs a Testing Library `*.test.tsx`.
 

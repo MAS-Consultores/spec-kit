@@ -239,6 +239,8 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D17-05 | dependency-cruiser no resolvía `exports`, y knip no tenía ignores de producto | `.dependency-cruiser.cjs` tiene `enhancedResolveOptions`. `knip.product.json` existe y `run-knip.mjs` lo fusiona |
 | D17-06 | `mas/no-hidden-service-deps` estaba en error y rompía `Date.now()` / `new Date()` ya presentes | `eslint.config.js` lo deja en `warn`. `ADOPTION_RULES` lo incluye. El self-test de `check-diff-quality.mjs` falla si esa regla aparece en una línea nueva |
 | D17-07 | el esqueleto no traía `AGENTS.md`, o un puntero nombraba un archivo que no existe | `scripts/check-agents-md.mjs --self-test`: falta un archivo, falla; un link a `no-such.md` falla; un `{{placeholder}}` y un archivo real pasan. `pnpm verify` corre el chequeo sobre los cuatro archivos |
+| D17-08 | no había pasada rápida, o `pnpm verify` no la corría antes de ESLint | `.oxlintrc.json` existe. `pnpm lint:fast` es `oxlint`. `verify` lo nombra antes de `pnpm lint`. `scripts/check-oxlint.mjs` (dentro de `pnpm lint`) falla un fixture con `==` |
+| D17-09 | apagar en ESLint las reglas de oxlint bajaba el conteo del trinquete o del diff | `check-quality-baseline.mjs` y `check-diff-quality.mjs` ponen `SPECIFY_ESLINT_FULL=1`. `check-oxlint.mjs` exige el mismo conteo de `no-magic-numbers` con el plugin y sin él, y que `eqeqeq` solo aparezca en la pasada completa |
 
 ## Versiones probadas
 
