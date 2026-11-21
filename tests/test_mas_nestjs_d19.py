@@ -261,7 +261,7 @@ def test_d19_05_new_api_file_missing_from_lcov_is_uncovered(tmp_path: Path) -> N
         'from "./check-diff-quality.mjs"',
         f'from "{(script.parent / "check-diff-quality.mjs").as_uri()}"',
     )
-    marker = 'if (process.argv.includes("--self-test"))'
+    marker = "const invokedDirectly"
     module = tmp_path / "coverage.mjs"
     module.write_text(source[: source.index(marker)], encoding="utf-8")
     probe = """
@@ -591,3 +591,82 @@ def test_d19_09_failed_diff_missing_base_permissions_and_incremental(tmp_path: P
     assert retried.returncode == 0, retried.stdout + retried.stderr
     assert count.read_text(encoding="utf-8") == "2"
     assert "se descarta el incremental" in retried.stderr
+
+
+def _mutation_repo(tmp_path: Path, name: str) -> Path:
+    repo = tmp_path / name
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "mutation@example.com")
+    _git(repo, "config", "user.name", "mutation")
+    (repo / "quality-gates.json").write_text(
+        json.dumps({"mutation": {"modules": ["auth"], "threshold": 80, "paths": {"auth": "apps/api/src/modules/auth"}}}),
+        encoding="utf-8",
+    )
+    _git(repo, "add", "quality-gates.json")
+    _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "base")
+    target = repo / "apps/api/src/modules/auth/auth.service.ts"
+    target.parent.mkdir(parents=True)
+    target.write_text("export const value = 1;\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "feature")
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD~1")
+    _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+    return repo
+
+
+def _pnpm_writing(bindir: Path, body: str) -> None:
+    bindir.mkdir()
+    script = bindir / "pnpm"
+    script.write_text("#!/bin/sh\nmkdir -p reports/mutation\n" + body + "\nexit 0\n", encoding="utf-8")
+    script.chmod(0o755)
+
+
+def test_d19_10_empty_or_low_score_and_empty_covered_by_fail(tmp_path: Path) -> None:
+    probe = tmp_path / "score.mjs"
+    probe.write_text(
+        "import { mutationScore, perTestCoverageOk } from "
+        + json.dumps(str(SCRIPT))
+        + ";\n"
+        "import { gitDiffFailureText } from "
+        + json.dumps(str(REFERENCE / "scripts" / "check-diff-coverage.mjs"))
+        + ";\n"
+        "const ignored = { files: { a: { mutants: [{ status: 'Ignored' }, { status: 'NoCoverage' }] } } };\n"
+        "if (perTestCoverageOk(ignored) || Number.isFinite(mutationScore(ignored))) process.exit(2);\n"
+        "const empty = { files: { a: { mutants: [{ status: 'Killed', coveredBy: [] }] } } };\n"
+        "if (perTestCoverageOk(empty)) process.exit(3);\n"
+        "const low = { files: { a: { mutants: [{ status: 'Killed', coveredBy: ['t'] }, { status: 'Survived', coveredBy: ['t'] }] } } };\n"
+        "if (!(mutationScore(low) < 80)) process.exit(4);\n"
+        "const text = gitDiffFailureText(Object.assign(new Error('spawn git ENOBUFS'), { stderr: '' }));\n"
+        "if (!text.includes('ENOBUFS') || !text.includes('git diff falló')) process.exit(5);\n"
+        "console.log('ok');\n",
+        encoding="utf-8",
+    )
+    scored = subprocess.run(["node", str(probe)], capture_output=True, text=True, check=False)
+    assert scored.returncode == 0, scored.stdout + scored.stderr
+
+    if os.name == "nt":
+        return
+    repo = _mutation_repo(tmp_path, "ignored")
+    bindir = tmp_path / "pnpm-ignored"
+    _pnpm_writing(
+        bindir,
+        "printf '%s\\n' '{\"files\":{\"src/a.ts\":{\"mutants\":[{\"status\":\"Ignored\"}]}}}' > reports/mutation/mutation.json",
+    )
+    env = _clean_env()
+    env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+    ignored = subprocess.run(["node", str(SCRIPT), "--run"], cwd=repo, capture_output=True, text=True, env=env, check=False)
+    assert ignored.returncode != 0, ignored.stdout
+    assert "no es un número finito" in ignored.stderr
+
+    low_repo = _mutation_repo(tmp_path, "low")
+    low_bin = tmp_path / "pnpm-low"
+    _pnpm_writing(
+        low_bin,
+        "printf '%s\\n' '{\"files\":{\"src/a.ts\":{\"mutants\":[{\"status\":\"Killed\",\"coveredBy\":[\"t\"]},{\"status\":\"Survived\",\"coveredBy\":[\"t\"]}]}}}' > reports/mutation/mutation.json",
+    )
+    low_env = _clean_env()
+    low_env["PATH"] = f"{low_bin}{os.pathsep}{low_env.get('PATH', '')}"
+    low = subprocess.run(["node", str(SCRIPT), "--run"], cwd=low_repo, capture_output=True, text=True, env=low_env, check=False)
+    assert low.returncode != 0, low.stdout
+    assert "por debajo de 80" in low.stderr

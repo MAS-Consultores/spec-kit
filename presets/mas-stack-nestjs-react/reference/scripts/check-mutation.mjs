@@ -14,7 +14,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { candidateRefs, resolveMergeBase } from "./lib/diff-base.mjs";
 
@@ -78,14 +78,28 @@ function diffSinceMergeBase(root, argv = process.argv, env = process.env) {
   };
 }
 
-export function perTestCoverageOk(report) {
+function reportMutants(report) {
   const files = report && typeof report === "object" ? report.files : null;
-  if (!files || typeof files !== "object") return false;
-  const mutants = Object.values(files).flatMap((file) => (file && Array.isArray(file.mutants) ? file.mutants : []));
+  if (!files || typeof files !== "object") return [];
+  return Object.values(files).flatMap((file) => (file && Array.isArray(file.mutants) ? file.mutants : []));
+}
+
+export function mutationScore(report) {
+  const mutants = reportMutants(report);
+  const killed = mutants.filter((mutant) => mutant.status === "Killed").length;
+  const survived = mutants.filter((mutant) => mutant.status === "Survived").length;
+  const timeout = mutants.filter((mutant) => mutant.status === "Timeout").length;
+  const scored = killed + survived + timeout;
+  if (scored === 0) return Number.NaN;
+  return (killed / scored) * 100;
+}
+
+export function perTestCoverageOk(report) {
+  const mutants = reportMutants(report);
   if (mutants.length === 0) return false;
   const scored = mutants.filter((mutant) => mutant.status === "Killed" || mutant.status === "Survived" || mutant.status === "Timeout");
-  if (scored.length === 0) return mutants.some((mutant) => mutant.status === "NoCoverage" || mutant.status === "Ignored");
-  return scored.every((mutant) => Array.isArray(mutant.coveredBy));
+  if (scored.length === 0) return false;
+  return scored.every((mutant) => Array.isArray(mutant.coveredBy) && mutant.coveredBy.length > 0);
 }
 
 function cleanEnv() {
@@ -304,12 +318,23 @@ function main() {
     rmSync(incrementalFile, { force: true });
     status = run(false);
   }
-  if (status !== 0) process.exit(status);
-  if (!perTestCoverageOk(readReport())) {
+  const report = readReport();
+  const score = mutationScore(report);
+  if (!Number.isFinite(score)) {
+    console.error("mutation: no hay mutantes puntuados; el score no es un número finito");
+    rmSync(incrementalFile, { force: true });
+    process.exit(1);
+  }
+  if (!perTestCoverageOk(report)) {
     console.error("Stryker no reportó cobertura perTest; el resultado incremental no es válido");
     rmSync(incrementalFile, { force: true });
     process.exit(1);
   }
+  if (score < plan.threshold) {
+    console.error(`mutation: score ${score} por debajo de ${plan.threshold}`);
+    process.exit(1);
+  }
+  if (status !== 0) process.exit(status);
 }
 
 function existsGates(root) {
@@ -325,4 +350,5 @@ function gatesRoot() {
   return existsGates(process.cwd()) ? process.cwd() : referenceRoot;
 }
 
-main();
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) main();

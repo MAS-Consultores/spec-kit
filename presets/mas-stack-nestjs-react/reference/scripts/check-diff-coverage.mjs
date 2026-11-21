@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { addedLineMap, overrideGitDir, resolveMergeBase } from "./check-diff-quality.mjs";
 
@@ -119,11 +119,15 @@ function collectDiff() {
       maxBuffer: 64 * 1024 * 1024,
     });
   } catch (error) {
-    const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
-    console.error("check-diff-coverage: git diff falló");
-    if (stderr) console.error(stderr);
+    console.error(gitDiffFailureText(error));
     process.exit(1);
   }
+}
+
+export function gitDiffFailureText(error) {
+  const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
+  const message = error instanceof Error ? error.message : "";
+  return ["check-diff-coverage: git diff falló", stderr, message].filter((line) => line.trim()).join("\n");
 }
 
 function runGate() {
@@ -150,7 +154,10 @@ function report(lcovText, diffText) {
   console.log("diff coverage ok");
 }
 
-if (process.argv.includes("--self-test")) {
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (!invokedDirectly) {
+  // importado por un test
+} else if (process.argv.includes("--self-test")) {
   selfTest();
 } else if (process.argv.includes("--gate")) {
   runGate();
