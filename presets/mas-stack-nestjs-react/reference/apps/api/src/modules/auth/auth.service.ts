@@ -8,7 +8,7 @@ import type { Response } from "express";
 import { configString } from "../../config/read.js";
 import { AuthRepository, type AuthUserRecord } from "./auth.repository.js";
 import { businessScopes, refreshIssuedAfterPasswordChange } from "./session.token.js";
-import type { Clock, IdGenerator } from "../platform/index.js";
+import { SystemClock, SystemIdGenerator } from "../platform/index.js";
 
 const REFRESH_TTL_MS = 604_800_000;
 const CSRF_BYTES = 16;
@@ -55,8 +55,8 @@ export class AuthService {
     private readonly users: AuthRepository,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
-    private readonly clock: Clock,
-    private readonly ids: IdGenerator,
+    private readonly clock: SystemClock,
+    private readonly ids: SystemIdGenerator,
   ) {}
 
   async login(body: unknown, res: Response): Promise<{ csrfToken: string }> {

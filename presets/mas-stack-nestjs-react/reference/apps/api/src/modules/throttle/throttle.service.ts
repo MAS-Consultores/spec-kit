@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { ThrottlerStorage } from "@nestjs/throttler";
-import type { Clock } from "../platform/index.js";
+import { SystemClock } from "../platform/index.js";
 import { ThrottleRepository } from "./throttle.repository.js";
 
 interface StorageRecord {
@@ -14,7 +14,7 @@ interface StorageRecord {
 export class DbThrottlerStorage implements ThrottlerStorage {
   constructor(
     private readonly buckets: ThrottleRepository,
-    private readonly clock: Clock,
+    private readonly clock: SystemClock,
   ) {}
 
   // ThrottlerStorage.increment is a five-argument interface. The names are not ours.
