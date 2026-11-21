@@ -79,6 +79,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma client and contracts
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/app
         run: pnpm db:generate && pnpm --filter @demo/contracts build
 
       - name: Restore Stryker incremental

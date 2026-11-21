@@ -853,6 +853,6 @@ jobs:
           git -C "$work" -c commit.gpgsign=false commit -q -m "toca auth"
           cd "$work"
           pnpm install --frozen-lockfile
-          pnpm db:generate
+          DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/app" pnpm db:generate
           pnpm --filter @demo/contracts build
           node scripts/check-mutation.mjs --run
