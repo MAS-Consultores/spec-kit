@@ -41,9 +41,11 @@ function selfTest() {
   const bin = binFlag === -1 ? "" : process.argv[binFlag + 1];
   if (bin) {
     const dir = mkdtempSync(join(tmpdir(), "gitleaks-fixture-"));
+    const accessKey = ["AKIA", "A1B2C3D4E5F6G7H8"].join("");
+    const secretKey = ["abcdefghijklmnopqrstuvwxyz0123456789", "ABCD"].join("");
     writeFileSync(
       join(dir, "leak.ts"),
-      "export const key = \"AKIAA1B2C3D4E5F6G7H8\";\nexport const aws_secret_access_key = \"abcdefghijklmnopqrstuvwxyz0123456789ABCD\";\n",
+      `export const key = "${accessKey}";\nexport const aws_secret_access_key = "${secretKey}";\n`,
       "utf8",
     );
     let failed = false;
