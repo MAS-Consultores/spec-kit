@@ -7,6 +7,7 @@ import { package2Rules } from "./package2-rules.js";
 import { uploadRules } from "./upload-rules.js";
 import { formatParserRules } from "./format-parser-rules.js";
 import { cleanCodeRules } from "./clean-code-rules.js";
+import { disableCommentGap } from "./oxlint-ownership.mjs";
 
 /** Teaching rules. The message is the fix, not only the ban. */
 
@@ -145,6 +146,24 @@ const masPlugin = {
     ...package2Rules,
     ...formatParserRules,
     ...cleanCodeRules,
+    "no-eslint-disable": {
+      meta: {
+        type: "problem",
+        docs: { description: "A disable comment has to work in ESLint and in oxlint, and it names the rules." },
+        schema: [],
+        messages: { gap: "{{text}}" },
+      },
+      create(context) {
+        return {
+          Program() {
+            for (const comment of context.sourceCode.getAllComments()) {
+              const gap = disableCommentGap(comment.value);
+              if (gap) context.report({ loc: comment.loc, messageId: "gap", data: { text: gap } });
+            }
+          },
+        };
+      },
+    },
     "require-disable-justification": {
       meta: {
         type: "problem",

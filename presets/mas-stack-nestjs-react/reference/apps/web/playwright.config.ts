@@ -11,6 +11,7 @@ const databaseUrl = process.env["SEED_DATABASE_URL"] ?? process.env["DATABASE_UR
 
 const config: PlaywrightTestConfig = {
   testDir: "./e2e",
+  testIgnore: ["**/critical/**", "**/visual/**"],
   globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL: `http://127.0.0.1:${String(webPort)}`,

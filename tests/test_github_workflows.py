@@ -449,7 +449,7 @@ def test_release_version_uses_environment_variables():
 
 
 @requires_bash
-@pytest.mark.parametrize("tag", ["v0.1.11", "v0.2.0", "v1.0.0"])
+@pytest.mark.parametrize("tag", ["v0.1.11", "v0.2.0", "v1.0.0", "v1.4.3-mas.3", "v1.4.3-mas.3.1", "v1.4.3-mas.4"])
 def test_release_tag_validation_accepts_valid_tag(tmp_path, tag):
     output = tmp_path / "github output"
     result = subprocess.run(
@@ -466,7 +466,7 @@ def test_release_tag_validation_accepts_valid_tag(tmp_path, tag):
 
 @requires_bash
 @pytest.mark.parametrize("tag", [
-    "", "1.2.3", "v1.2", "v1.2.3.4", "v1.2.3-rc1", "v1.2.3+build",
+    "", "1.2.3", "v1.2", "v1.2.3.4", "v1.2.3-rc1", "v1.2.3+build", "v1.4.3-mas", "v1.4.3-mas.3.1.2",
     "v1.a.3", "v1.2.3\nother=value", "v1.2.3$(touch${IFS}injected)",
     "v1.2.3`touch${IFS}injected`", 'v1.2.3";touch${IFS}injected;#',
 ])
@@ -628,6 +628,13 @@ gh() {
         assert f"- Release change {commit_count - 1}" in notes
         expected_count = min(commit_count, 20) if not previous_tag else commit_count - 1
         assert notes.count("- Release change ") == expected_count
+
+
+@requires_bash
+@pytest.mark.parametrize("tag", ["v1.4.3-mas.3", "v1.4.3-mas.3.1", "v1.4.3-mas.4"])
+def test_publish_tag_format_accepts_mas_patch(tmp_path, tag):
+    result = _run_publish_validation_step("Verify tag format", tag, tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 @requires_bash

@@ -1,0 +1,9 @@
+[
+  "AUDIT_CATALOG",
+  "AUDIT_TONES",
+  "ActivityTypeOption",
+  "AuditEventDefinition",
+  "activityTypeFilter",
+  "isAuditEventKey",
+  "requireAuditEventKey"
+]

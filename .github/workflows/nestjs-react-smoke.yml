@@ -2,7 +2,8 @@ name: NestJS React stack smoke
 
 on:
   push:
-    branches: ["nestjs-react-support"]
+    branches: ["nestjs-react-support", "release/v1.4.3-mas.4"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -91,7 +92,7 @@ jobs:
         run: uv sync --extra test
 
       - name: Policy and scenario tests
-        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py tests/test_mas_nestjs_demo6.py tests/test_mas_nestjs_demo7.py tests/test_mas_nestjs_demo8.py -q --tb=short
+        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py tests/test_mas_nestjs_demo6.py tests/test_mas_nestjs_demo7.py tests/test_mas_nestjs_demo8.py tests/test_mas_nestjs_d17.py -q --tb=short
 
       - name: Feature script on Bash
         if: runner.os != 'Windows'
@@ -561,8 +562,9 @@ jobs:
             fi
             sleep 1
           done
-          curl -fsS "http://127.0.0.1:3999/api/v1/health"
+          curl -fsS "http://127.0.0.1:3999/api/v1/health" -o /tmp/health.json
           test "$ready" -eq 1
+          node scripts/check-api-contract.mjs --response /tmp/health.json
           cleanup_api
           api_pid=""
           trap - EXIT
@@ -603,6 +605,18 @@ jobs:
           node --experimental-strip-types apps/web/e2e/ports.ts --self-test
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
           node scripts/check-gen-fitness.mjs
+          mkdir -p "$GITHUB_WORKSPACE/harness-artifact"
+          if [ -f .specify/telemetry/runs.jsonl ]; then
+            cp .specify/telemetry/runs.jsonl "$GITHUB_WORKSPACE/harness-artifact/runs.jsonl"
+          fi
+
+      - name: Upload harness telemetry
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: harness-telemetry
+          path: harness-artifact/runs.jsonl
+          if-no-files-found: ignore
 
   skeleton-boot:
     runs-on: ubuntu-latest

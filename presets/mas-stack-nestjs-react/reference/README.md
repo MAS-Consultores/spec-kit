@@ -98,13 +98,13 @@ Reglas `mas/*` nuevas, cada una con fixture rojo y caso verde en `scripts/check-
 
 Plugins en la última estable usada por el esqueleto: `eslint-plugin-sonarjs`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`. En error: `complexity` 10, `max-depth` 3, `max-params` 3, `sonarjs/cognitive-complexity` 15, `no-nested-ternary`, `no-else-return`, `sonarjs/no-identical-functions`, `sonarjs/no-duplicate-string`, `sonarjs/no-collapsible-if`, `@typescript-eslint/switch-exhaustiveness-check`, `explicit-module-boundary-types`, `strict-boolean-expressions`, `naming-convention` (tipos PascalCase, el resto camelCase, booleanos `is`/`has`/`can`/`should`), `prefer-readonly`, `consistent-type-imports`, `no-param-reassign` con `props`, `prefer-const`, `eqeqeq`, `no-console` (en Nest, `Logger`), `react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps` y `jsx-a11y` recommended en `apps/web`.
 
-`dependency-cruiser` recorre `apps` y `packages`, incluidos `*.spec.ts` y e2e. Un ciclo de specs está en `apps/api/lint-fixtures/spec-cycle`. `scripts/check-duplicate-contract-types.mjs` falla si una app redeclara un `export type` o `export interface` de `packages/contracts`. `knip` corre dentro de `pnpm lint`. Los scripts de la raíz quedan fuera: `package.json` ya los invoca. La copia que el instalador deja en `.specify/` no entra al análisis.
+`dependency-cruiser` recorre `apps` y `packages`, incluidos `*.spec.ts` y e2e. `enhancedResolveOptions` sigue los `exports` de `packages/contracts`. Los ignores de knip que son del producto van en `knip.product.json` (`ignore`, `ignoreDependencies`, `ignoreBinaries`); no hace falta editar el `knip.json` compartido. `quality-gates.json` elige `componentRoots` (por defecto `apps/web/src`; una carpeta ausente, como `shell`, no rompe el gate) y, si hace falta, `jscpdSkipScripts` con el nombre real del script de fitness. Un ciclo de specs está en `apps/api/lint-fixtures/spec-cycle`. `scripts/check-duplicate-contract-types.mjs` falla si una app redeclara un `export type` o `export interface` de `packages/contracts`. `knip` corre dentro de `pnpm lint`. Los scripts de la raíz quedan fuera: `package.json` ya los invoca. La copia que el instalador deja en `.specify/` no entra al análisis.
 
 Un `eslint-disable` sigue exigiendo `--` y un motivo. No hay excepciones globales.
 
 ## ESLint más rápido, mismas reglas
 
-Sigue siendo ESLint 10.15.0 (última estable; ya trae `--concurrency`). No se usa Oxlint ni Oxfmt. `parserOptions.projectService` ya estaba en `true` en `eslint.config.js`; no hay un `project` aparte.
+`pnpm lint` llama a ESLint con `--cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto`. Oxlint 1.94.0 corre antes, con `pnpm lint:fast`, sobre las reglas nativas de `.oxlintrc.json`. ESLint sigue siendo el gate del trinquete y del diff: esos scripts definen `HARNESS_ESLINT_FULL=1` para no apagar esas reglas. `parserOptions.projectService` ya estaba en `true` en `eslint.config.js`; no hay un `project` aparte.
 
 `pnpm lint` llama a ESLint con `--cache --cache-strategy content --cache-location node_modules/.cache/eslint --concurrency=auto`. La caché vive bajo `node_modules/`, que git ignora. El contenido del archivo es la clave, así que un cambio de texto invalida esa entrada aunque la fecha no cambie. Los jobs `reference` y `skeleton-boot` restauran esa carpeta con `actions/cache` y la copian al árbol temporal antes del lint completo. El gate de CI sigue siendo `pnpm lint` / `pnpm verify` sobre todo el esqueleto.
 
@@ -115,5 +115,7 @@ En un proyecto donde este esqueleto es la raíz de git, `pnpm install` deja `cor
 Prisma 7 prints that Node majors above 24 are outside its narrow preinstall table. The Active LTS (26) is inside `engines.node` (`>=24`) and the warning is not a failure. pnpm may warn that some Nest packages declare peers up to Nest 11. Those peers are allowed in `pnpm-workspace.yaml` `peerDependencyRules`. Do not use `pnpm approve --all`.
 
 `pnpm audit` ignores `GHSA-fc5q-39xc-vjpf` (picomatch ReDoS). The latest stable picomatch is 4.0.7 and the advisory lists no patched release. The package is transitive through shadcn and fast-glob.
+
+La protección de ramas, incluido exigir el check `e2e-critical` en `testing` y en `main`, la configura Manuel. Este esqueleto no llama a la API de GitHub para proteger ramas.
 
 `effect` 3.22.0 (pulled by Prisma 7.10.1 through `@prisma/config`) is overridden to 3.22.1 so `GHSA-7589-6fvf-x4pw` stays closed. Prisma itself stays 7.10.1.

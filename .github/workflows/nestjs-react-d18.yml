@@ -1,0 +1,128 @@
+name: NestJS React D18 gates
+
+on:
+  pull_request:
+  push:
+    branches: ["release/v1.4.3-mas.4"]
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.13.1"
+
+      - name: Self-tests
+        working-directory: presets/mas-stack-nestjs-react/reference
+        run: |
+          set -euo pipefail
+          node scripts/check-mutation.mjs --self-test
+          node scripts/check-public-api.mjs --self-test
+          node scripts/check-size-budget.mjs --self-test
+          node scripts/check-api-contract.mjs --self-test
+          node scripts/check-critical-e2e.mjs --self-test
+          node scripts/check-visual-policy.mjs --self-test
+          node scripts/check-oxlint-split.mjs --self-test
+          node scripts/harness-telemetry.mjs --self-test
+          node scripts/harness-report.mjs --self-test
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Semgrep
+        working-directory: presets/mas-stack-nestjs-react/reference
+        run: pipx install semgrep==1.186.0 && semgrep scan --config .semgrep.yml --error --metrics=off
+
+  e2e-critical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: presets/mas-stack-nestjs-react/reference
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.13.1"
+
+      - name: Enable Corepack
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        working-directory: presets/mas-stack-nestjs-react/reference
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Critical tag gate
+        run: node scripts/check-critical-e2e.mjs
+
+      - name: Install Chromium
+        run: pnpm --filter @demo/web exec playwright install chromium
+
+      - name: Critical specs
+        run: pnpm --filter @demo/web exec playwright test --config playwright.critical.config.ts --grep @critical
+        env:
+          CI: "true"
+
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    defaults:
+      run:
+        working-directory: presets/mas-stack-nestjs-react/reference
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.13.1"
+
+      - name: Enable Corepack
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        working-directory: presets/mas-stack-nestjs-react/reference
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @demo/web exec playwright install chromium
+
+      - name: Compare opted-in screens
+        run: pnpm --filter @demo/web exec playwright test --config playwright.visual.config.ts
+        env:
+          CI: "true"
+
+  harness-weekly:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Aggregate
+        working-directory: presets/mas-stack-nestjs-react/reference
+        run: node scripts/harness-report.mjs --self-test

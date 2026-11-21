@@ -2,6 +2,32 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.3+mas.4] - 2026-11-21
+
+Gates del preset `nestjs-react` para la línea `v1.4.3-mas.4`:
+
+- Stryker solo sobre el diff de los módulos críticos (`quality-gates.json`, umbral).
+- Snapshot de la API pública de cada `index.ts`. Un cambio en el diff exige justificación.
+- Presupuesto de líneas por archivo y por módulo, y `size-limit` para el bundle web inicial.
+- Contrato de `packages/contracts` contra la respuesta de health.
+- `pnpm audit` y Semgrep en el CI del esqueleto.
+- Oxlint 1.94.0 y `eslint-plugin-oxlint` 1.94.0. ESLint sigue siendo el gate de verify, del trinquete y del diff.
+- Telemetría local del harness en `.specify/telemetry/runs.jsonl`, artefacto de CI y agregado semanal.
+- Playwright `@critical` en un job bloqueante. La protección de ramas la configura Manuel.
+- Regresión visual opt-in, informativa, con tope de 2 minutos.
+
+## [1.4.3+mas.3.1] - 2026-11-21
+
+Parche del preset `nestjs-react` al sincronizar un producto con v1.4.3-mas.3:
+
+- `check-diff-quality` compara el merge-base de la rama base del PR (`--base`, `GITHUB_BASE_REF`, `origin/main` o el primer padre) y carga `eslint.config.js`. El workflow del esqueleto hace checkout con `fetch-depth: 0`.
+- `check-diff-coverage` ya no sale 0 sin lcov. `pnpm lint` queda en el self-test. `pnpm verify` y el CI corren `--gate` con lcov y diff reales.
+- Los tests de componentes recorren `quality-gates.json` (`componentRoots`), no `apps/web/src/shell`.
+- El trinquete de jscpd reconoce el script de fitness por el flag o por `jscpdSkipScripts`, sin exigir el nombre `check-gen-fitness.mjs`.
+- dependency-cruiser trae `enhancedResolveOptions`. `knip.product.json` es el sitio de los ignores del producto.
+- `mas/no-hidden-service-deps` entra por adopción: warn en lo existente, error en las líneas nuevas.
+- `specify init --stack nestjs-react` deja cuatro `AGENTS.md` (raíz, api, web, contracts). `pnpm verify` falla si falta uno o si un path no existe. Un `{{placeholder}}` no se resuelve.
+
 ## [1.4.3+mas.3] - 2026-11-20
 
 Clean code y quality gates del preset `nestjs-react`:

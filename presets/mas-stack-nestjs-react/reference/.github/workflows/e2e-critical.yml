@@ -1,0 +1,32 @@
+name: e2e-critical
+
+on:
+  pull_request:
+
+jobs:
+  e2e-critical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Critical tag gate
+        run: node scripts/check-critical-e2e.mjs
+
+      - name: Install Chromium
+        run: pnpm --filter @demo/web exec playwright install chromium
+
+      - name: Critical specs
+        run: pnpm --filter @demo/web exec playwright test --config playwright.critical.config.ts --grep @critical
+        # retries: 2 when CI is set, in playwright.critical.config.ts
+        env:
+          CI: "true"

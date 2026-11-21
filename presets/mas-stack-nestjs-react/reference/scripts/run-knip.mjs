@@ -4,8 +4,9 @@
  * temporary git root keeps the report on this package.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { mergeKnipConfig } from "./quality-gate-config.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const top = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
@@ -13,8 +14,16 @@ const nested = join(root, ".git");
 const created = top !== root.replace(/\/$/, "");
 if (created) execFileSync("git", ["init", "-q"], { cwd: root });
 
+const cacheDir = join(root, "node_modules", ".cache");
+mkdirSync(cacheDir, { recursive: true });
+const mergedPath = join(cacheDir, "knip.merged.json");
+const baseConfig = JSON.parse(readFileSync(join(root, "knip.json"), "utf8"));
+const productPath = join(root, "knip.product.json");
+const productConfig = existsSync(productPath) ? JSON.parse(readFileSync(productPath, "utf8")) : null;
+writeFileSync(mergedPath, JSON.stringify(mergeKnipConfig(baseConfig, productConfig)));
+
 try {
-  execFileSync("pnpm", ["exec", "knip"], {
+  execFileSync("pnpm", ["exec", "knip", "--config", mergedPath], {
     cwd: root,
     stdio: "inherit",
     env: {

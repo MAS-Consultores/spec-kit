@@ -1,0 +1,6 @@
+rules:
+  - id: mas-no-eval
+    message: Do not call eval.
+    languages: [javascript, typescript]
+    severity: ERROR
+    pattern: eval(...)

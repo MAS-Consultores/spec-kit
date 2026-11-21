@@ -1,0 +1,28 @@
+name: Visual regression
+
+on:
+  pull_request:
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @demo/web exec playwright install chromium
+
+      - name: Compare opted-in screens
+        run: pnpm --filter @demo/web exec playwright test --config playwright.visual.config.ts
+        env:
+          CI: "true"

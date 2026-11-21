@@ -73,7 +73,7 @@ const tokens = definedTokens(tokenText);
 
 function walk(dir, found) {
   for (const name of readdirSync(dir)) {
-    if (name === "node_modules" || name === "dist") continue;
+    if (name === "node_modules" || name === "dist" || name === "coverage") continue;
     const path = join(dir, name);
     if (statSync(path).isDirectory()) walk(path, found);
     else if (name.endsWith(".css")) found.push(path);

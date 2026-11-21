@@ -957,11 +957,12 @@ def test_nestjs_react_requires_tailwind_source_directive(tmp_path):
 _AD_HOC_SCREENSHOT_RULE = (
     "AI agents MUST NOT take, generate, or save ad hoc screenshots during "
     "`/speckit.implement`, demos, or pilots—not with Playwright, not with a "
-    "browser, and not with scripts. Visual review is performed by a human "
-    "(revisión visual humana). Playwright + axe-core gates, including computed "
+    "browser, and not with scripts. Visual review of product work is performed by a human "
+    "(revisión visual humana), except the opted-in fidelity baselines in "
+    "`apps/web/e2e/visual/`. Playwright + axe-core gates, including computed "
     "Tailwind style verification, remain mandatory and MUST run without "
-    "screenshots (`screenshot: 'off'`; no `toHaveScreenshot()`; no "
-    "`page.screenshot()`)."
+    "screenshots (`screenshot: 'off'`; no `toHaveScreenshot()` outside "
+    "`apps/web/e2e/visual/`; no `page.screenshot()`)."
 )
 
 

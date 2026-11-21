@@ -1,0 +1,7 @@
+[
+  {
+    "name": "web initial",
+    "path": "apps/web/dist/assets/*.js",
+    "limit": "500 kB"
+  }
+]

@@ -226,7 +226,33 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D16-10 | `/speckit.converge` no existía y el loop no estaba escrito para el agente que corrige bugs | el preset registra `commands/speckit.converge.md` y `docs/quality-loop.md`. El skill cita la licencia MIT en `NOTICE` |
 | D16-11 | Playwright carga `choosePorts` en paralelo y cada worker se queda con un puerto distinto; el e2e web recibe `ERR_CONNECTION_REFUSED` | `apps/web/e2e/ports.ts --self-test`: dos llamadas en paralelo con `isLocked: false` divergen; con el candado (`mkdir` de `${file}.lock`) devuelven el mismo par |
 | D16-12 | `check-gen-fitness` genera alpha y beta, dos copias del mismo andamio, y el trinquete de jscpd sube | `check-gen-fitness` corre `pnpm lint -- --skip-jscpd-ratchet`. `check-quality-baseline.mjs --self-test` exige que un clon real (conteo 0 → clones encontrados) falle el trinquete y que el mismo conteo no falle cuando el flag está presente |
-| D16-13 | `--skip-jscpd-ratchet` queda activo en `pnpm verify` o en el `lint` del CI | `check-quality-baseline.mjs --self-test` lee `package.json`: `verify` y `lint` no contienen el flag; `scripts/check-gen-fitness.mjs` sí lo pasa. Sin argumentos, `skipsJscpd` es falso |
+| D16-13 | `--skip-jscpd-ratchet` queda activo en `pnpm verify` o en el `lint` del CI | `check-quality-baseline.mjs --self-test` lee `package.json`: `verify` y `lint` no contienen el flag; el script de fitness sí lo pasa. Sin argumentos, `skipsJscpd` es falso |
+
+## Preset al sincronizar un producto (v1.4.3-mas.3.1)
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D17-01 | el diff de calidad comparaba contra `HEAD` y ESLint arrancaba con `overrideConfigFile: true`, así que un checkout limpio de CI no veía el PR ni las reglas del proyecto | `tests/test_mas_nestjs_d17.py`: `--print-base` imprime el merge-base de `GITHUB_BASE_REF`. El script no usa `overrideConfigFile`. `.github/workflows/diff-quality.yml` hace `fetch-depth: 0` |
+| D17-02 | sin `--lcov` y `--diff` el gate de cobertura salía 0, y `pnpm lint` solo corría el self-test | el mismo test: el script sin flags sale distinto de 0; `pnpm verify` contiene `--gate` y `pnpm lint` solo `--self-test` |
+| D17-03 | el gate de componentes exigía `apps/web/src/shell` | `check-component-tests.mjs --self-test` imprime `no-shell ok` (fixture sin esa carpeta, y `quality-gates.json` que apunta a `panels`) |
+| D17-04 | el self-test del trinquete leía `scripts/check-gen-fitness.mjs` | `check-quality-baseline.mjs --self-test` acepta un temporal llamado `check-module-fitness.mjs` vía `jscpdSkipScripts` |
+| D17-05 | dependency-cruiser no resolvía `exports`, y knip no tenía ignores de producto | `.dependency-cruiser.cjs` tiene `enhancedResolveOptions`. `knip.product.json` existe y `run-knip.mjs` lo fusiona |
+| D17-06 | `mas/no-hidden-service-deps` estaba en error y rompía `Date.now()` / `new Date()` ya presentes | `eslint.config.js` lo deja en `warn`. `ADOPTION_RULES` lo incluye. El self-test de `check-diff-quality.mjs` falla si esa regla aparece en una línea nueva |
+| D17-07 | el esqueleto no traía `AGENTS.md`, o un puntero nombraba un archivo que no existe | `scripts/check-agents-md.mjs --self-test`: falta un archivo, falla; un link a `no-such.md` falla; un `{{placeholder}}` y un archivo real pasan. `pnpm verify` corre el chequeo sobre los cuatro archivos |
+
+## Gates de la v1.4.3-mas.4
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D18-01 | la mutación corría el árbol entero o no tenía umbral | `scripts/check-mutation.mjs --self-test`: un archivo fuera de nómina, permisos y auth no entra; `auth.service.ts` sí; sin `threshold` el gate sale distinto de 0 |
+| D18-02 | un `index.ts` nuevo o tocado cambiaba exports sin snapshot ni motivo | `scripts/check-public-api.mjs --self-test`: sin snapshot es error; con diff y sin `JUSTIFICATION.md` es error; con el motivo pasa. Lo que no está en el diff solo avisa |
+| D18-03 | un archivo nuevo pasaba de 300 líneas, o faltaba el tope del bundle | `scripts/check-size-budget.mjs --self-test`: lo viejo avisa; lo nuevo en el diff es error. `.size-limit.json` nombra `web initial` |
+| D18-04 | la respuesta traía un campo que el contrato no nombra | `scripts/check-api-contract.mjs --self-test`: el campo extra es error; un campo viejo ausente avisa |
+| D18-05 | el CI no corría audit ni Semgrep | `.github/workflows/security.yml` contiene `pnpm audit` y `semgrep` |
+| D18-06 | la misma regla quedaba activa en ESLint y en oxlint, o al apagarla bajaba el trinquete | `scripts/check-oxlint-split.mjs --self-test` imprime `counts-equal`. El plugin va al final. El trinquete y el diff definen `HARNESS_ESLINT_FULL`. Un `oxlint-disable` solo es `hueco` |
+| D18-07 | verify no dejaba rastro del gate | `scripts/harness-telemetry.mjs --self-test` escribe una línea JSON sin secretos. El workflow de reference sube el artefacto `harness-telemetry` |
+| D18-08 | una feature no tenía ningún E2E `@critical` | `scripts/check-critical-e2e.mjs --self-test`. El job `e2e-critical` es bloqueante. La protección de ramas la configura Manuel |
+| D18-09 | un test fuera de la fidelidad visual tomaba una captura | `scripts/check-visual-policy.mjs --self-test`. El job `visual` tiene `timeout-minutes: 2` y bloquea: en CI entró en 25 s |
 
 ## Versiones probadas
 

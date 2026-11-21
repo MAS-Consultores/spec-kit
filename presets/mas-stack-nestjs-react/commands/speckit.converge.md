@@ -12,7 +12,13 @@ Antes de dar la feature por terminada, lista cada violación con su código: F1,
 
 ## Quality loop
 
+Dos bucles de lint. El rápido, sobre los archivos tocados: `pnpm exec oxlint` (menos de 200 ms). Al cerrar la tarea: ESLint sobre esos archivos y después `pnpm verify`. El CI hace lo mismo.
+
 Tras implementar y tras cada ronda de corrección, corre sobre lo cambiado: lint (clean code y capas), knip, jscpd y dependency-cruiser. Si hay hallazgos, corrige y repite, hasta 3 vueltas. Termina solo con cero hallazgos nuevos o con cada excepción justificada en este reporte (archivo, regla, motivo).
+
+Cada feature marca al menos su flujo principal con `@critical`.
+
+Al cerrar, el pull request lleva una tabla corta: gate, vueltas y reglas corregidas, a partir de `.specify/telemetry/runs.jsonl`.
 
 Un agente que corrige un bug usa el mismo loop. No hace falta una feature nueva para eso.
 
