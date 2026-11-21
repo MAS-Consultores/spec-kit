@@ -224,6 +224,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D16-08 | un componente con 3 o más condicionales no tiene `*.test.tsx` | `check-component-tests.mjs --self-test`: umbral 99 (apagado) acepta el panel; umbral 3 lo rechaza; el directorio `covered` pasa |
 | D16-09 | un secreto de ejemplo no se detecta, o se detecta con la regla apagada | `check-gitleaks-fixture.mjs` (mensaje `generic-api-key`). El job de CI corre gitleaks 8.24.3 sobre el esqueleto con `.gitleaks.toml` |
 | D16-10 | `/speckit.converge` no existía y el loop no estaba escrito para el agente que corrige bugs | el preset registra `commands/speckit.converge.md` y `docs/quality-loop.md`. El skill cita la licencia MIT en `NOTICE` |
+| D16-11 | Playwright carga `choosePorts` en paralelo y cada worker se queda con un puerto distinto; el e2e web recibe `ERR_CONNECTION_REFUSED` | `apps/web/e2e/ports.ts --self-test`: dos llamadas en paralelo con `lock: false` divergen; con el candado (`mkdir` de `${file}.lock`) devuelven el mismo par |
 
 ## Versiones probadas
 
