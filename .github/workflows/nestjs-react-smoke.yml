@@ -848,9 +848,10 @@ jobs:
           git -C "$work" -c commit.gpgsign=false commit -q -m base
           git -C "$work" update-ref refs/remotes/origin/main HEAD
           git -C "$work" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
-          printf '\nexport const mutationProbe = 1;\n' >> "$work/apps/api/src/modules/auth/auth.service.ts"
-          git -C "$work" add apps/api/src/modules/auth/auth.service.ts
-          git -C "$work" -c commit.gpgsign=false commit -q -m "toca auth"
+          printf '%s\n' 'export function double(n: number): number { return n * 2; }' > "$work/apps/api/src/modules/auth/mutation-probe.ts"
+          printf '%s\n' 'import { expect, it } from "vitest";' 'import { double } from "./mutation-probe.js";' 'it("doubles", () => { expect(double(2)).toBe(4); });' > "$work/apps/api/src/modules/auth/mutation-probe.spec.ts"
+          git -C "$work" add apps/api/src/modules/auth/mutation-probe.ts apps/api/src/modules/auth/mutation-probe.spec.ts
+          git -C "$work" -c commit.gpgsign=false commit -q -m "archivo mutable cubierto"
           cd "$work"
           pnpm install --frozen-lockfile
           DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/app" pnpm db:generate
