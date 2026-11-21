@@ -72,6 +72,20 @@ def _clean_env() -> dict[str, str]:
     return {key: value for key, value in os.environ.items() if key != "GITHUB_BASE_REF"}
 
 
+def _node(args: list[str], cwd: Path, *, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["node", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=_clean_env(),
+        input=input_text,
+        check=False,
+    )
+
+
 def _init(repo: Path) -> None:
     repo.mkdir()
     _git(repo, "init", "-q", "-b", "main")
@@ -112,14 +126,7 @@ def test_d19_03_committed_public_export_without_justification_is_an_error(tmp_pa
     status = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True)
     assert status.stdout == ""
 
-    result = subprocess.run(
-        ["node", str(REFERENCE / "scripts" / "check-public-api.mjs")],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        env=_clean_env(),
-        check=False,
-    )
+    result = _node([str(REFERENCE / "scripts" / "check-public-api.mjs")], repo)
     assert result.returncode != 0, result.stdout
     assert "sin justificación" in result.stderr
 
@@ -150,14 +157,7 @@ def test_d19_04_committed_file_and_module_over_budget_are_errors(tmp_path: Path)
     status = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True)
     assert status.stdout == ""
 
-    result = subprocess.run(
-        ["node", str(REFERENCE / "scripts" / "check-size-budget.mjs")],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        env=_clean_env(),
-        check=False,
-    )
+    result = _node([str(REFERENCE / "scripts" / "check-size-budget.mjs")], repo)
     assert result.returncode != 0, result.stdout
     assert "new.ts" in result.stderr
     assert "módulo auth" in result.stderr
@@ -174,7 +174,19 @@ def test_d19_05_new_api_file_missing_from_lcov_is_uncovered(tmp_path: Path) -> N
     _commit(repo, "miss")
     status = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True)
     assert status.stdout == ""
-    diff = subprocess.run(["git", "diff", "-U0", "HEAD^", "HEAD"], cwd=repo, capture_output=True, text=True, check=True)
+    diff = subprocess.run(
+        ["git", "diff", "-U0", "--no-ext-diff", "HEAD^", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=True,
+    )
+    diff_text = diff.stdout.replace("\\", "/").replace("\r\n", "\n")
+    assert "apps/api/src/miss.ts" in diff_text
+    diff_path = tmp_path / "miss.diff"
+    diff_path.write_text(diff_text, encoding="utf-8", newline="\n")
 
     script = REFERENCE / "scripts" / "check-diff-coverage.mjs"
     source = script.read_text(encoding="utf-8")
@@ -188,7 +200,7 @@ def test_d19_05_new_api_file_missing_from_lcov_is_uncovered(tmp_path: Path) -> N
     probe = """
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-const diff = readFileSync(0, "utf8");
+const diff = readFileSync(process.argv[2], "utf8");
 const mod = await import(pathToFileURL(process.argv[1]));
 const result = mod.coverageRatio(
   "SF:apps/api/src/other.ts\\nDA:1,1\\nend_of_record\\n",
@@ -197,13 +209,7 @@ const result = mod.coverageRatio(
 );
 process.stdout.write(JSON.stringify({ ok: result.ok, lineTotal: result.lineTotal ?? 0 }));
 """
-    result = subprocess.run(
-        ["node", "--input-type=module", "-e", probe, str(module)],
-        input=diff.stdout,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _node(["--input-type=module", "-e", probe, str(module), str(diff_path)], repo)
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["ok"] is False
