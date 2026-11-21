@@ -19,13 +19,17 @@ El mismo loop vale para un agente que solo arregla un bug. No se declara el arre
 
 ## Error en código nuevo
 
-`no-magic-numbers` y `mas/no-commented-code` están en `warn` para el árbol actual. `scripts/check-diff-quality.mjs` los trata como error en las líneas que el diff agrega (`--base`, por defecto `HEAD`).
+`no-magic-numbers`, `mas/no-commented-code` y `mas/no-hidden-service-deps` están en `warn` para el árbol actual. `scripts/check-diff-quality.mjs` los trata como error en las líneas que el diff agrega. La base del diff es el `merge-base` de `HEAD` con `--base`, o con `GITHUB_BASE_REF`, o con `origin/main` / `origin/master`, o con el primer padre (`HEAD^`). El workflow `.github/workflows/diff-quality.yml` hace checkout con `fetch-depth: 0` para que ese merge-base exista.
+
+`scripts/check-diff-coverage.mjs --self-test` solo prueba el cálculo. El gate del PR es `--gate` (lcov real de `vitest --coverage` y el mismo diff) o `--lcov` junto con `--diff`. Sin esos argumentos el script sale 1. `pnpm lint` corre el self-test. `pnpm verify` y el workflow corren `--gate`.
+
+`scripts/check-component-tests.mjs` recorre `quality-gates.json` → `componentRoots` (por defecto `apps/web/src`). Un directorio que no existe se salta: el gate no exige `apps/web/src/shell`. El script de fitness que pasa `--skip-jscpd-ratchet` se detecta por contenido, o por `jscpdSkipScripts` en `quality-gates.json`, sin fijar el nombre `check-gen-fitness.mjs`. Los ignores de knip propios del producto van en `knip.product.json` (`ignore`, `ignoreDependencies`, `ignoreBinaries`); `scripts/run-knip.mjs` los fusiona con `knip.json`.
 
 ## Paso a error total
 
 Cuando la baseline de esas dos reglas llegue a cero en todos los archivos:
 
-1. En `eslint.config.js`, cambia `"warn"` por `"error"` en `no-magic-numbers` y `mas/no-commented-code`.
+1. En `eslint.config.js`, cambia `"warn"` por `"error"` en `no-magic-numbers`, `mas/no-commented-code` y `mas/no-hidden-service-deps`.
 2. Quita esas reglas de `ADOPTION_RULES` en `scripts/check-diff-quality.mjs`.
 3. Borra sus mapas de `quality-baseline.json`.
 4. Deja el resto del loop igual.

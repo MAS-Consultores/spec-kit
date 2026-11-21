@@ -65,7 +65,7 @@ export default tseslint.config(
       "max-params": "off",
       "mas/max-callable-params": ["error", { max: 3 }],
       "mas/no-commented-code": "warn",
-      "mas/no-hidden-service-deps": "error",
+      "mas/no-hidden-service-deps": "warn",
       "no-magic-numbers": [
         "warn",
         {

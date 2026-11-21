@@ -42,7 +42,7 @@ Read `.specify/presets/mas-stack-nestjs-react/skills/clean-code-typescript/SKILL
 
 After this phase, and after every fix round, run the quality loop in `.specify/presets/mas-stack-nestjs-react/docs/quality-loop.md`: lint (clean code and layers), knip, jscpd, dependency-cruiser. Fix and repeat, at most 3 rounds. Finish only with no new findings, or with each exception written down (file, rule, reason). A bugfix agent uses the same loop.
 
-New and modified lines are error for `no-magic-numbers` and `mas/no-commented-code` via `scripts/check-diff-quality.mjs` even while those rules stay warn on existing code. Services inject `Clock` and `IdGenerator` from `modules/platform` (`mas/no-hidden-service-deps`). A web component past the complexity threshold needs a Testing Library `*.test.tsx`.
+New and modified lines are error for `no-magic-numbers`, `mas/no-commented-code`, and `mas/no-hidden-service-deps` via `scripts/check-diff-quality.mjs` even while those rules stay warn on existing code. Services inject `Clock` and `IdGenerator` from `modules/platform`. A web component past the complexity threshold needs a Testing Library `*.test.tsx`.
 
 ## Lint the agent must keep green
 

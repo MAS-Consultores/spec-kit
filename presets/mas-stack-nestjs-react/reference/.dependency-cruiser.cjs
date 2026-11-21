@@ -62,5 +62,11 @@ module.exports = {
     exclude: { path: "(^|/)(node_modules|dist|generated|lint-fixtures|routeTree\\.gen\\.ts)" },
     // *.spec.ts and e2e stay in the graph. Do not add them to exclude.
     tsPreCompilationDeps: true,
+    // packages/contracts exposes subpaths through "exports". Without this,
+    // dependency-cruiser misses those conditions and reports false unresolved.
+    enhancedResolveOptions: {
+      exportsFields: ["exports"],
+      conditionNames: ["import", "require", "node", "default"],
+    },
   },
 };

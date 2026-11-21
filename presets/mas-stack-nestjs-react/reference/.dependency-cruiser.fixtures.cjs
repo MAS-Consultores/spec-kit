@@ -34,5 +34,9 @@ module.exports = {
   options: {
     doNotFollow: { path: "node_modules" },
     tsPreCompilationDeps: true,
+    enhancedResolveOptions: {
+      exportsFields: ["exports"],
+      conditionNames: ["import", "require", "node", "default"],
+    },
   },
 };

@@ -35,8 +35,8 @@ jobs:
             # Manual version specified - strip optional v prefix
             VERSION="${INPUT_VERSION#v}"
             # Validate semver format (with optional -mas.N suffix) to prevent injection
-            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-mas\.[0-9]+)?$ ]]; then
-              echo "Error: Invalid version format '$VERSION'. Must be X.Y.Z or X.Y.Z-mas.N (e.g. 1.2.3, v1.2.3, 1.2.3-mas.1)"
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-mas\.[0-9]+(\.[0-9]+)?)?$ ]]; then
+              echo "Error: Invalid version format '$VERSION'. Must be X.Y.Z, X.Y.Z-mas.N, or X.Y.Z-mas.N.M (e.g. 1.2.3, v1.2.3, 1.2.3-mas.1, 1.4.3-mas.3.1)"
               exit 1
             fi
             echo "version=$VERSION" >> $GITHUB_OUTPUT

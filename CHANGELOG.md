@@ -2,6 +2,17 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.3+mas.3.1] - 2026-11-21
+
+Parche del preset `nestjs-react` al sincronizar un producto con v1.4.3-mas.3:
+
+- `check-diff-quality` compara el merge-base de la rama base del PR (`--base`, `GITHUB_BASE_REF`, `origin/main` o el primer padre) y carga `eslint.config.js`. El workflow del esqueleto hace checkout con `fetch-depth: 0`.
+- `check-diff-coverage` ya no sale 0 sin lcov. `pnpm lint` queda en el self-test. `pnpm verify` y el CI corren `--gate` con lcov y diff reales.
+- Los tests de componentes recorren `quality-gates.json` (`componentRoots`), no `apps/web/src/shell`.
+- El trinquete de jscpd reconoce el script de fitness por el flag o por `jscpdSkipScripts`, sin exigir el nombre `check-gen-fitness.mjs`.
+- dependency-cruiser trae `enhancedResolveOptions`. `knip.product.json` es el sitio de los ignores del producto.
+- `mas/no-hidden-service-deps` entra por adopción: warn en lo existente, error en las líneas nuevas.
+
 ## [1.4.3+mas.3] - 2026-11-20
 
 Clean code y quality gates del preset `nestjs-react`:

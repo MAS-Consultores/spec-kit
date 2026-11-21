@@ -1,0 +1,44 @@
+name: Diff quality
+
+on:
+  pull_request:
+
+# Generated projects copy this file from `.specify/reference/.github/workflows/diff-quality.yml`.
+# fetch-depth 0 is required: a shallow checkout has no merge-base with the PR base,
+# so check-diff-quality would see an empty diff and skip new lines.
+
+jobs:
+  diff-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the PR base
+        run: git fetch origin "${GITHUB_BASE_REF}"
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack without writing to /usr
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm config set prefix "$HOME/.local"
+          export PATH="$HOME/.local/bin:$PATH"
+          npm i -g corepack@latest
+          corepack enable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Adoption rules on the PR diff
+        run: node scripts/check-diff-quality.mjs
+
+      - name: Diff coverage gate
+        run: node scripts/check-diff-coverage.mjs --gate

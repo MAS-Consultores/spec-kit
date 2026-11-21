@@ -91,7 +91,7 @@ jobs:
         run: uv sync --extra test
 
       - name: Policy and scenario tests
-        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py tests/test_mas_nestjs_demo6.py tests/test_mas_nestjs_demo7.py tests/test_mas_nestjs_demo8.py -q --tb=short
+        run: uv run pytest tests/test_mas_nestjs_scenarios.py tests/test_mas_nestjs_gaps.py tests/test_mas_nestjs_demo5.py tests/test_mas_nestjs_demo6.py tests/test_mas_nestjs_demo7.py tests/test_mas_nestjs_demo8.py tests/test_mas_nestjs_d17.py -q --tb=short
 
       - name: Feature script on Bash
         if: runner.os != 'Windows'

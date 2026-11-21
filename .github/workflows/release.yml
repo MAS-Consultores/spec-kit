@@ -21,8 +21,8 @@ jobs:
         id: version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-mas\.[0-9]+)?$ ]]; then
-            echo "Error: '$VERSION' is not a valid release tag (expected vX.Y.Z or vX.Y.Z-mas.N)"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-mas\.[0-9]+(\.[0-9]+)?)?$ ]]; then
+            echo "Error: '$VERSION' is not a valid release tag (expected vX.Y.Z, vX.Y.Z-mas.N, or vX.Y.Z-mas.N.M)"
             exit 1
           fi
           echo "tag=$VERSION" >> "$GITHUB_OUTPUT"

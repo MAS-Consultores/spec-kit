@@ -5,10 +5,11 @@
  * Touched files must stay equal or better (fewer warnings).
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ADOPTION_RULES } from "./check-diff-quality.mjs";
+import { jscpdSkipOwners } from "./quality-gate-config.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const baselinePath = join(root, "quality-baseline.json");
@@ -190,12 +191,22 @@ function selfTest() {
     process.exit(1);
   }
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-  const fitnessSource = readFileSync(join(root, "scripts", "check-gen-fitness.mjs"), "utf8");
   const verifySkips = pkg.scripts.verify.includes("--skip-jscpd-ratchet");
   const lintSkips = pkg.scripts.lint.includes("--skip-jscpd-ratchet");
-  const fitnessSkips = fitnessSource.includes('"--skip-jscpd-ratchet"');
-  if (verifySkips || lintSkips || !fitnessSkips) {
-    console.error("self-test: --skip-jscpd-ratchet solo puede usarlo check-gen-fitness");
+  const owners = jscpdSkipOwners(root);
+  const renamed = mkdtempSync(join(tmpdir(), "fitness-name-"));
+  writeFileSync(join(renamed, "quality-gates.json"), JSON.stringify({ jscpdSkipScripts: ["check-module-fitness.mjs"] }));
+  const renamedScripts = join(renamed, "scripts");
+  mkdirSync(renamedScripts);
+  writeFileSync(join(renamedScripts, "check-module-fitness.mjs"), 'run("pnpm", ["lint", "--", "--skip-jscpd-ratchet"]);\n');
+  const renamedOwners = jscpdSkipOwners(renamed);
+  rmSync(renamed, { recursive: true, force: true });
+  if (verifySkips || lintSkips || owners.owners.length === 0 || owners.unexpected.length !== 0) {
+    console.error("self-test: --skip-jscpd-ratchet solo puede usarlo el script de fitness declarado");
+    process.exit(1);
+  }
+  if (renamedOwners.owners.length !== 1 || renamedOwners.owners[0] !== "check-module-fitness.mjs" || renamedOwners.unexpected.length !== 0) {
+    console.error("self-test: el trinquete no puede depender del nombre check-gen-fitness.mjs");
     process.exit(1);
   }
   console.log("check-quality-baseline self-test ok");

@@ -212,7 +212,7 @@ Reglas medibles, en `pnpm lint`:
 - `@typescript-eslint/no-explicit-any` es error en todo el esqueleto, incluidos contratos, DTOs y exports públicos. Desactivarlo sigue prohibido
 - C5: `mas/no-commented-code` en warn. G25: `no-magic-numbers` en warn (permitidos -1, 0, 1 y los códigos HTTP; tests excluidos)
 - knip (código, exports, archivos y dependencias sin uso) y `sonarjs/no-identical-functions` más jscpd
-- `mas/no-hidden-service-deps`: un `*.service.ts` no llama a `Date.now()`, `new Date()` sin argumento ni `Math.random()`, y no hace `new` de una clase con efectos. Inyecta `SystemClock` e `SystemIdGenerator` de `apps/api/src/modules/platform`
+- `mas/no-hidden-service-deps` (adopción: warn en lo existente, error en el diff): un `*.service.ts` no llama a `Date.now()`, `new Date()` sin argumento ni `Math.random()`, y no hace `new` de una clase con efectos. Inyecta `SystemClock` e `SystemIdGenerator` de `apps/api/src/modules/platform`
 
 Adopción: lo existente queda en warn y entra al trinquete `quality-baseline.json` (por regla y archivo, más clones de jscpd y hallazgos de knip). El CI falla si un conteo sube. Si baja, el mismo PR corre `node scripts/check-quality-baseline.mjs --update`. `scripts/check-diff-quality.mjs` trata warn de adopción como error en las líneas nuevas del diff. El paso a error total está en `docs/quality-loop.md`.
 

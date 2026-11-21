@@ -5,8 +5,11 @@
  *   node scripts/check-diff-coverage.mjs --self-test
  *   node scripts/check-diff-coverage.mjs --lcov coverage/lcov.info --diff diff.txt
  */
-import { readFileSync } from "node:fs";
-import { addedLineMap } from "./check-diff-quality.mjs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { addedLineMap, resolveMergeBase } from "./check-diff-quality.mjs";
 
 const DEFAULT_THRESHOLD = 0.8;
 
@@ -79,20 +82,39 @@ function selfTest() {
   console.log("check-diff-coverage self-test ok");
 }
 
-if (process.argv.includes("--self-test")) {
-  selfTest();
-} else {
-  const lcovFlag = process.argv.indexOf("--lcov");
-  const diffFlag = process.argv.indexOf("--diff");
-  if (lcovFlag === -1 || diffFlag === -1) {
-    console.log("check-diff-coverage: sin lcov en este paso (el self-test cubre el umbral)");
-    process.exit(0);
+function projectRoot() {
+  return new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+}
+
+function collectDiff() {
+  const root = projectRoot();
+  const gitRoot = process.env.QUALITY_GIT_DIR
+    ? process.env.QUALITY_GIT_DIR
+    : execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
+  const base = resolveMergeBase(gitRoot);
+  if (!base) return "";
+  try {
+    return execFileSync("git", ["diff", "-U0", base], { cwd: gitRoot, encoding: "utf8" });
+  } catch (error) {
+    return error instanceof Error && "stdout" in error ? String(error.stdout) : "";
   }
-  const result = coverageRatio(
-    readFileSync(process.argv[lcovFlag + 1], "utf8"),
-    readFileSync(process.argv[diffFlag + 1], "utf8"),
-    DEFAULT_THRESHOLD,
-  );
+}
+
+function runGate() {
+  const root = projectRoot();
+  execFileSync("pnpm", ["--filter", "@demo/api", "test:coverage"], { cwd: root, stdio: "inherit" });
+  const lcovPath = join(root, "apps/api/coverage/lcov.info");
+  if (!existsSync(lcovPath)) {
+    console.error("check-diff-coverage: --gate no encontró apps/api/coverage/lcov.info");
+    process.exit(1);
+  }
+  const diffPath = join(tmpdir(), "diff-coverage.txt");
+  writeFileSync(diffPath, collectDiff());
+  return report(readFileSync(lcovPath, "utf8"), readFileSync(diffPath, "utf8"));
+}
+
+function report(lcovText, diffText) {
+  const result = coverageRatio(lcovText, diffText, DEFAULT_THRESHOLD);
   if (!result.ok) {
     console.error(
       `cobertura del diff por debajo del 80% (líneas ${result.lineHit}/${result.lineTotal}, ramas ${result.branchHit}/${result.branchTotal})`,
@@ -100,4 +122,18 @@ if (process.argv.includes("--self-test")) {
     process.exit(1);
   }
   console.log("diff coverage ok");
+}
+
+if (process.argv.includes("--self-test")) {
+  selfTest();
+} else if (process.argv.includes("--gate")) {
+  runGate();
+} else {
+  const lcovFlag = process.argv.indexOf("--lcov");
+  const diffFlag = process.argv.indexOf("--diff");
+  if (lcovFlag === -1 || diffFlag === -1) {
+    console.error("check-diff-coverage: el gate exige --lcov y --diff, o --gate. --self-test no mide el diff del PR.");
+    process.exit(1);
+  }
+  report(readFileSync(process.argv[lcovFlag + 1], "utf8"), readFileSync(process.argv[diffFlag + 1], "utf8"));
 }

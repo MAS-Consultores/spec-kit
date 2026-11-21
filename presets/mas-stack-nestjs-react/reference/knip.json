@@ -5,7 +5,9 @@
     "scripts/**",
     ".specify/**",
     ".dependency-cruiser.fixtures.cjs",
-    "templates/**"
+    "templates/**",
+    "quality-gates.json",
+    "knip.product.json"
   ],
   "ignoreDependencies": ["@tanstack/react-table", "zod", "@nestjs/testing", "@nestjs/schematics", "lint-staged"],
   "workspaces": {
