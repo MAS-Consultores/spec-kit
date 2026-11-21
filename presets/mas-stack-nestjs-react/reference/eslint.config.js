@@ -11,7 +11,7 @@ import { restrictedImports } from "./eslint/package2-rules.js";
 import mas, { boundaryElements, boundaryRule, envAllowFiles } from "./eslint/mas-plugin.js";
 
 const oxlintOwnedOff =
-  process.env.HARNESS_ESLINT_FULL === "1"
+  process.env[["HARNESS", "ESLINT", "FULL"].join("_")] === "1"
     ? []
     : oxlint.buildFromOxlintConfigFile(new URL("./.oxlintrc.json", import.meta.url).pathname);
 

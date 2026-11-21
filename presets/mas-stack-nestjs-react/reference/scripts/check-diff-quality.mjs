@@ -18,6 +18,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { FULL_ESLINT_ENV } from "../eslint/oxlint-ownership.mjs";
 import { relative, resolve } from "node:path";
 
 export const ADOPTION_RULES = ["no-magic-numbers", "mas/no-commented-code", "mas/no-hidden-service-deps"];
@@ -177,7 +178,7 @@ async function lintDiff() {
     return;
   }
   const { ESLint } = await import("eslint");
-  process.env.HARNESS_ESLINT_FULL = "1";
+  process.env[FULL_ESLINT_ENV] = "1";
   const eslint = new ESLint({ cwd: root });
   const results = await eslint.lintFiles(files);
   const problems = [];

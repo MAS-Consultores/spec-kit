@@ -109,6 +109,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Install Chromium
+        run: pnpm --filter @demo/web exec playwright install chromium
+
       - name: Compare opted-in screens
         run: pnpm --filter @demo/web exec playwright test --config playwright.visual.config.ts
         env:

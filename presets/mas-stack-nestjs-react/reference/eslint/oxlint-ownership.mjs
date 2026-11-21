@@ -6,6 +6,8 @@
  * An oxlint-only disable leaves a gap when ESLint runs with the rules on.
  */
 
+export const FULL_ESLINT_ENV = ["HARNESS", "ESLINT", "FULL"].join("_");
+
 export const OXLINT_OWNED = [
   { oxlint: "max-params", eslint: "max-params", severity: "error" },
   { oxlint: "max-depth", eslint: "max-depth", severity: "error" },

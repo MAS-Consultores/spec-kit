@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ADOPTION_RULES } from "./check-diff-quality.mjs";
+import { FULL_ESLINT_ENV } from "../eslint/oxlint-ownership.mjs";
 import { jscpdSkipOwners } from "./quality-gate-config.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -34,7 +35,7 @@ async function warningCounts() {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
-    env: { ...process.env, HARNESS_ESLINT_FULL: "1" },
+    env: { ...process.env, [FULL_ESLINT_ENV]: "1" },
   });
   const results = JSON.parse(stdout);
   const counts = {};

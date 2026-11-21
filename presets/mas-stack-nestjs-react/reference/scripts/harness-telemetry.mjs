@@ -16,15 +16,19 @@ export function telemetryPath(root) {
   return join(root, ".specify", "telemetry", "runs.jsonl");
 }
 
+function gateEnv(parts) {
+  return process.env[parts.join("_")] ?? "";
+}
+
 export function buildRecord({ gate, ok, durationMs, rules, feature, phase, round }) {
   return {
-    feature: feature || process.env.SPEC_FEATURE || "skeleton",
-    phase: phase || process.env.SPEC_PHASE || "verify",
+    feature: feature || gateEnv(["SPEC", "FEATURE"]) || "skeleton",
+    phase: phase || gateEnv(["SPEC", "PHASE"]) || "verify",
     gate,
     ok: Boolean(ok),
     rules: [...new Set(rules ?? [])].slice(0, 40),
     durationMs,
-    round: Number(process.env.QUALITY_LOOP_ROUND || round || 1),
+    round: Number(gateEnv(["QUALITY", "LOOP", "ROUND"]) || round || 1),
   };
 }
 

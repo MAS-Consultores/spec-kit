@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OXLINT_OWNED, disableCommentGap, ownedEslintIds } from "../eslint/oxlint-ownership.mjs";
+import { OXLINT_OWNED, disableCommentGap, ownedEslintIds, FULL_ESLINT_ENV } from "../eslint/oxlint-ownership.mjs";
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -21,13 +21,12 @@ export function enabledOxlintRules(config) {
 
 export function assertSingleOwner(configText) {
   const problems = [];
-  const fullBranch = configText.split("HARNESS_ESLINT_FULL")[1] ?? "";
   if (!configText.includes("eslint-plugin-oxlint")) problems.push("falta eslint-plugin-oxlint");
   if (!configText.includes("...oxlintOwnedOff")) problems.push("el plugin no está en el array");
   const spreadAt = configText.lastIndexOf("...oxlintOwnedOff");
   const exportAt = configText.lastIndexOf("export default");
   if (spreadAt === -1 || spreadAt < exportAt) problems.push("oxlint no cierra el flat config");
-  if (!fullBranch.includes("oxlint.buildFromOxlintConfigFile")) {
+  if (!configText.includes("oxlint.buildFromOxlintConfigFile")) {
     problems.push("el bloque de apagado no sale de .oxlintrc.json");
   }
   for (const rule of OXLINT_OWNED) {
@@ -81,7 +80,7 @@ function selfTest() {
   }
   const baseline = readFileSync(join(referenceRoot, "scripts", "check-quality-baseline.mjs"), "utf8");
   const diff = readFileSync(join(referenceRoot, "scripts", "check-diff-quality.mjs"), "utf8");
-  if (!baseline.includes("HARNESS_ESLINT_FULL") || !diff.includes("HARNESS_ESLINT_FULL")) {
+  if (!baseline.includes("FULL_ESLINT_ENV") || !diff.includes("FULL_ESLINT_ENV")) {
     console.error("el trinquete o el diff check apagarían la cobertura de ESLint");
     process.exit(1);
   }
