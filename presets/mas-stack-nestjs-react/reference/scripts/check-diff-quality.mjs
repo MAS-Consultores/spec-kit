@@ -18,7 +18,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 export const ADOPTION_RULES = ["no-magic-numbers", "mas/no-commented-code", "mas/no-hidden-service-deps"];
 
@@ -133,9 +133,9 @@ function selfTest() {
 }
 
 async function lintDiff() {
-  const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const gitRoot = gitCwd(root);
-  const prefix = overrideGitDir() ? "" : relative(gitRoot, root);
+  const prefix = overrideGitDir() ? "" : relative(gitRoot, root).split("\\").join("/");
   if (process.argv.includes("--print-base")) {
     console.log(resolveMergeBase(gitRoot) ?? "NONE");
     return;

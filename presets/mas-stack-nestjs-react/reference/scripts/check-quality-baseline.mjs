@@ -7,11 +7,12 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ADOPTION_RULES } from "./check-diff-quality.mjs";
 import { jscpdSkipOwners } from "./quality-gate-config.mjs";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const baselinePath = join(root, "quality-baseline.json");
 
 function readBaseline() {

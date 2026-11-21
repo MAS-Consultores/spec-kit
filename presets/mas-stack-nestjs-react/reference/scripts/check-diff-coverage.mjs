@@ -8,7 +8,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { addedLineMap, overrideGitDir, resolveMergeBase } from "./check-diff-quality.mjs";
 
 const DEFAULT_THRESHOLD = 0.8;
@@ -83,7 +84,7 @@ function selfTest() {
 }
 
 function projectRoot() {
-  return new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+  return join(dirname(fileURLToPath(import.meta.url)), "..");
 }
 
 function collectDiff() {

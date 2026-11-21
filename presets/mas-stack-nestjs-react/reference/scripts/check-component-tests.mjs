@@ -3,7 +3,7 @@
  * Threshold: 3 conditionals (if, ternary, switch case, && / ||).
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveComponentRoots } from "./quality-gate-config.mjs";
 
@@ -61,7 +61,7 @@ export function missingTests(root, threshold = THRESHOLD) {
 }
 
 function selfTest() {
-  const fixtureRoot = join(new URL(".", import.meta.url).pathname, "fixtures/component-tests");
+  const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), "fixtures/component-tests");
   const off = missingTests(join(fixtureRoot, "off"), 99);
   const on = missingTests(join(fixtureRoot, "on"), 3);
   if (off.length !== 0) {
@@ -97,7 +97,7 @@ if (!isMain) {
 } else if (process.argv.includes("--self-test")) {
   selfTest();
 } else {
-  const web = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+  const web = join(dirname(fileURLToPath(import.meta.url)), "..");
   const missing = runComponentGate(web);
   if (missing.length > 0) {
     console.error("componente con lógica sin *.test.tsx (Testing Library):");

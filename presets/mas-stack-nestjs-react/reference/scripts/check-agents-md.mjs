@@ -6,7 +6,7 @@
  *   node scripts/check-agents-md.mjs --self-test
  */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const REQUIRED_AGENTS = [
@@ -68,7 +68,7 @@ export function checkAgentsTree(root) {
 }
 
 function selfTest() {
-  const fixtureRoot = join(new URL(".", import.meta.url).pathname, "fixtures/agents-md");
+  const fixtureRoot = join(dirname(fileURLToPath(import.meta.url)), "fixtures/agents-md");
   const missing = checkAgentsTree(join(fixtureRoot, "missing-file"));
   const brokenLink = checkAgentsTree(join(fixtureRoot, "broken-link"));
   const ok = checkAgentsTree(join(fixtureRoot, "ok"));
@@ -97,7 +97,7 @@ if (isMain) {
   if (process.argv.includes("--self-test")) {
     selfTest();
   } else {
-    const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+    const root = join(dirname(fileURLToPath(import.meta.url)), "..");
     const problems = checkAgentsTree(root);
     if (problems.length > 0) {
       console.error("AGENTS.md incompleto o con rutas que no existen:");
