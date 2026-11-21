@@ -34,7 +34,6 @@ async function warningCounts() {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
-    env: { ...process.env, SPECIFY_ESLINT_FULL: "1" },
   });
   const results = JSON.parse(stdout);
   const counts = {};
@@ -58,10 +57,7 @@ function knipCount() {
     execFileSync("pnpm", ["exec", "knip", "--reporter", "json"], {
       cwd: root,
       stdio: "pipe",
-      env: {
-        ...process.env,
-        DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://user:pass@127.0.0.1:5432/demo",
-      },
+      env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://user:pass@127.0.0.1:5432/demo" },
     });
     return 0;
   } catch (error) {

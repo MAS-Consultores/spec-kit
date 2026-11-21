@@ -138,43 +138,6 @@ def test_d17_07_agents_md_files_and_real_paths() -> None:
     assert "check-agents-md self-test ok" in result.stdout
 
 
-def test_d17_08_oxlint_runs_before_eslint_and_flags_a_fixture() -> None:
-    config = json.loads((REFERENCE / ".oxlintrc.json").read_text(encoding="utf-8"))
-    assert config["rules"]["max-depth"] == ["error", 3]
-    assert config["rules"]["typescript/no-explicit-any"] == "error"
-    assert "max-params" not in config["rules"]
-    package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
-    assert package["scripts"]["lint:fast"] == "oxlint apps packages"
-    assert package["devDependencies"]["oxlint"] == "1.94.0"
-    assert package["devDependencies"]["eslint-plugin-oxlint"] == "1.94.0"
-    verify = package["scripts"]["verify"]
-    assert verify.index("pnpm lint:fast") < verify.index("pnpm lint &&")
-    assert "node scripts/check-oxlint.mjs" in package["scripts"]["lint"]
-    libraries = (REPO / "presets" / "mas-stack-nestjs-react" / "templates" / "approved-libraries.md").read_text(
-        encoding="utf-8"
-    )
-    assert "oxlint" in libraries and "1.94.0" in libraries
-    if (REFERENCE / "node_modules" / "oxlint").is_dir():
-        result = _run(["node", str(SCRIPTS / "check-oxlint.mjs")], REFERENCE)
-        assert result.returncode == 0, result.stderr or result.stdout
-        assert "check-oxlint ok" in result.stdout
-
-
-def test_d17_09_ratchet_and_diff_keep_adoption_counts() -> None:
-    eslint = (REFERENCE / "eslint.config.js").read_text(encoding="utf-8")
-    assert "eslint-plugin-oxlint" in eslint
-    assert 'process.env.SPECIFY_ESLINT_FULL === "1"' in eslint
-    assert "ADOPTION_RULES" in eslint
-    baseline = (SCRIPTS / "check-quality-baseline.mjs").read_text(encoding="utf-8")
-    diff = (SCRIPTS / "check-diff-quality.mjs").read_text(encoding="utf-8")
-    assert 'SPECIFY_ESLINT_FULL: "1"' in baseline
-    assert 'process.env.SPECIFY_ESLINT_FULL = "1"' in diff
-    proof = (SCRIPTS / "check-oxlint.mjs").read_text(encoding="utf-8")
-    assert "no-magic-numbers" in proof
-    assert "eqeqeq" in proof
-    assert "value ==" in proof
-
-
 def test_d17_06_hidden_service_deps_are_an_adoption_rule() -> None:
     config = (REFERENCE / "eslint.config.js").read_text(encoding="utf-8")
     assert '"mas/no-hidden-service-deps": "warn"' in config

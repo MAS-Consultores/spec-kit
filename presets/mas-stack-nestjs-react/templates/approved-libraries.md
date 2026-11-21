@@ -156,12 +156,3 @@ No hay mecanismo aprobado. BullMQ y `@nestjs/bullmq` no están en esta lista. `@
 `socket.io`, `socket.io-client`, `ws` y sus subrutas están prohibidos (`no-restricted-imports`, error) salvo un requisito real con supresión justificada.
 
 Toda supresión sigue el motivo existente: `// eslint-disable-next-line <regla> -- <motivo>`.
-
-## Herramientas de desarrollo
-
-| Herramienta | Versión | Uso |
-| --- | --- | --- |
-| `oxlint` | 1.94.0 | Primera pasada, sobre los archivos tocados o con `pnpm lint:fast`. No reemplaza a ESLint |
-| `eslint-plugin-oxlint` | 1.94.0 | Apaga en `eslint.config.js` las reglas que oxlint ya cubre, para no avisar dos veces |
-
-Las dos son dependencias de desarrollo. ESLint sigue siendo la fuente de verdad en `pnpm verify`, en el CI y en el trinquete.

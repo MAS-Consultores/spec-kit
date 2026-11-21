@@ -36,11 +36,6 @@ Flujo de ramas, configurable por el producto:
 El script es `scripts/dev.mjs`.
 `pnpm verify` recorre lint, tipos, tests y los gates.
 Verify en verde y el CI en verde son la definición de listo.
-Después de cada edición corre oxlint sobre esos archivos:
-`pnpm exec oxlint <archivos>`.
-El árbol entero es `pnpm lint:fast`.
-Verify lo corre antes de ESLint.
-ESLint sigue siendo el gate.
 La cobertura del diff es `scripts/check-diff-coverage.mjs`.
 Sin lcov ese gate sale distinto de cero.
 
