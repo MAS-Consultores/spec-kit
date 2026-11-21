@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { changedSinceBase, GitDiffError } from "./lib/diff-base.mjs";
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 const EXPORT_RE = /export\s+(?:type\s+)?(?:async\s+)?(?:function|const|class|interface|enum)\s+([A-Za-z0-9_]+)|export\s+\{([^}]+)\}|export\s+type\s+\{([^}]+)\}/g;
@@ -43,16 +44,7 @@ function snapshotPath(root, indexFile) {
 }
 
 function gitChanged(root) {
-  try {
-    const stdout = execFileSync("git", ["diff", "--name-only", "--diff-filter=ACMR", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return new Set(stdout.split("\n").map((line) => line.trim()).filter(Boolean));
-  } catch {
-    return new Set();
-  }
+  return changedSinceBase(root, "ACMR");
 }
 
 export function reviewIndexes(root, { write }) {
@@ -92,6 +84,9 @@ export function reviewIndexes(root, { write }) {
 }
 
 function selfTest() {
+  const baseRefName = ["GITHUB", "BASE", "REF"].join("_");
+  const previousBase = process.env[baseRefName];
+  delete process.env[baseRefName];
   const names = exportsOf("export const healthResponse = 1;\nexport type { Login };\nexport { HealthModule };\n");
   if (JSON.stringify(names) !== JSON.stringify(["HealthModule", "Login", "healthResponse"])) {
     console.error(names);
@@ -101,19 +96,31 @@ function selfTest() {
   try {
     mkdirSync(join(root, "packages", "contracts", "src"), { recursive: true });
     writeFileSync(join(root, "packages", "contracts", "src", "index.ts"), "export const healthResponse = true;\n", "utf8");
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: root });
+    execFileSync("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], { cwd: root });
+    execFileSync("git", ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], { cwd: root });
     const missing = reviewIndexes(root, { write: false });
     if (!missing.errors.some((line) => line.includes("sin snapshot"))) {
       console.error("un index nuevo sin snapshot tiene que ser error");
       process.exit(1);
     }
     reviewIndexes(root, { write: true });
-    execFileSync("git", ["init", "-q"], { cwd: root });
     execFileSync("git", ["add", "."], { cwd: root });
-    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "snapshot"], { cwd: root });
+    execFileSync("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], { cwd: root });
     writeFileSync(join(root, "packages", "contracts", "src", "index.ts"), "export const healthResponse = true;\nexport const extra = 1;\n", "utf8");
     const drifted = reviewIndexes(root, { write: false });
     if (!drifted.errors.some((line) => line.includes("sin justificación"))) {
       console.error("el diff de un index tiene que exigir justificación");
+      process.exit(1);
+    }
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "drift"], { cwd: root });
+    const committed = reviewIndexes(root, { write: false });
+    if (!committed.errors.some((line) => line.includes("sin justificación"))) {
+      console.error("un index ya commiteado sin JUSTIFICATION tiene que seguir siendo error");
       process.exit(1);
     }
     mkdirSync(join(root, "api-snapshots"), { recursive: true });
@@ -125,6 +132,8 @@ function selfTest() {
     }
   } finally {
     rmSync(root, { recursive: true, force: true });
+    if (previousBase === undefined) delete process.env[baseRefName];
+    else process.env[baseRefName] = previousBase;
   }
   console.log("check-public-api self-test ok");
 }
@@ -134,7 +143,14 @@ else if (process.argv.includes("--write")) {
   reviewIndexes(referenceRoot, { write: true });
   console.log("snapshots escritos");
 } else {
-  const live = reviewIndexes(process.cwd(), { write: false });
+  let live;
+  try {
+    live = reviewIndexes(process.cwd(), { write: false });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    if (error instanceof GitDiffError && error.stderr) console.error(error.stderr);
+    process.exit(1);
+  }
   for (const warning of live.warnings) console.log(`warn ${warning}`);
   if (live.errors.length) {
     console.error(live.errors.join("\n"));

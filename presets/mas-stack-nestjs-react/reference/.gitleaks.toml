@@ -1,5 +1,8 @@
 title = "MAS nestjs-react"
 
+[extend]
+useDefault = true
+
 [allowlist]
 description = "Fixtures, tests, and examples are not production secrets"
 paths = [

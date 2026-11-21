@@ -1,5 +1,8 @@
 name: Upgrade on existing data
 
+permissions:
+  contents: read
+
 on:
   pull_request:
 

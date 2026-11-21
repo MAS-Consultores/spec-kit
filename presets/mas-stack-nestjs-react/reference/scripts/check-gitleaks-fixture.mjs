@@ -4,9 +4,10 @@
  * with the rule on it fails and names generic-api-key.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const SECRET = "api_key = 'AKIAIOSFODNN7EXAMPLE'";
 const RULE = /AKIA[0-9A-Z]{16}/;
@@ -30,14 +31,26 @@ function selfTest() {
     console.error("self-test: un archivo limpio no dispara la regla");
     process.exit(1);
   }
+  const configPath = join(dirname(fileURLToPath(import.meta.url)), "..", ".gitleaks.toml");
+  const config = readFileSync(configPath, "utf8");
+  if (!config.includes("useDefault = true")) {
+    console.error("self-test: .gitleaks.toml sin useDefault reemplaza las reglas y el job queda en verde");
+    process.exit(1);
+  }
   const binFlag = process.argv.indexOf("--gitleaks");
   const bin = binFlag === -1 ? "" : process.argv[binFlag + 1];
   if (bin) {
     const dir = mkdtempSync(join(tmpdir(), "gitleaks-fixture-"));
-    writeFileSync(join(dir, "leak.ts"), SECRET + "\n");
+    const accessKey = ["AKIA", "A1B2C3D4E5F6G7H8"].join("");
+    const secretKey = ["abcdefghijklmnopqrstuvwxyz0123456789", "ABCD"].join("");
+    writeFileSync(
+      join(dir, "leak.ts"),
+      `export const key = "${accessKey}";\nexport const aws_secret_access_key = "${secretKey}";\n`,
+      "utf8",
+    );
     let failed = false;
     try {
-      execFileSync(bin, ["detect", "--no-git", "--source", dir, "--redact", "--exit-code", "1"], { stdio: "pipe" });
+      execFileSync(bin, ["detect", "--no-git", "--source", dir, "--redact", "--exit-code", "1", "--config", configPath], { stdio: "pipe" });
     } catch {
       failed = true;
     }

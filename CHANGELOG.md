@@ -2,6 +2,10 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.3+mas.4.1] - 2026-11-21
+
+Parche del preset `nestjs-react`: el gate de mutación mide `merge-base(HEAD, base)..HEAD`. La base sale de `--base`, `GITHUB_BASE_REF`, la rama por defecto (`origin/HEAD`), `origin/main` u `origin/master`, y al final `HEAD^`. Stryker usa `@stryker-mutator/vitest-runner` 10.1.1 y `thresholds.break` del umbral (80).
+
 ## [1.4.3+mas.4] - 2026-11-21
 
 Gates del preset `nestjs-react` para la línea `v1.4.3-mas.4`:

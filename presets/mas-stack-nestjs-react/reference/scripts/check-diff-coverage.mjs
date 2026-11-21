@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { addedLineMap, overrideGitDir, resolveMergeBase } from "./check-diff-quality.mjs";
 
@@ -42,8 +42,12 @@ export function coverageRatio(lcovText, diffText, threshold) {
   let branchHit = 0;
   let branchTotal = 0;
   for (const [file, lines] of added) {
+    const product = file.includes("apps/api/src/") && !file.endsWith(".spec.ts") && !file.endsWith(".e2e.ts") && !file.includes("lint-fixtures/");
     const record = [...lcov.entries()].find(([name]) => name.endsWith(file) || file.endsWith(name));
-    if (!record) continue;
+    if (!record) {
+      if (product) lineTotal += lines.size;
+      continue;
+    }
     const data = record[1];
     for (const line of lines) {
       if (!data.lines.has(line)) continue;
@@ -80,6 +84,15 @@ function selfTest() {
     console.error("self-test: cobertura completa del diff debe pasar");
     process.exit(1);
   }
+  const absent = coverageRatio(
+    "SF:apps/api/src/other.ts\nDA:1,1\nend_of_record\n",
+    "diff --git a/apps/api/src/miss.ts b/apps/api/src/miss.ts\n--- a/apps/api/src/miss.ts\n+++ b/apps/api/src/miss.ts\n@@ -0,0 +1,2 @@\n+export function miss() {\n+  return 1;\n+}\n",
+    0.8,
+  );
+  if (absent.ok || absent.lineTotal < 1) {
+    console.error("self-test: un archivo nuevo de la API que no está en el lcov debe contar como descubierto");
+    process.exit(1);
+  }
   console.log("check-diff-coverage self-test ok");
 }
 
@@ -94,12 +107,27 @@ function collectDiff() {
     ? override
     : execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
   const base = resolveMergeBase(gitRoot);
-  if (!base) return "";
-  try {
-    return execFileSync("git", ["diff", "-U0", base], { cwd: gitRoot, encoding: "utf8" });
-  } catch (error) {
-    return error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+  if (!base) {
+    console.error("check-diff-coverage: sin base para el diff");
+    process.exit(1);
   }
+  try {
+    return execFileSync("git", ["diff", "-U0", base], {
+      cwd: gitRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (error) {
+    console.error(gitDiffFailureText(error));
+    process.exit(1);
+  }
+}
+
+export function gitDiffFailureText(error) {
+  const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
+  const message = error instanceof Error ? error.message : "";
+  return ["check-diff-coverage: git diff falló", stderr, message].filter((line) => line.trim()).join("\n");
 }
 
 function runGate() {
@@ -126,7 +154,10 @@ function report(lcovText, diffText) {
   console.log("diff coverage ok");
 }
 
-if (process.argv.includes("--self-test")) {
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (!invokedDirectly) {
+  // importado por un test
+} else if (process.argv.includes("--self-test")) {
   selfTest();
 } else if (process.argv.includes("--gate")) {
   runGate();

@@ -3,11 +3,12 @@
  * new in the diff and over the budget is an error. size-limit covers the
  * initial web bundle when apps/web/dist exists; the config is always required.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { changedSinceBase, GitDiffError } from "./lib/diff-base.mjs";
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -29,17 +30,8 @@ function lineCount(path) {
   return readFileSync(path, "utf8").split("\n").filter((line) => line.trim() && !line.trim().startsWith("//") && !line.trim().startsWith("*")).length;
 }
 
-function changed(root) {
-  try {
-    const stdout = execFileSync("git", ["diff", "--name-only", "--diff-filter=A", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return new Set(stdout.split("\n").map((line) => line.trim()).filter(Boolean));
-  } catch {
-    return new Set();
-  }
+function changed(root, filter) {
+  return changedSinceBase(root, filter);
 }
 
 export function reviewSize(root) {
@@ -51,7 +43,8 @@ export function reviewSize(root) {
     const dir = join(root, folder);
     if (existsSync(dir)) walk(dir, files);
   }
-  const added = changed(root);
+  const added = changed(root, "A");
+  const touchedModules = changed(root, "AM");
   const errors = [];
   const warnings = [];
   const moduleLines = {};
@@ -65,13 +58,20 @@ export function reviewSize(root) {
     else warnings.push(`${relativePath} tiene ${lines} líneas`);
   }
   for (const [name, lines] of Object.entries(moduleLines)) {
-    if (lines > moduleBudget) warnings.push(`módulo ${name} tiene ${lines} líneas`);
+    if (lines <= moduleBudget) continue;
+    const message = `módulo ${name} tiene ${lines} líneas (tope ${moduleBudget})`;
+    const touched = [...touchedModules].some((file) => file.startsWith(`apps/api/src/modules/${name}/`));
+    if (touched) errors.push(message);
+    else warnings.push(`módulo ${name} tiene ${lines} líneas`);
   }
   if (!existsSync(join(root, ".size-limit.json"))) errors.push("falta .size-limit.json");
   return { errors, warnings };
 }
 
 function selfTest() {
+  const baseRefName = ["GITHUB", "BASE", "REF"].join("_");
+  const previousBase = process.env[baseRefName];
+  delete process.env[baseRefName];
   const root = mkdtempSync(join(tmpdir(), "size-"));
   try {
     writeFileSync(join(root, "quality-gates.json"), JSON.stringify({ fileLineBudget: 3, moduleLineBudget: 3 }), "utf8");
@@ -79,14 +79,16 @@ function selfTest() {
     const dir = join(root, "apps", "api", "src", "modules", "auth");
     execFileSync("mkdir", ["-p", dir]);
     writeFileSync(join(dir, "old.ts"), "export const a = 1;\nexport const b = 2;\nexport const c = 3;\nexport const d = 4;\n", "utf8");
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: root });
+    execFileSync("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], { cwd: root });
+    execFileSync("git", ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], { cwd: root });
     const warned = reviewSize(root);
     if (warned.errors.length || warned.warnings.length === 0) {
       console.error("un archivo viejo por encima del tope tiene que avisar, no fallar");
       process.exit(1);
     }
-    execFileSync("git", ["init", "-q"], { cwd: root });
-    execFileSync("git", ["add", "."], { cwd: root });
-    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "base"], { cwd: root });
     writeFileSync(join(dir, "new.ts"), "export const a = 1;\nexport const b = 2;\nexport const c = 3;\nexport const d = 4;\n", "utf8");
     execFileSync("git", ["add", "apps/api/src/modules/auth/new.ts"], { cwd: root });
     const failed = reviewSize(root);
@@ -94,29 +96,88 @@ function selfTest() {
       console.error("un archivo nuevo por encima del tope tiene que ser error");
       process.exit(1);
     }
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "new"], { cwd: root });
+    const committed = reviewSize(root);
+    if (!committed.errors.some((line) => line.includes("new.ts"))) {
+      console.error("un archivo nuevo ya commiteado por encima del tope tiene que ser error");
+      process.exit(1);
+    }
+    if (!committed.errors.some((line) => line.includes("módulo auth"))) {
+      console.error("un módulo que el diff empuja sobre el presupuesto tiene que ser error");
+      process.exit(1);
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
+    if (previousBase === undefined) delete process.env[baseRefName];
+    else process.env[baseRefName] = previousBase;
   }
   const limit = readFileSync(join(referenceRoot, ".size-limit.json"), "utf8");
   if (!limit.includes("web initial") || !limit.includes("apps/web/dist")) {
     console.error(".size-limit.json no cubre el bundle inicial");
     process.exit(1);
   }
-  const live = reviewSize(referenceRoot);
-  if (live.errors.length) {
-    console.error(live.errors.join("\n"));
-    process.exit(1);
+  try {
+    const live = reviewSize(referenceRoot);
+    if (live.errors.length) {
+      console.error(live.errors.join("\n"));
+      process.exit(1);
+    }
+  } catch (error) {
+    if (!(error instanceof GitDiffError)) throw error;
   }
   console.log("check-size-budget self-test ok");
 }
 
+function bundleIsRequired(argv = process.argv, env = process.env) {
+  if (argv.includes("--allow-missing-bundle")) return false;
+  if (argv.includes("--require-bundle")) return true;
+  return env.CI === "true" || env.CI === "1";
+}
+
+function enforceBundle(root) {
+  if (!existsSync(join(root, "apps", "web", "dist"))) {
+    if (bundleIsRequired()) {
+      console.error("falta apps/web/dist; en CI el gate de tamaño corre después de pnpm build");
+      process.exit(1);
+    }
+    console.log("warn falta apps/web/dist; el bundle no se midió");
+    return;
+  }
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  if (pkg.devDependencies?.["size-limit"] !== "14.3.0") {
+    console.error("size-limit tiene que ser 14.3.0");
+    process.exit(1);
+  }
+  const local = join(root, "node_modules", "size-limit", "bin.js");
+  const result = existsSync(local)
+    ? spawnSync(process.execPath, [local], { cwd: root, encoding: "utf8" })
+    : spawnSync("pnpm", ["exec", "size-limit"], { cwd: root, encoding: "utf8" });
+  if ((result.status ?? 1) !== 0) {
+    if (result.stdout) console.error(result.stdout);
+    if (result.stderr) console.error(result.stderr);
+    process.exit(result.status || 1);
+  }
+}
+
 if (process.argv.includes("--self-test")) selfTest();
 else {
-  const live = reviewSize(process.cwd());
+  const root = process.cwd();
+  let live = { errors: [], warnings: [] };
+  let diffError = null;
+  try {
+    live = reviewSize(root);
+  } catch (error) {
+    diffError = error;
+    console.error(error instanceof Error ? error.message : String(error));
+    if (error instanceof GitDiffError && error.stderr) console.error(error.stderr);
+  }
   for (const warning of live.warnings) console.log(`warn ${warning}`);
   if (live.errors.length) {
     console.error(live.errors.join("\n"));
     process.exit(1);
   }
+  enforceBundle(root);
+  if (diffError) process.exit(1);
   console.log("check-size-budget ok");
 }
