@@ -116,6 +116,7 @@ function collectDiff() {
       cwd: gitRoot,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 64 * 1024 * 1024,
     });
   } catch (error) {
     const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";

@@ -128,11 +128,13 @@ async function lintDiff() {
       cwd: gitRoot,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 64 * 1024 * 1024,
     });
   } catch (error) {
     const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr ?? "") : "";
     console.error("check-diff-quality: git diff falló");
     if (stderr) console.error(stderr);
+    if (error instanceof Error && error.message) console.error(error.message);
     process.exit(1);
   }
   const map = addedLineMap(diffText);
