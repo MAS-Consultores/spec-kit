@@ -133,7 +133,7 @@ async function withPortLock<T>(lockDir: string, body: () => Promise<T>): Promise
       const code = typeof error === "object" && error !== null && "code" in error ? error.code : "";
       if (code !== "EEXIST") throw error;
       if (Date.now() - started > PORT_LOCK_TIMEOUT_MS) {
-        throw new Error("e2e port lock timed out");
+        throw new Error("e2e port lock timed out", { cause: error });
       }
       await new Promise((resolve) => {
         setTimeout(resolve, PORT_LOCK_RETRY_MS);
@@ -151,12 +151,12 @@ export async function choosePorts(options: {
   file: string;
   freshMs?: number;
   now?: number;
-  lock?: boolean;
+  isLocked?: boolean;
 }): Promise<E2ePorts> {
   const freshMs = options.freshMs ?? 60_000;
   const now = options.now ?? Date.now();
   const once = (): Promise<E2ePorts> => choosePortsOnce({ file: options.file, freshMs, now });
-  if (options.lock === false) return once();
+  if (options.isLocked === false) return once();
   return withPortLock(`${options.file}.lock`, once);
 }
 
@@ -185,8 +185,8 @@ async function runSelfTest(): Promise<void> {
   }
   const raceFile = join(dir, "race.json");
   const [unlockedA, unlockedB] = await Promise.all([
-    choosePorts({ file: raceFile, lock: false }),
-    choosePorts({ file: raceFile, lock: false }),
+    choosePorts({ file: raceFile, isLocked: false }),
+    choosePorts({ file: raceFile, isLocked: false }),
   ]);
   if (unlockedA.api === unlockedB.api && unlockedA.web === unlockedB.web) {
     throw new Error("unlocked parallel choosePorts did not diverge");
