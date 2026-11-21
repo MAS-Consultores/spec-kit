@@ -142,7 +142,7 @@ Playwright and Vitest MUST NOT generate or store screenshots or image snapshots,
 
 ### No Ad Hoc Screenshots by AI Agents
 
-AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.implement`, demos, or pilots—not with Playwright, not with a browser, and not with scripts. Visual review of product work is performed by a human (revisión visual humana), except the opted-in fidelity baselines above. Playwright + axe-core gates, including computed Tailwind style verification, remain mandatory and MUST run without screenshots (`screenshot: 'off'`; no `toHaveScreenshot()` outside `apps/web/e2e/visual/`; no `page.screenshot()`).
+AI agents MUST NOT take, generate, or save ad hoc screenshots during `/speckit.implement`, demos, or pilots—not with Playwright, not with a browser, and not with scripts. Visual review of product work is performed by a human (revisión visual humana), except the opted-in fidelity baselines in `apps/web/e2e/visual/`. Playwright + axe-core gates, including computed Tailwind style verification, remain mandatory and MUST run without screenshots (`screenshot: 'off'`; no `toHaveScreenshot()` outside `apps/web/e2e/visual/`; no `page.screenshot()`).
 
 ### Authentication and MCP Security
 
