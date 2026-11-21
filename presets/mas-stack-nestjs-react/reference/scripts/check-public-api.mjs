@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { changedSinceBase } from "./lib/diff-base.mjs";
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 const EXPORT_RE = /export\s+(?:type\s+)?(?:async\s+)?(?:function|const|class|interface|enum)\s+([A-Za-z0-9_]+)|export\s+\{([^}]+)\}|export\s+type\s+\{([^}]+)\}/g;
@@ -43,16 +44,7 @@ function snapshotPath(root, indexFile) {
 }
 
 function gitChanged(root) {
-  try {
-    const stdout = execFileSync("git", ["diff", "--name-only", "--diff-filter=ACMR", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return new Set(stdout.split("\n").map((line) => line.trim()).filter(Boolean));
-  } catch {
-    return new Set();
-  }
+  return changedSinceBase(root, "ACMR");
 }
 
 export function reviewIndexes(root, { write }) {
@@ -92,6 +84,8 @@ export function reviewIndexes(root, { write }) {
 }
 
 function selfTest() {
+  const previousBase = process.env.GITHUB_BASE_REF;
+  delete process.env.GITHUB_BASE_REF;
   const names = exportsOf("export const healthResponse = 1;\nexport type { Login };\nexport { HealthModule };\n");
   if (JSON.stringify(names) !== JSON.stringify(["HealthModule", "Login", "healthResponse"])) {
     console.error(names);
@@ -116,6 +110,13 @@ function selfTest() {
       console.error("el diff de un index tiene que exigir justificación");
       process.exit(1);
     }
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "drift"], { cwd: root });
+    const committed = reviewIndexes(root, { write: false });
+    if (!committed.errors.some((line) => line.includes("sin justificación"))) {
+      console.error("un index ya commiteado sin JUSTIFICATION tiene que seguir siendo error");
+      process.exit(1);
+    }
     mkdirSync(join(root, "api-snapshots"), { recursive: true });
     writeFileSync(join(root, "api-snapshots", "JUSTIFICATION.md"), "packages/contracts/src/index.ts respuesta de health\n", "utf8");
     const justified = reviewIndexes(root, { write: false });
@@ -125,6 +126,8 @@ function selfTest() {
     }
   } finally {
     rmSync(root, { recursive: true, force: true });
+    if (previousBase === undefined) delete process.env.GITHUB_BASE_REF;
+    else process.env.GITHUB_BASE_REF = previousBase;
   }
   console.log("check-public-api self-test ok");
 }

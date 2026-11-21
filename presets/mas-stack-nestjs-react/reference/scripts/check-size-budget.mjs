@@ -8,6 +8,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, w
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { changedSinceBase } from "./lib/diff-base.mjs";
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -29,17 +30,8 @@ function lineCount(path) {
   return readFileSync(path, "utf8").split("\n").filter((line) => line.trim() && !line.trim().startsWith("//") && !line.trim().startsWith("*")).length;
 }
 
-function changed(root) {
-  try {
-    const stdout = execFileSync("git", ["diff", "--name-only", "--diff-filter=A", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return new Set(stdout.split("\n").map((line) => line.trim()).filter(Boolean));
-  } catch {
-    return new Set();
-  }
+function changed(root, filter) {
+  return changedSinceBase(root, filter);
 }
 
 export function reviewSize(root) {
@@ -51,7 +43,8 @@ export function reviewSize(root) {
     const dir = join(root, folder);
     if (existsSync(dir)) walk(dir, files);
   }
-  const added = changed(root);
+  const added = changed(root, "A");
+  const touchedModules = changed(root, "AM");
   const errors = [];
   const warnings = [];
   const moduleLines = {};
@@ -65,13 +58,19 @@ export function reviewSize(root) {
     else warnings.push(`${relativePath} tiene ${lines} líneas`);
   }
   for (const [name, lines] of Object.entries(moduleLines)) {
-    if (lines > moduleBudget) warnings.push(`módulo ${name} tiene ${lines} líneas`);
+    if (lines <= moduleBudget) continue;
+    const message = `módulo ${name} tiene ${lines} líneas (tope ${moduleBudget})`;
+    const touched = [...touchedModules].some((file) => file.startsWith(`apps/api/src/modules/${name}/`));
+    if (touched) errors.push(message);
+    else warnings.push(`módulo ${name} tiene ${lines} líneas`);
   }
   if (!existsSync(join(root, ".size-limit.json"))) errors.push("falta .size-limit.json");
   return { errors, warnings };
 }
 
 function selfTest() {
+  const previousBase = process.env.GITHUB_BASE_REF;
+  delete process.env.GITHUB_BASE_REF;
   const root = mkdtempSync(join(tmpdir(), "size-"));
   try {
     writeFileSync(join(root, "quality-gates.json"), JSON.stringify({ fileLineBudget: 3, moduleLineBudget: 3 }), "utf8");
@@ -94,8 +93,21 @@ function selfTest() {
       console.error("un archivo nuevo por encima del tope tiene que ser error");
       process.exit(1);
     }
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-qm", "new"], { cwd: root });
+    const committed = reviewSize(root);
+    if (!committed.errors.some((line) => line.includes("new.ts"))) {
+      console.error("un archivo nuevo ya commiteado por encima del tope tiene que ser error");
+      process.exit(1);
+    }
+    if (!committed.errors.some((line) => line.includes("módulo auth"))) {
+      console.error("un módulo que el diff empuja sobre el presupuesto tiene que ser error");
+      process.exit(1);
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
+    if (previousBase === undefined) delete process.env.GITHUB_BASE_REF;
+    else process.env.GITHUB_BASE_REF = previousBase;
   }
   const limit = readFileSync(join(referenceRoot, ".size-limit.json"), "utf8");
   if (!limit.includes("web initial") || !limit.includes("apps/web/dist")) {

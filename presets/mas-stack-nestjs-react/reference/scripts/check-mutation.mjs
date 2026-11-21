@@ -16,6 +16,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { candidateRefs, resolveMergeBase } from "./lib/diff-base.mjs";
+
+export { candidateRefs, resolveMergeBase };
 
 const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 const vitestRunner = "@stryker-mutator/vitest-runner";
@@ -48,33 +51,6 @@ function readGates(root) {
 
 function git(cwd, args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-}
-
-export function candidateRefs(argv, env) {
-  const baseFlag = argv.indexOf("--base");
-  const explicit = baseFlag === -1 ? "" : (argv[baseFlag + 1] ?? "");
-  const fallback = [];
-  const githubBase = env.GITHUB_BASE_REF ?? "";
-  if (explicit) fallback.push(explicit);
-  if (githubBase) fallback.push(`origin/${githubBase}`, githubBase);
-  fallback.push("origin/HEAD", "origin/main", "origin/master", "HEAD^");
-  return [...new Set(fallback.filter(Boolean))];
-}
-
-export function resolveMergeBase(cwd, argv = process.argv, env = process.env) {
-  for (const ref of candidateRefs(argv, env)) {
-    try {
-      git(cwd, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
-    } catch {
-      continue;
-    }
-    try {
-      return git(cwd, ["merge-base", "HEAD", ref]);
-    } catch {
-      continue;
-    }
-  }
-  return null;
 }
 
 function changedFiles(root, argv = process.argv, env = process.env) {

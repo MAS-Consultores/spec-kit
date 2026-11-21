@@ -259,6 +259,10 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | ID | Qué se rompió | Dónde se prueba |
 | --- | --- | --- |
 | D19-01 | en CI, con el árbol limpio, el diff contra el working tree salía vacío y el gate se saltaba; además faltaba `@stryker-mutator/vitest-runner` | `tests/test_mas_nestjs_d19.py`: en un repo con dos commits el archivo entra al plan y no se imprime «sin diff». `scripts/check-mutation.mjs --self-test` cae a `origin/HEAD` (no a `testing`) y resuelve el runner 10.1.1 cuando `node_modules` está instalado |
+| D19-02 | `.gitleaks.toml` solo traía allowlist y `--config` en gitleaks 8.24 reemplazaba las reglas por defecto, así que un `aws_secret_access_key` falso pasaba | `tests/test_mas_nestjs_d19.py`: el toml del esqueleto tiene `[extend] useDefault = true`. `scripts/check-gitleaks-fixture.mjs --self-test` exige esa línea |
+| D19-03 | `check-public-api` usaba `git diff HEAD`, y un export ya commiteado sin `JUSTIFICATION.md` solo avisaba | el mismo test, con el árbol limpio: el script sale distinto de 0 y nombra «sin justificación» |
+| D19-04 | el tope de líneas y el presupuesto de módulo usaban `git diff HEAD`; un archivo nuevo ya commiteado no era error y un módulo por encima de 4000 líneas solo avisaba | el mismo test, con el diff commiteado y el árbol limpio: hay error por `new.ts` y por el módulo `auth` |
+| D19-05 | un archivo nuevo de `apps/api/src` ausente del lcov dejaba el ratio de cobertura en 1 | el mismo test: el diff commiteado de `apps/api/src/miss.ts`, con un lcov que no lo nombra, deja `ok` en falso y `lineTotal` ≥ 1 |
 
 ## Versiones probadas
 

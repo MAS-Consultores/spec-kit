@@ -8,7 +8,7 @@
  *
  * The diff base is the merge-base of HEAD and the PR base. Resolution order:
  * `--base`, then `GITHUB_BASE_REF` (`origin/<ref>` and the ref itself), then
- * `origin/main`, `origin/master`, then the first parent `HEAD^`. A CI checkout
+ * `origin/HEAD`, `origin/main`, `origin/master`, then the first parent `HEAD^`. A CI checkout
  * needs enough history to compute that merge-base (see
  * `.github/workflows/diff-quality.yml`, `fetch-depth: 0`).
  *
@@ -20,38 +20,14 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { FULL_ESLINT_ENV } from "../eslint/oxlint-ownership.mjs";
 import { dirname, join, relative, resolve } from "node:path";
+import { resolveMergeBase } from "./lib/diff-base.mjs";
+
+export { resolveMergeBase };
 
 export const ADOPTION_RULES = ["no-magic-numbers", "mas/no-commented-code", "mas/no-hidden-service-deps"];
 
-export function candidateRefs(argv, env) {
-  const baseFlag = argv.indexOf("--base");
-  const explicit = baseFlag === -1 ? "" : (argv[baseFlag + 1] ?? "");
-  const fallback = [];
-  const githubBase = env.GITHUB_BASE_REF ?? "";
-  if (explicit) fallback.push(explicit);
-  if (githubBase) fallback.push(`origin/${githubBase}`, githubBase);
-  fallback.push("origin/main", "origin/master", "HEAD^");
-  return [...new Set(fallback.filter(Boolean))];
-}
-
 function git(cwd, args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-}
-
-export function resolveMergeBase(cwd, argv = process.argv, env = process.env) {
-  for (const ref of candidateRefs(argv, env)) {
-    try {
-      git(cwd, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
-    } catch {
-      continue;
-    }
-    try {
-      return git(cwd, ["merge-base", "HEAD", ref]);
-    } catch {
-      continue;
-    }
-  }
-  return null;
 }
 
 export function overrideGitDir(env = process.env) {

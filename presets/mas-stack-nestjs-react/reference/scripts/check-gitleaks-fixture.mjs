@@ -4,9 +4,10 @@
  * with the rule on it fails and names generic-api-key.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const SECRET = "api_key = 'AKIAIOSFODNN7EXAMPLE'";
 const RULE = /AKIA[0-9A-Z]{16}/;
@@ -28,6 +29,12 @@ function selfTest() {
   }
   if (scan("export const label = 'health';", true).length !== 0) {
     console.error("self-test: un archivo limpio no dispara la regla");
+    process.exit(1);
+  }
+  const configPath = join(dirname(fileURLToPath(import.meta.url)), "..", ".gitleaks.toml");
+  const config = readFileSync(configPath, "utf8");
+  if (!config.includes("useDefault = true")) {
+    console.error("self-test: .gitleaks.toml sin useDefault reemplaza las reglas y el job queda en verde");
     process.exit(1);
   }
   const binFlag = process.argv.indexOf("--gitleaks");
