@@ -791,6 +791,8 @@ jobs:
           pnpm test:e2e:web
 
   mutation:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
