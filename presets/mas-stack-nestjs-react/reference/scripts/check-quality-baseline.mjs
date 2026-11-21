@@ -5,7 +5,7 @@
  * Touched files must stay equal or better (fewer warnings).
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ADOPTION_RULES } from "./check-diff-quality.mjs";
@@ -71,17 +71,24 @@ function knipCount() {
   }
 }
 
-function untrackedFiles() {
-  const listed = execFileSync("git", ["ls-files", "--others", "--exclude-standard"], {
-    cwd: root,
-    encoding: "utf8",
-  });
-  return new Set(
-    listed
+function gitLines(args) {
+  try {
+    return execFileSync("git", args, { cwd: root, encoding: "utf8" })
       .split("\n")
       .map((line) => line.trim().replaceAll("\\", "/"))
-      .filter(Boolean),
-  );
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function untrackedFiles() {
+  // A fresh `git init` (the smoke copy before the first commit) has every
+  // skeleton file untracked. Ignoring them would make jscpd scan nothing.
+  // After check-gen-fitness commits the snapshot, only the throwaway domains
+  // are untracked, and those clones must not move the ratchet.
+  if (gitLines(["ls-files"]).length === 0) return [];
+  return gitLines(["ls-files", "--others", "--exclude-standard"]);
 }
 
 function jscpdStats() {
@@ -96,6 +103,7 @@ function jscpdStats() {
     "**/coverage/**",
     ...untrackedFiles(),
   ];
+  let jscpdError = "";
   try {
     execFileSync(
       "pnpm",
@@ -118,10 +126,14 @@ function jscpdStats() {
       ],
       { cwd: root, stdio: "pipe" },
     );
-  } catch {
-    // jscpd exits 0 even when it finds clones. A missing binary throws.
+  } catch (error) {
+    jscpdError = error instanceof Error ? error.message : String(error);
   }
   const reportPath = join(output, "jscpd-report.json");
+  if (!existsSync(reportPath)) {
+    rmSync(output, { recursive: true, force: true });
+    throw new Error(`jscpd no escribió informe. ${jscpdError}`);
+  }
   const report = JSON.parse(readFileSync(reportPath, "utf8"));
   rmSync(output, { recursive: true, force: true });
   const percentage = Number(report.statistics?.total?.percentage ?? 0);
