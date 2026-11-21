@@ -203,6 +203,7 @@ export default tseslint.config(
       "**/routeTree.gen.ts",
       "**/generated/prisma/**",
       "**/dist/**",
+      "**/coverage/**",
       "**/node_modules/**",
       "scripts/**",
       "templates/**",
