@@ -11,6 +11,7 @@ Clean code y quality gates del preset `nestjs-react`:
 - Cobertura del diff al 80 % (líneas y ramas, sin umbral global), test de componente con Testing Library, `Clock` e `IdGenerator` inyectados, `exactOptionalPropertyTypes` y gitleaks en cada PR.
 - El trinquete de jscpd ignora archivos sin seguimiento, así el snapshot de `check-gen-fitness` no cuenta los dos dominios desechables como clones nuevos.
 - El e2e web elige los puertos de Playwright bajo un candado. Sin él, dos cargas paralelas de la config se quedan con puertos distintos y el navegador recibe `ERR_CONNECTION_REFUSED`.
+- `check-gen-fitness` lista sus dominios desechables en `scripts/.fitness-domains`. El trinquete de jscpd no cuenta un clon si los dos lados están en esa lista. Un clon contra código real sigue fallando.
 
 ## [1.4.3+mas.2] - 2026-11-20
 
