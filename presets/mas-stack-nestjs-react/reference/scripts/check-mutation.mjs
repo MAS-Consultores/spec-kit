@@ -172,7 +172,7 @@ function selfTest() {
   try {
     const run = (args) => spawnSync(process.execPath, [script, ...args], { cwd: committed, encoding: "utf8", env: cleanEnv() });
     git(committed, ["init", "-q"]);
-    git(committed, ["config", "user.email", "mutation@example.com"]);
+    git(committed, ["config", "user.email", "mutation@invalid.test"]);
     git(committed, ["config", "user.name", "mutation"]);
     writeFileSync(join(committed, "quality-gates.json"), JSON.stringify({
       mutation: { modules: ["auth"], threshold: 80, paths: { auth: "apps/api/src/modules/auth" } },
@@ -202,7 +202,7 @@ function selfTest() {
   try {
     const run = (args) => spawnSync(process.execPath, [script, ...args], { cwd: branched, encoding: "utf8", env: cleanEnv() });
     git(branched, ["init", "-q", "-b", "main"]);
-    git(branched, ["config", "user.email", "mutation@example.com"]);
+    git(branched, ["config", "user.email", "mutation@invalid.test"]);
     git(branched, ["config", "user.name", "mutation"]);
     writeFileSync(join(branched, "quality-gates.json"), JSON.stringify({
       mutation: { modules: ["auth"], threshold: 80, paths: { auth: "apps/api/src/modules/auth" } },
