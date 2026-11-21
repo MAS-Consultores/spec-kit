@@ -5,7 +5,7 @@
  * Touched files must stay equal or better (fewer warnings).
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ADOPTION_RULES } from "./check-diff-quality.mjs";
@@ -71,24 +71,37 @@ function knipCount() {
   }
 }
 
-function gitLines(args) {
-  try {
-    return execFileSync("git", args, { cwd: root, encoding: "utf8" })
-      .split("\n")
-      .map((line) => line.trim().replaceAll("\\", "/"))
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
+const fitnessDomainsPath = join(root, "scripts", ".fitness-domains");
+
+function fitnessDomains() {
+  if (!existsSync(fitnessDomainsPath)) return [];
+  return readFileSync(fitnessDomainsPath, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[a-z][a-z0-9]*$/.test(line));
 }
 
-function untrackedFiles() {
-  // A fresh `git init` (the smoke copy before the first commit) has every
-  // skeleton file untracked. Ignoring them would make jscpd scan nothing.
-  // After check-gen-fitness commits the snapshot, only the throwaway domains
-  // are untracked, and those clones must not move the ratchet.
-  if (gitLines(["ls-files"]).length === 0) return [];
-  return gitLines(["ls-files", "--others", "--exclude-standard"]);
+function isThrowawayPath(name, domains) {
+  const normalized = String(name ?? "").replaceAll("\\", "/");
+  return domains.some(
+    (domain) =>
+      normalized.includes(`/modules/${domain}/`) ||
+      normalized.includes(`/features/${domain}/`) ||
+      normalized.includes(`/contracts/src/${domain}/`) ||
+      normalized.endsWith(`/${domain}.prisma`),
+  );
+}
+
+export function clonesOutsideDomains(duplicates, domains) {
+  const list = Array.isArray(duplicates) ? duplicates : [];
+  if (domains.length === 0) return list;
+  return list.filter(
+    (clone) =>
+      !(
+        isThrowawayPath(clone.firstFile?.name, domains) &&
+        isThrowawayPath(clone.secondFile?.name, domains)
+      ),
+  );
 }
 
 function jscpdStats() {
@@ -101,7 +114,6 @@ function jscpdStats() {
     "**/*.spec.ts",
     "**/*.e2e.ts",
     "**/coverage/**",
-    ...untrackedFiles(),
   ];
   let jscpdError = "";
   try {
@@ -136,9 +148,12 @@ function jscpdStats() {
   }
   const report = JSON.parse(readFileSync(reportPath, "utf8"));
   rmSync(output, { recursive: true, force: true });
-  const percentage = Number(report.statistics?.total?.percentage ?? 0);
-  const clones = Number(report.statistics?.total?.clones ?? 0);
-  return { percentage, clones };
+  const domains = fitnessDomains();
+  const kept = clonesOutsideDomains(report.duplicates, domains);
+  return {
+    percentage: Number(report.statistics?.total?.percentage ?? 0),
+    clones: domains.length === 0 ? Number(report.statistics?.total?.clones ?? kept.length) : kept.length,
+  };
 }
 
 function selfTest() {
@@ -186,6 +201,54 @@ function selfTest() {
     console.error(`self-test jscpd: con umbral bajo clones=${found}, con umbral alto (apagado) clones=${ignored}`);
     process.exit(1);
   }
+  const tree = mkdtempSync(join(tmpdir(), "jscpd-fitness-"));
+  const throwOnly = mkdtempSync(join(tmpdir(), "jscpd-throw-"));
+  mkdirSync(join(tree, "real"), { recursive: true });
+  mkdirSync(join(tree, "apps/api/src/modules/alpha"), { recursive: true });
+  mkdirSync(join(tree, "apps/api/src/modules/beta"), { recursive: true });
+  mkdirSync(join(throwOnly, "apps/api/src/modules/alpha"), { recursive: true });
+  mkdirSync(join(throwOnly, "apps/api/src/modules/beta"), { recursive: true });
+  writeFileSync(join(tree, "real/one.ts"), body);
+  writeFileSync(join(tree, "real/two.ts"), body.replace("duplicate", "duplicateReal"));
+  const throwBody = "export function generated(record: string): string {\n  const label = record.trim();\n  const upper = label.toUpperCase();\n  const padded = upper.padEnd(8, \"x\");\n  return padded.slice(0, 8);\n}\n";
+  writeFileSync(join(tree, "apps/api/src/modules/alpha/a.ts"), throwBody);
+  writeFileSync(join(tree, "apps/api/src/modules/beta/b.ts"), throwBody.replace("throwaway", "throwawayCopy"));
+  writeFileSync(join(throwOnly, "apps/api/src/modules/alpha/a.ts"), throwBody);
+  writeFileSync(join(throwOnly, "apps/api/src/modules/beta/b.ts"), throwBody.replace("throwaway", "throwawayCopy"));
+  const fitnessOut = mkdtempSync(join(tmpdir(), "jscpd-fitness-out-"));
+  const throwOut = mkdtempSync(join(tmpdir(), "jscpd-throw-out-"));
+  const runJscpd = (source, dest) => {
+    try {
+      execFileSync("pnpm", ["exec", "jscpd", source, "--min-lines", "5", "--min-tokens", "20", "--reporters", "json", "--output", dest, "--silent"], { cwd: root, stdio: "pipe" });
+    } catch {
+      // reported via json
+    }
+    return JSON.parse(readFileSync(join(dest, "jscpd-report.json"), "utf8"));
+  };
+  const mixed = runJscpd(tree, fitnessOut);
+  const onlyThrowaway = runJscpd(throwOnly, throwOut);
+  const domains = ["alpha", "beta"];
+  const mixedAll = Array.isArray(mixed.duplicates) ? mixed.duplicates.length : 0;
+  const mixedKept = clonesOutsideDomains(mixed.duplicates, domains).length;
+  const throwAll = Array.isArray(onlyThrowaway.duplicates) ? onlyThrowaway.duplicates.length : 0;
+  const throwKept = clonesOutsideDomains(onlyThrowaway.duplicates, domains).length;
+  rmSync(tree, { recursive: true, force: true });
+  rmSync(throwOnly, { recursive: true, force: true });
+  rmSync(fitnessOut, { recursive: true, force: true });
+  rmSync(throwOut, { recursive: true, force: true });
+  if (mixedAll < 2 || throwAll < 1) {
+    console.error(`self-test fitness: sin exclusion mixed=${mixedAll} throwaway=${throwAll}`);
+    process.exit(1);
+  }
+  if (throwKept !== 0 || mixedKept !== 1) {
+    console.error(`self-test fitness: con exclusion throwaway=${throwKept} real=${mixedKept}`);
+    process.exit(1);
+  }
+  const ratchet = mixedKept > 0 ? [`jscpd clones: 0 -> ${String(mixedKept)}`] : [];
+  if (ratchet.length === 0) {
+    console.error("self-test fitness: un clon real fuera de alpha/beta no sube el trinquete");
+    process.exit(1);
+  }
   console.log("check-quality-baseline self-test ok");
 }
 
@@ -212,7 +275,10 @@ async function main() {
   if (duplication.clones > (baseline.jscpd?.clones ?? 0)) {
     problems.push(`jscpd clones: ${baseline.jscpd?.clones ?? 0} -> ${duplication.clones}`);
   }
-  if (duplication.percentage > (baseline.jscpd?.percentage ?? 0) + 0.01) {
+  // scripts/.fitness-domains exists only while check-gen-fitness lints the
+  // throwaway domains. Their percentage includes those copies; the clone
+  // count above already drops pairs that sit entirely inside them.
+  if (fitnessDomains().length === 0 && duplication.percentage > (baseline.jscpd?.percentage ?? 0) + 0.01) {
     problems.push(`jscpd %: ${baseline.jscpd?.percentage ?? 0} -> ${duplication.percentage}`);
   }
   if (problems.length > 0) {

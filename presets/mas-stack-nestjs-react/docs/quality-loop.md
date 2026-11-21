@@ -15,7 +15,7 @@ El mismo loop vale para un agente que solo arregla un bug. No se declara el arre
 
 ## Trinquete
 
-`quality-baseline.json` versiona los conteos por regla y archivo (warnings de código existente), los clones de jscpd y los hallazgos de knip. El CI falla si algo sube. Si baja, el mismo PR actualiza la baseline con `node scripts/check-quality-baseline.mjs --update`. Un archivo que el PR toca queda igual o mejor. El trinquete de jscpd ignora archivos sin seguimiento solo cuando el repositorio ya tiene archivos versionados. Así el snapshot de `check-gen-fitness` no cuenta los dos dominios desechables, y un `git init` vacío (el smoke, antes del primer commit) sigue midiendo el esqueleto.
+`quality-baseline.json` versiona los conteos por regla y archivo (warnings de código existente), los clones de jscpd y los hallazgos de knip. El CI falla si algo sube. Si baja, el mismo PR actualiza la baseline con `node scripts/check-quality-baseline.mjs --update`. Un archivo que el PR toca queda igual o mejor. `check-gen-fitness` escribe `scripts/.fitness-domains` con los dominios desechables antes de `pnpm lint` y lo borra al terminar. El trinquete no cuenta un clon solo si los dos lados caen en esos dominios. Un clon contra código real sigue subiendo el conteo. Sin ese archivo, el porcentaje y los clones se comparan enteros contra `quality-baseline.json`.
 
 ## Error en código nuevo
 

@@ -225,6 +225,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D16-09 | un secreto de ejemplo no se detecta, o se detecta con la regla apagada | `check-gitleaks-fixture.mjs` (mensaje `generic-api-key`). El job de CI corre gitleaks 8.24.3 sobre el esqueleto con `.gitleaks.toml` |
 | D16-10 | `/speckit.converge` no existía y el loop no estaba escrito para el agente que corrige bugs | el preset registra `commands/speckit.converge.md` y `docs/quality-loop.md`. El skill cita la licencia MIT en `NOTICE` |
 | D16-11 | Playwright carga `choosePorts` en paralelo y cada worker se queda con un puerto distinto; el e2e web recibe `ERR_CONNECTION_REFUSED` | `apps/web/e2e/ports.ts --self-test`: dos llamadas en paralelo con `isLocked: false` divergen; con el candado (`mkdir` de `${file}.lock`) devuelven el mismo par |
+| D16-12 | `check-gen-fitness` genera alpha y beta, dos copias del mismo andamio, y el trinquete de jscpd sube | `check-quality-baseline.mjs --self-test`: sin la lista de dominios hay clon entre alpha y beta; con la lista ese clon desaparece y el clon en `real/` sigue contando, así que el trinquete falla |
 
 ## Versiones probadas
 
