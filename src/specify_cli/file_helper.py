@@ -7,7 +7,6 @@ import secrets
 import stat
 import sys
 import tempfile
-import time
 from collections import OrderedDict
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
