@@ -340,16 +340,17 @@ function Test-Python3Command {
 
     if (-not (Get-Command $Executable -ErrorAction SilentlyContinue)) { return $false }
     try {
-        # A WindowsApps alias, a Python 2 executable, or an interpreter without
-        # PyYAML is not a usable resolver. Existence/--version alone is insufficient.
-        $probe = & $Executable @Arguments -c 'import sys, yaml; print(sys.version_info[0])' 2>$null
+        # A WindowsApps alias or a Python 2 executable is not a usable resolver.
+        # Existence/--version alone is insufficient. Missing PyYAML is reported
+        # later by the manifest parser (exit code 2), not by rejecting Python.
+        $probe = & $Executable @Arguments -c 'import sys; print(sys.version_info[0])' 2>$null
         return ($LASTEXITCODE -eq 0 -and ($probe -join "`n").Trim() -eq '3')
     } catch {
         return $false
     }
 }
 
-# Find Python 3 with PyYAML; return command/arguments or $null.
+# Find Python 3; return command/arguments or $null. PyYAML is checked by the caller.
 function Get-Python3Command {
     # Keep canonical override precedence and fall back when it is unusable.
     $override = if ($env:SPECKIT_PYTHON_EXECUTABLE) { $env:SPECKIT_PYTHON_EXECUTABLE } else { $env:SPECKIT_PYTHON }
