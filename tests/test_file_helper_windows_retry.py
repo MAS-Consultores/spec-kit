@@ -1,4 +1,9 @@
-"""Bounded Windows replacement retries preserve failures and path checks."""
+"""Windows atomic writes keep the previous file when replace fails.
+
+Upstream v1.4.4 publishes through a staging file and checks the destination
+once before ``os.replace``. A sharing violation is not retried: the original
+file stays, and the staging file is removed.
+"""
 
 import os
 
@@ -15,53 +20,41 @@ def locked_error():
     return error
 
 
-@pytest.mark.parametrize("persistent", [False, True])
-def test_atomic_replace_retries_only_bounded_transient_failures(tmp_path, monkeypatch, persistent):
+def test_atomic_replace_failure_keeps_the_previous_file(tmp_path, monkeypatch):
     destination = tmp_path / "owned.txt"
     destination.write_text("old")
-    replace = os.replace
     calls = []
 
-    def locked_then_replace(source, target):
+    def locked_replace(source, target, *args, **kwargs):
         calls.append(target)
-        if persistent or len(calls) == 1:
-            raise locked_error()
-        return replace(source, target)
+        raise locked_error()
 
-    monkeypatch.setattr("specify_cli.file_helper.os.replace", locked_then_replace)
-    monkeypatch.setattr("specify_cli.file_helper.time.sleep", lambda delay: None)
-    if persistent:
-        with pytest.raises(PermissionError):
-            FileHelper(tmp_path).write_text("owned.txt", "new")
-        assert len(calls) == 4
-        assert destination.read_text() == "old"
-    else:
+    monkeypatch.setattr("specify_cli.file_helper.os.replace", locked_replace)
+    with pytest.raises(PermissionError):
         FileHelper(tmp_path).write_text("owned.txt", "new")
-        assert len(calls) == 2
-        assert destination.read_text() == "new"
+    assert len(calls) == 1
+    assert destination.read_text() == "old"
     assert list(tmp_path.iterdir()) == [destination]
 
 
-def test_retry_revalidates_path_before_replacing(tmp_path, monkeypatch):
+def test_replace_revalidates_path_before_replacing(tmp_path, monkeypatch):
     destination = tmp_path / "owned.txt"
     destination.write_text("old")
     original_path = FileHelper._path
-    attempts = []
+    seen = {"count": 0}
 
-    def refuse_after_lock(self, path, **kwargs):
-        if attempts:
+    def change_before_publish(self, path, **kwargs):
+        seen["count"] += 1
+        if seen["count"] > 1:
             raise FileHelperError("destination changed")
         return original_path(self, path, **kwargs)
 
-    def lock(source, target):
-        attempts.append(target)
-        raise locked_error()
+    def lock(source, target, *args, **kwargs):
+        raise AssertionError("must not replace after the destination changes")
 
-    monkeypatch.setattr(FileHelper, "_path", refuse_after_lock)
+    monkeypatch.setattr(FileHelper, "_path", change_before_publish)
     monkeypatch.setattr("specify_cli.file_helper.os.replace", lock)
-    monkeypatch.setattr("specify_cli.file_helper.time.sleep", lambda delay: None)
     with pytest.raises(FileHelperError, match="destination changed"):
         FileHelper(tmp_path).write_text("owned.txt", "new")
-    assert len(attempts) == 1
     assert destination.read_text() == "old"
     assert list(tmp_path.iterdir()) == [destination]

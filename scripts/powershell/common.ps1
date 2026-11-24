@@ -335,29 +335,51 @@ function Format-SpecKitCommand {
 function Test-Python3Command {
     param(
         [Parameter(Mandatory=$true)][string]$Executable,
-        [string[]]$Arguments = @()
+        [string[]]$Arguments = @(),
+        [switch]$RequireYaml
     )
 
     if (-not (Get-Command $Executable -ErrorAction SilentlyContinue)) { return $false }
     try {
-        # A WindowsApps alias, a Python 2 executable, or an interpreter without
-        # PyYAML is not a usable resolver. Existence/--version alone is insufficient.
-        $probe = & $Executable @Arguments -c 'import sys, yaml; print(sys.version_info[0])' 2>$null
+        # A WindowsApps alias or a Python 2 executable is not a usable resolver.
+        # Existence/--version alone is insufficient. PyYAML is preferred when any
+        # candidate has it; a Python 3 without it is only used so the manifest
+        # parser can report exit code 2.
+        $script = if ($RequireYaml) {
+            'import sys, yaml; print(sys.version_info[0])'
+        } else {
+            'import sys; print(sys.version_info[0])'
+        }
+        $probe = & $Executable @Arguments -c $script 2>$null
         return ($LASTEXITCODE -eq 0 -and ($probe -join "`n").Trim() -eq '3')
     } catch {
         return $false
     }
 }
 
-# Find Python 3 with PyYAML; return command/arguments or $null.
+# Find Python 3; return command/arguments or $null.
+# Prefer an interpreter that can import PyYAML. SPECKIT_PYTHON_EXECUTABLE
+# (then the deprecated SPECKIT_PYTHON alias) wins only when it has PyYAML;
+# otherwise a PATH interpreter that has it is used. If none have PyYAML, the
+# first Python 3 is returned so the manifest parser reports the missing module.
 function Get-Python3Command {
-    # Keep canonical override precedence and fall back when it is unusable.
     $override = if ($env:SPECKIT_PYTHON_EXECUTABLE) { $env:SPECKIT_PYTHON_EXECUTABLE } else { $env:SPECKIT_PYTHON }
-    if ($override -and (Test-Python3Command -Executable $override)) { return @($override) }
-    if (Test-Python3Command -Executable 'python3') { return @('python3') }
-    if (Test-Python3Command -Executable 'python') { return @('python') }
-    if (Test-Python3Command -Executable 'py' -Arguments @('-3')) { return @('py', '-3') }
-    return $null
+    $candidates = @()
+    if ($override) { $candidates += ,@($override) }
+    $candidates += ,@('python3')
+    $candidates += ,@('python')
+    $candidates += ,@('py', '-3')
+
+    $firstPython3 = $null
+    foreach ($candidate in $candidates) {
+        $exe = $candidate[0]
+        $args = @()
+        if ($candidate.Count -gt 1) { $args = $candidate[1..($candidate.Count - 1)] }
+        if (-not (Test-Python3Command -Executable $exe -Arguments $args)) { continue }
+        if (-not $firstPython3) { $firstPython3 = $candidate }
+        if (Test-Python3Command -Executable $exe -Arguments $args -RequireYaml) { return $candidate }
+    }
+    return $firstPython3
 }
 
 function Get-NormalizedPriority {
@@ -641,9 +663,11 @@ function Resolve-TemplateContent {
                         # Use Python to parse YAML manifest for strategy and file path
                         $pyArgs = if ($pyCmd.Count -gt 1) { $pyCmd[1..($pyCmd.Count-1)] } else { @() }
                         $pyStderrFile = [System.IO.Path]::GetTempFileName()
-                        # Windows PowerShell 5.1 turns native stderr into errors;
-                        # collect it and inspect the exit code before throwing.
-                        $nativeErrorPreference = $ErrorActionPreference
+                        $pyNativeErrFile = [System.IO.Path]::GetTempFileName()
+                        # Windows PowerShell 5.1 turns native stderr into errors.
+                        # The manifest diagnostic is written to argv as UTF-8;
+                        # inspect the exit code before throwing.
+                        $savedErrorActionPreference = $ErrorActionPreference
                         try {
                             $ErrorActionPreference = 'Continue'
                             $stratResult = & $pyCmd[0] @pyArgs -c @"
@@ -651,7 +675,6 @@ import sys, base64
 try:
     import yaml
 except ImportError:
-    print('yaml_missing', file=sys.stderr)
     sys.exit(2)
 try:
     with open(sys.argv[1], encoding='utf-8') as f:
@@ -696,22 +719,29 @@ try:
             engine['validate_section_selector'](strategy, t.get('selector'), present='selector' in t)
     for t in templates:
         if t.get('name') == sys.argv[2] and t.get('type', 'template') == 'template':
-            file_value = t.get('file', '')
+            file_value = base64.b64encode(t.get('file', '').encode('utf-8')).decode('ascii')
             strategy = t.get('strategy', 'replace')
             selector = base64.b64encode(t.get('selector', '').encode('utf-8')).decode('ascii')
             print('found\t' + strategy + '\t' + file_value + '\t' + selector)
             sys.exit(0)
     print('absent\treplace\t')
 except Exception as exc:
-    print(f'manifest_invalid: {exc}', file=sys.stderr)
+    with open(sys.argv[4], 'w', encoding='utf-8') as err_out:
+        err_out.write(f'manifest_invalid: {exc}')
     sys.exit(3)
-"@ $manifest $TemplateName $sectionEngine 2>$pyStderrFile
+"@ $manifest $TemplateName $sectionEngine $pyStderrFile 2>$pyNativeErrFile
                             $pythonExitCode = $LASTEXITCODE
                         } finally {
-                            $ErrorActionPreference = $nativeErrorPreference
+                            $ErrorActionPreference = $savedErrorActionPreference
                         }
                         if ($pythonExitCode -ne 0) {
-                            $diagnostic = Get-Content -LiteralPath $pyStderrFile -Raw -ErrorAction SilentlyContinue
+                            $diagnostic = ''
+                            if (Test-Path -LiteralPath $pyStderrFile) {
+                                $diagnostic = [System.IO.File]::ReadAllText($pyStderrFile, [System.Text.Encoding]::UTF8)
+                            }
+                            if (-not $diagnostic -and (Test-Path -LiteralPath $pyNativeErrFile)) {
+                                $diagnostic = [System.IO.File]::ReadAllText($pyNativeErrFile, [System.Text.Encoding]::UTF8)
+                            }
                             if ($diagnostic) { $diagnostic = $diagnostic.Trim() }
                             else { $diagnostic = 'No diagnostic output from Python.' }
                             if ($pythonExitCode -eq 2) {
@@ -726,12 +756,16 @@ except Exception as exc:
                             $parts = $stratResult.Trim() -split "`t", 4
                             $manifestDeclared = $parts[0] -eq 'found'
                             $strategy = $parts[1].ToLowerInvariant()
-                            if ($parts.Count -gt 2 -and $parts[2]) { $manifestFilePath = $parts[2] }
+                            if ($parts.Count -gt 2 -and $parts[2]) {
+                                $manifestFilePath = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($parts[2]))
+                            }
                             if ($parts.Count -gt 3) { $selector = $parts[3] }
                         }
                         Remove-Item -LiteralPath $pyStderrFile -Force -ErrorAction SilentlyContinue
+                        if ($pyNativeErrFile) { Remove-Item -LiteralPath $pyNativeErrFile -Force -ErrorAction SilentlyContinue }
                     } catch {
                         if ($pyStderrFile) { Remove-Item -LiteralPath $pyStderrFile -Force -ErrorAction SilentlyContinue }
+                        if ($pyNativeErrFile) { Remove-Item -LiteralPath $pyNativeErrFile -Force -ErrorAction SilentlyContinue }
                         throw
                     }
                 }
