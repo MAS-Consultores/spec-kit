@@ -335,30 +335,51 @@ function Format-SpecKitCommand {
 function Test-Python3Command {
     param(
         [Parameter(Mandatory=$true)][string]$Executable,
-        [string[]]$Arguments = @()
+        [string[]]$Arguments = @(),
+        [switch]$RequireYaml
     )
 
     if (-not (Get-Command $Executable -ErrorAction SilentlyContinue)) { return $false }
     try {
         # A WindowsApps alias or a Python 2 executable is not a usable resolver.
-        # Existence/--version alone is insufficient. Missing PyYAML is reported
-        # later by the manifest parser (exit code 2), not by rejecting Python.
-        $probe = & $Executable @Arguments -c 'import sys; print(sys.version_info[0])' 2>$null
+        # Existence/--version alone is insufficient. PyYAML is preferred when any
+        # candidate has it; a Python 3 without it is only used so the manifest
+        # parser can report exit code 2.
+        $script = if ($RequireYaml) {
+            'import sys, yaml; print(sys.version_info[0])'
+        } else {
+            'import sys; print(sys.version_info[0])'
+        }
+        $probe = & $Executable @Arguments -c $script 2>$null
         return ($LASTEXITCODE -eq 0 -and ($probe -join "`n").Trim() -eq '3')
     } catch {
         return $false
     }
 }
 
-# Find Python 3; return command/arguments or $null. PyYAML is checked by the caller.
+# Find Python 3; return command/arguments or $null.
+# Prefer an interpreter that can import PyYAML. SPECKIT_PYTHON_EXECUTABLE
+# (then the deprecated SPECKIT_PYTHON alias) wins only when it has PyYAML;
+# otherwise a PATH interpreter that has it is used. If none have PyYAML, the
+# first Python 3 is returned so the manifest parser reports the missing module.
 function Get-Python3Command {
-    # Keep canonical override precedence and fall back when it is unusable.
     $override = if ($env:SPECKIT_PYTHON_EXECUTABLE) { $env:SPECKIT_PYTHON_EXECUTABLE } else { $env:SPECKIT_PYTHON }
-    if ($override -and (Test-Python3Command -Executable $override)) { return @($override) }
-    if (Test-Python3Command -Executable 'python3') { return @('python3') }
-    if (Test-Python3Command -Executable 'python') { return @('python') }
-    if (Test-Python3Command -Executable 'py' -Arguments @('-3')) { return @('py', '-3') }
-    return $null
+    $candidates = @()
+    if ($override) { $candidates += ,@($override) }
+    $candidates += ,@('python3')
+    $candidates += ,@('python')
+    $candidates += ,@('py', '-3')
+
+    $firstPython3 = $null
+    foreach ($candidate in $candidates) {
+        $exe = $candidate[0]
+        $args = @()
+        if ($candidate.Count -gt 1) { $args = $candidate[1..($candidate.Count - 1)] }
+        if (-not (Test-Python3Command -Executable $exe -Arguments $args)) { continue }
+        if (-not $firstPython3) { $firstPython3 = $candidate }
+        if (Test-Python3Command -Executable $exe -Arguments $args -RequireYaml) { return $candidate }
+    }
+    return $firstPython3
 }
 
 function Get-NormalizedPriority {
