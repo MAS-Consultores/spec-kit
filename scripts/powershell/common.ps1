@@ -663,6 +663,7 @@ function Resolve-TemplateContent {
                         # Use Python to parse YAML manifest for strategy and file path
                         $pyArgs = if ($pyCmd.Count -gt 1) { $pyCmd[1..($pyCmd.Count-1)] } else { @() }
                         $pyStderrFile = [System.IO.Path]::GetTempFileName()
+                        $pyNativeErrFile = [System.IO.Path]::GetTempFileName()
                         # Windows PowerShell 5.1 turns native stderr into errors.
                         # The manifest diagnostic is written to argv as UTF-8;
                         # inspect the exit code before throwing.
@@ -728,7 +729,7 @@ except Exception as exc:
     with open(sys.argv[4], 'w', encoding='utf-8') as err_out:
         err_out.write(f'manifest_invalid: {exc}')
     sys.exit(3)
-"@ $manifest $TemplateName $sectionEngine $pyStderrFile 2>$null
+"@ $manifest $TemplateName $sectionEngine $pyStderrFile 2>$pyNativeErrFile
                             $pythonExitCode = $LASTEXITCODE
                         } finally {
                             $ErrorActionPreference = $savedErrorActionPreference
@@ -737,6 +738,9 @@ except Exception as exc:
                             $diagnostic = ''
                             if (Test-Path -LiteralPath $pyStderrFile) {
                                 $diagnostic = [System.IO.File]::ReadAllText($pyStderrFile, [System.Text.Encoding]::UTF8)
+                            }
+                            if (-not $diagnostic -and (Test-Path -LiteralPath $pyNativeErrFile)) {
+                                $diagnostic = [System.IO.File]::ReadAllText($pyNativeErrFile, [System.Text.Encoding]::UTF8)
                             }
                             if ($diagnostic) { $diagnostic = $diagnostic.Trim() }
                             else { $diagnostic = 'No diagnostic output from Python.' }
@@ -758,8 +762,10 @@ except Exception as exc:
                             if ($parts.Count -gt 3) { $selector = $parts[3] }
                         }
                         Remove-Item -LiteralPath $pyStderrFile -Force -ErrorAction SilentlyContinue
+                        if ($pyNativeErrFile) { Remove-Item -LiteralPath $pyNativeErrFile -Force -ErrorAction SilentlyContinue }
                     } catch {
                         if ($pyStderrFile) { Remove-Item -LiteralPath $pyStderrFile -Force -ErrorAction SilentlyContinue }
+                        if ($pyNativeErrFile) { Remove-Item -LiteralPath $pyNativeErrFile -Force -ErrorAction SilentlyContinue }
                         throw
                     }
                 }
