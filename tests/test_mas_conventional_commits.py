@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -240,6 +242,97 @@ def test_d22_06_nestjs_commitlint_skeleton() -> None:
             check=False,
         )
     assert result.returncode != 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ("script", "variant", "name"),
+    [
+        ("sh", "bash", "check-commit-msg.sh"),
+        ("ps", "powershell", "check-commit-msg.ps1"),
+    ],
+)
+def test_d22_09_refresh_rewrites_commit_validators(tmp_path: Path, script: str, variant: str, name: str) -> None:
+    """Fresh init and --refresh-shared-infra install the same validator bytes."""
+    project = tmp_path / "proj"
+    args = [
+        "init", str(project),
+        "--integration", "cursor-agent",
+        "--stack", "cakephp2-mysql",
+        "--script", script,
+        "--ignore-agent-tools",
+        "--skip-external-skills",
+        "--non-interactive",
+    ]
+    result = CliRunner().invoke(app, args, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    rel = Path(".specify") / "scripts" / variant / name
+    original = (project / rel).read_bytes()
+    manifest_path = project / ".specify" / "integrations" / "speckit.manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert rel.as_posix() in manifest["files"]
+    (project / rel).write_bytes(b"# edited shared runtime\n")
+    previous = os.getcwd()
+    try:
+        os.chdir(project)
+        refreshed = CliRunner().invoke(
+            app,
+            ["integration", "switch", "cursor-agent", "--refresh-shared-infra"],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(previous)
+    assert refreshed.exit_code == 0, refreshed.output
+    assert (project / rel).read_bytes() == original
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["files"][rel.as_posix()] == hashlib.sha256(original).hexdigest()
+
+
+def test_d22_10_symlink_extensions_still_uses_conventional_style(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A symlinked extensions directory cannot keep commit_style fixed under --stack."""
+    from specify_cli.file_helper import FileHelper, UnsupportedPathError
+    from specify_cli.mas import apply_mas_git_commit_style
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    specify = project / ".specify"
+    specify.mkdir()
+    shared = tmp_path / "shared-extensions"
+    shared.mkdir()
+    (specify / "extensions").symlink_to(shared, target_is_directory=True)
+    previous = os.getcwd()
+    try:
+        os.chdir(project)
+        result = CliRunner().invoke(
+            app,
+            [
+                "init", "--here", "--force",
+                "--integration", "cursor-agent",
+                "--stack", "cakephp2-mysql",
+                "--extension", "git",
+                "--ignore-agent-tools",
+                "--skip-external-skills",
+                "--non-interactive",
+                "--script", "sh",
+            ],
+            catch_exceptions=False,
+        )
+    finally:
+        os.chdir(previous)
+    assert result.exit_code == 0, result.output
+    config = shared / "git" / "git-config.yml"
+    text = config.read_text(encoding="utf-8")
+    assert "commit_style: conventional" in text
+    assert 'init_commit_message: "chore: initial commit"' in text
+    assert "commit_style: fixed" not in text
+
+    def reject_special(self: FileHelper, path: Path, *args: object, **kwargs: object) -> str:
+        raise UnsupportedPathError("special file")
+
+    monkeypatch.setattr(FileHelper, "read_text", reject_special)
+    untouched = tmp_path / "untouched"
+    untouched.mkdir()
+    with pytest.raises(UnsupportedPathError):
+        apply_mas_git_commit_style(untouched)
 
 
 def test_d22_07_git_extension_uses_conventional_style(projects: dict[str, Path]) -> None:

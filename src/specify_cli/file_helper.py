@@ -709,6 +709,50 @@ class FileHelper:
     ) -> None:
         self.write_bytes(path, content.encode(encoding), mode=mode)
 
+    def extension_git_config_through_scope_link(self) -> Path:
+        """Return git-config.yml when only ``.specify/extensions`` is a symlink.
+
+        The leaf must be a regular file. A link anywhere else, including
+        ``git/`` or the config file itself, is still refused.
+        """
+        extensions = self._canonical_root / ".specify" / "extensions"
+        try:
+            extension_mode = os.lstat(extensions).st_mode
+        except FileNotFoundError:
+            raise FileNotFoundError(extensions) from None
+        if not stat.S_ISLNK(extension_mode):
+            raise SymlinkDeniedError(
+                f"Refusing symlink other than .specify/extensions: {extensions}"
+            )
+        raw = os.readlink(extensions)
+        target = Path(raw)
+        if not target.is_absolute():
+            target = extensions.parent / target
+        git_dir = target / "git"
+        config = git_dir / "git-config.yml"
+        try:
+            git_mode = os.lstat(git_dir).st_mode
+        except FileNotFoundError:
+            raise FileNotFoundError(config) from None
+        if stat.S_ISLNK(git_mode) or not stat.S_ISDIR(git_mode):
+            raise SymlinkDeniedError(f"Refusing symlink {git_dir}")
+        try:
+            config_mode = os.lstat(config).st_mode
+        except FileNotFoundError:
+            raise FileNotFoundError(config) from None
+        if not stat.S_ISREG(config_mode):
+            raise SymlinkDeniedError(f"Refusing non-regular git-config: {config}")
+        return config
+
+    def read_extension_git_config_through_scope_link(self) -> str:
+        """Read git-config.yml through a symlinked extensions directory."""
+        return self.extension_git_config_through_scope_link().read_text(encoding="utf-8")
+
+    def write_extension_git_config_through_scope_link(self, content: str) -> None:
+        """Rewrite that same regular file and no other path reached by a link."""
+        config = self.extension_git_config_through_scope_link()
+        config.write_text(content, encoding="utf-8")
+
     def overwrite_text(
         self, path: Path | str, content: str, *, encoding: str = "utf-8"
     ) -> None:

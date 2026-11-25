@@ -20,7 +20,7 @@ $raw = $raw -replace "`r", ''
 $first = ($raw -split "`n", 2)[0]
 
 if ([string]::IsNullOrWhiteSpace($first)) {
-    [Console]::Error.WriteLine('mensaje de commit vacío')
+    [Console]::Error.WriteLine('mensaje de commit vacio')
     exit 1
 }
 

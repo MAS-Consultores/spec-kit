@@ -281,6 +281,8 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D22-06 | el esqueleto nestjs-react no tenía commitlint ni un job de commits | el mismo archivo: pins exactos `@commitlint/cli` y `@commitlint/config-conventional` `21.2.4`, `commitlint.config.mjs`, `.githooks/commit-msg`, job `commits` con `permissions: contents: read`, y `commitlint --edit` sale distinto de 0 con un mensaje inválido |
 | D22-07 | la extensión git, instalada con `--stack`, dejaba `commit_style: fixed` y un mensaje inicial `[Spec Kit]` | el mismo archivo: `commit_style: conventional` e `init_commit_message: "chore: initial commit"` |
 | D22-08 | `.specify/memory/` no repetía la regla en cada stack | el mismo archivo: `stack-context.md` de los seis stacks incluye la URL de Conventional Commits 1.0.0 |
+| D22-09 | `integration switch --refresh-shared-infra` no reescribía `check-commit-msg.sh` ni `.ps1`, así que un stub editado sobrevivía | el mismo archivo: tras init con stack, el manifiesto compartido registra el validador y el refresh deja los mismos bytes que el init |
+| D22-10 | con `.specify/extensions` como enlace, init con `--extension git` salía 0 y dejaba `commit_style: fixed` | el mismo archivo: ese init deja `commit_style: conventional` y `init_commit_message: "chore: initial commit"`; otro `FileHelperError` sigue propagándose |
 
 ## Versiones probadas
 

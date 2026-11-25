@@ -2284,19 +2284,7 @@ def install_conventional_commit_assets(project_path: Path) -> None:
             files.write_text(dest, content, mode=0o755)
 
 
-def apply_mas_git_commit_style(project_path: Path) -> None:
-    """When the git extension is installed with a MAS stack, require Conventional Commits."""
-    config = project_path / ".specify" / "extensions" / "git" / "git-config.yml"
-    from .file_helper import FileHelper, FileHelperError
-
-    try:
-        text = FileHelper(project_path).read_text(config)
-    except FileNotFoundError:
-        return
-    except FileHelperError:
-        # A symlinked extensions directory is left untouched. Init must keep
-        # going; the journal already refuses that layout.
-        return
+def _conventional_git_config(text: str) -> str:
     updated, init_count = re.subn(
         r'(?m)^init_commit_message:.*$',
         'init_commit_message: "chore: initial commit"',
@@ -2311,6 +2299,29 @@ def apply_mas_git_commit_style(project_path: Path) -> None:
     )
     if init_count != 1 or style_count != 1:
         raise RuntimeError("git-config.yml is missing init_commit_message or commit_style")
+    return updated
+
+
+def apply_mas_git_commit_style(project_path: Path) -> None:
+    """When the git extension is installed with a MAS stack, require Conventional Commits."""
+    config = project_path / ".specify" / "extensions" / "git" / "git-config.yml"
+    from .file_helper import FileHelper, SymlinkDeniedError
+
+    helper = FileHelper(project_path)
+    try:
+        text = helper.read_text(config)
+    except FileNotFoundError:
+        return
+    except SymlinkDeniedError:
+        try:
+            text = helper.read_extension_git_config_through_scope_link()
+        except FileNotFoundError:
+            return
+        updated = _conventional_git_config(text)
+        if updated != text:
+            helper.write_extension_git_config_through_scope_link(updated)
+        return
+    updated = _conventional_git_config(text)
     if updated != text:
         from .integrations._file_changes import write_text
 
