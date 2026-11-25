@@ -192,8 +192,6 @@ MAS_INIT_EXTRA_FILES = [
     ".specify/presets/mas-stack-cakephp2-mysql/preset.yml",
     ".specify/presets/mas-stack-cakephp2-mysql/stack-skills.yml",
     ".specify/presets/mas-stack-cakephp2-mysql/templates/mas-stack-cakephp2-mysql.md",
-    ".specify/scripts/bash/check-commit-msg.sh",
-    ".specify/scripts/powershell/check-commit-msg.ps1",
     ".specify/templates/ci/conventional-commits.yml",
     ".specify/templates/githooks/commit-msg",
 ]
@@ -203,10 +201,12 @@ def mas_init_extra_files(script: str) -> list[str]:
     """Stack files plus the branch scripts for the selected script flavor."""
     branch_scripts = {
         "sh": [
+            ".specify/scripts/bash/check-commit-msg.sh",
             ".specify/scripts/bash/ensure-feature-branch.sh",
             ".specify/scripts/bash/finish-feature.sh",
         ],
         "ps": [
+            ".specify/scripts/powershell/check-commit-msg.ps1",
             ".specify/scripts/powershell/ensure-feature-branch.ps1",
             ".specify/scripts/powershell/finish-feature.ps1",
         ],

@@ -724,45 +724,6 @@ def install_shared_infra(
                         (dst_path, rel, data, _shared_script_mode(src_path, data))
                     )
 
-            # Conventional Commit validators ship for both shells even when this
-            # init selected only one. They stay on the shared-infra write path so
-            # refresh and rollback treat them like the other managed scripts.
-            for variant_dir, name in (
-                ("bash", "check-commit-msg.sh"),
-                ("powershell", "check-commit-msg.ps1"),
-            ):
-                src_path = scripts_src / variant_dir / name
-                if not src_path.is_file():
-                    continue
-                dest_variant = dest_scripts / variant_dir
-                if not _ensure_or_bucket_dir(dest_variant):
-                    continue
-                dst_path = dest_variant / name
-                rel = dst_path.relative_to(project_path).as_posix()
-                if rel in seen_rels:
-                    continue
-                seen_rels.add(rel)
-                if not _safe_dest_or_bucket(dst_path, rel, parent_must_exist=False):
-                    continue
-                write, bucket = _decide_overwrite(rel, dst_path)
-                if not write:
-                    if bucket == "preserved":
-                        preserved_user_files.append(rel)
-                    else:
-                        skipped_files.append(rel)
-                    continue
-                content = src_path.read_text(encoding="utf-8")
-                content = IntegrationBase.resolve_command_refs(
-                    content, invoke_separator, invoke_prefix
-                )
-                content = _resolve_dynamic_command_refs(
-                    content, invoke_separator, invoke_prefix
-                )
-                data = content.encode("utf-8")
-                planned_copies.append(
-                    (dst_path, rel, data, _shared_script_mode(src_path, data))
-                )
-
     templates_src = shared_templates_source(core_pack=core_pack, repo_root=repo_root)
     if templates_src.is_dir():
         dest_templates = project_path / ".specify" / "templates"

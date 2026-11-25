@@ -136,12 +136,13 @@ def test_d22_02_phase_commits_are_conventional(projects: dict[str, Path]) -> Non
 def test_d22_03_validators_and_ci_template(projects: dict[str, Path]) -> None:
     for stack, project in projects.items():
         assert (project / ".specify" / "scripts" / "bash" / "check-commit-msg.sh").is_file(), stack
-        assert (project / ".specify" / "scripts" / "powershell" / "check-commit-msg.ps1").is_file(), stack
+        assert (
+            project / ".specify" / "presets" / "mas-core" / "scripts" / "powershell" / "check-commit-msg.ps1"
+        ).is_file(), stack
         manifest = json.loads(
             (project / ".specify" / "integrations" / "speckit.manifest.json").read_text(encoding="utf-8")
         )
         assert ".specify/scripts/bash/check-commit-msg.sh" in manifest["files"], stack
-        assert ".specify/scripts/powershell/check-commit-msg.ps1" in manifest["files"], stack
         workflow = (project / ".specify" / "templates" / "ci" / "conventional-commits.yml").read_text(
             encoding="utf-8"
         )
