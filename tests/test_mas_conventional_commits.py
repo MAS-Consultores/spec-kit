@@ -79,6 +79,27 @@ def projects(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     return created
 
 
+def _real_bash() -> str | None:
+    """Return a bash that can run a script. The Windows ``bash`` stub is not one."""
+    candidates = ["bash"]
+    if os.name == "nt":
+        candidates.append(r"C:\Program Files\Git\bin\bash.exe")
+    for candidate in candidates:
+        try:
+            result = subprocess.run(
+                [candidate, "-c", "echo ok"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 0 and result.stdout.strip() == "ok":
+            return candidate
+    return None
+
+
 def _skill(project: Path, phase: str) -> str:
     return (project / ".cursor" / "skills" / f"speckit-{phase}" / "SKILL.md").read_text(encoding="utf-8")
 
@@ -93,18 +114,23 @@ def test_d22_01_constitution_principle_xi(projects: dict[str, Path]) -> None:
 
 def test_d22_02_phase_commits_are_conventional(projects: dict[str, Path]) -> None:
     script = REPO / "presets/mas-core/scripts/bash/check-commit-msg.sh"
+    bash = _real_bash()
     for stack, project in projects.items():
         for phase, message in PHASE_MESSAGES.items():
             text = _skill(project, phase)
             assert f'git commit -m "{message}"' in text, f"{stack} {phase}"
             assert 'git commit -m "speckit.' not in text, f"{stack} {phase}"
+            if bash is None:
+                continue
             checked = subprocess.run(
-                ["bash", str(script), message],
+                [bash, str(script), message],
                 capture_output=True,
                 text=True,
                 check=False,
             )
             assert checked.returncode == 0, checked.stderr
+    if bash is None:
+        pytest.skip("bash is not runnable on this host")
 
 
 def test_d22_03_validators_and_ci_template(projects: dict[str, Path]) -> None:
@@ -128,14 +154,17 @@ def test_d22_08_memory_states_the_rule(projects: dict[str, Path]) -> None:
 
 def _run_validator(kind: str, message: str) -> subprocess.CompletedProcess[str]:
     if kind == "bash":
+        bash = _real_bash()
+        if bash is None:
+            pytest.skip("bash is not runnable on this host")
         script = REPO / "presets/mas-core/scripts/bash/check-commit-msg.sh"
         if "\n" in message:
             with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as handle:
                 handle.write(message)
                 path = handle.name
-            args = ["bash", str(script), path]
+            args = [bash, str(script), path]
         else:
-            args = ["bash", str(script), message]
+            args = [bash, str(script), message]
     else:
         script = REPO / "presets/mas-core/scripts/powershell/check-commit-msg.ps1"
         if "\n" in message:

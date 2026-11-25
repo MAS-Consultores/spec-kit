@@ -2247,6 +2247,10 @@ MAS_STACKS: dict[str, MasStack] = {
 def install_conventional_commit_assets(project_path: Path) -> None:
     """Copy the shared commit validator, hook, and CI template into the project."""
     core = project_path / ".specify" / "presets" / "mas-core"
+    # Selected script variants are already installed by shared infra from
+    # scripts/bash and scripts/powershell. Do not rewrite those: refresh must
+    # see the same bytes, and a second write survives rollback. Copy only a
+    # variant this init did not select, so both validators are present.
     pairs = (
         (
             core / "scripts" / "bash" / "check-commit-msg.sh",
@@ -2274,6 +2278,12 @@ def install_conventional_commit_assets(project_path: Path) -> None:
 
     files = FileHelper(project_path)
     for source, dest, executable in pairs:
+        try:
+            files.read_text(dest)
+        except FileNotFoundError:
+            pass
+        else:
+            continue
         try:
             content = files.read_text(source)
         except FileNotFoundError as exc:
