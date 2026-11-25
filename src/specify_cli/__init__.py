@@ -446,11 +446,7 @@ def install_mas_stack_presets(project_path: Path, mas_stack: MasStack) -> None:
             dest = project_path / ".specify" / "reference"
             if dest.exists():
                 shutil.rmtree(dest)
-            shutil.copytree(
-                reference,
-                dest,
-                ignore=shutil.ignore_patterns("node_modules"),
-            )
+            shutil.copytree(reference, dest)
 
     from .mas import install_conventional_commit_assets
 

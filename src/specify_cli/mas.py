@@ -2269,23 +2269,30 @@ def install_conventional_commit_assets(project_path: Path) -> None:
             False,
         ),
     )
+    from .file_helper import FileHelper
     from .integrations._file_changes import write_text
 
+    files = FileHelper(project_path)
     for source, dest, executable in pairs:
-        if not source.is_file():
-            raise RuntimeError(f"MAS commit asset missing: {source}")
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        write_text(dest, source.read_text(encoding="utf-8"))
+        try:
+            content = files.read_text(source)
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"MAS commit asset missing: {source}") from exc
+        files.mkdir(dest.parent, parents=True, exist_ok=True)
+        write_text(dest, content)
         if executable:
-            dest.chmod(0o755)
+            files.write_text(dest, content, mode=0o755)
 
 
 def apply_mas_git_commit_style(project_path: Path) -> None:
     """When the git extension is installed with a MAS stack, require Conventional Commits."""
     config = project_path / ".specify" / "extensions" / "git" / "git-config.yml"
-    if not config.is_file():
+    from .file_helper import FileHelper
+
+    try:
+        text = FileHelper(project_path).read_text(config)
+    except FileNotFoundError:
         return
-    text = config.read_text(encoding="utf-8")
     updated, init_count = re.subn(
         r'(?m)^init_commit_message:.*$',
         'init_commit_message: "chore: initial commit"',

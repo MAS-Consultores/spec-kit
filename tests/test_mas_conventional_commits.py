@@ -213,39 +213,30 @@ def test_d22_06_nestjs_commitlint_skeleton() -> None:
     agents = (root / "AGENTS.md").read_text(encoding="utf-8")
     assert "## Commits" in agents
     assert URL in agents
-    if not (root / "node_modules" / "@commitlint" / "cli").exists():
+    npm = shutil.which("npm")
+    if npm is None:
+        pytest.fail("npm is required to execute commitlint")
+    with tempfile.TemporaryDirectory() as temporary:
         installed = subprocess.run(
-            ["pnpm", "install", "--frozen-lockfile", "--ignore-scripts"],
-            cwd=root,
+            [
+                npm, "install", "--ignore-scripts", "--no-fund", "--no-audit",
+                "@commitlint/cli@21.2.4",
+                "@commitlint/config-conventional@21.2.4",
+            ],
+            cwd=temporary,
             capture_output=True,
             text=True,
             check=False,
         )
         assert installed.returncode == 0, installed.stdout + installed.stderr
-    message = root / ".git-commit-msg-fixture"
-    message.write_text("speckit.specify\n", encoding="utf-8")
-    try:
+        shutil.copy(root / "commitlint.config.mjs", Path(temporary) / "commitlint.config.mjs")
+        message = Path(temporary) / "msg.txt"
+        message.write_text("speckit.specify\n", encoding="utf-8")
         result = subprocess.run(
-            ["pnpm", "exec", "commitlint", "--edit", str(message)],
-            cwd=root,
+            [npm, "exec", "--", "commitlint", "--edit", str(message)],
+            cwd=temporary,
             capture_output=True,
             text=True,
-            check=False,
-        )
-    finally:
-        message.unlink(missing_ok=True)
-        subprocess.run(
-            [
-                "rm", "-rf",
-                "node_modules",
-                ".cursor",
-                "apps/api/node_modules",
-                "apps/web/node_modules",
-                "packages/ui/node_modules",
-                "packages/contracts/node_modules",
-                "scripts/node_modules",
-            ],
-            cwd=root,
             check=False,
         )
     assert result.returncode != 0, result.stdout + result.stderr
