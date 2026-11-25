@@ -2287,11 +2287,15 @@ def install_conventional_commit_assets(project_path: Path) -> None:
 def apply_mas_git_commit_style(project_path: Path) -> None:
     """When the git extension is installed with a MAS stack, require Conventional Commits."""
     config = project_path / ".specify" / "extensions" / "git" / "git-config.yml"
-    from .file_helper import FileHelper
+    from .file_helper import FileHelper, FileHelperError
 
     try:
         text = FileHelper(project_path).read_text(config)
     except FileNotFoundError:
+        return
+    except FileHelperError:
+        # A symlinked extensions directory is left untouched. Init must keep
+        # going; the journal already refuses that layout.
         return
     updated, init_count = re.subn(
         r'(?m)^init_commit_message:.*$',
