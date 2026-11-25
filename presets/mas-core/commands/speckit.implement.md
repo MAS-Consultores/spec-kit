@@ -38,4 +38,20 @@ is and runs the same `git merge --no-ff`. The script exits 1 when the working
 tree is dirty or when the merge does not create a merge commit. Do not use
 `--force` or reset.
 
+## Conventional Commits during implementation
+
+Commit after each task or logical group on the feature branch. Every message
+MUST follow Conventional Commits 1.0.0
+(https://www.conventionalcommits.org/en/v1.0.0/):
+`<type>[optional scope][!]: <description>`. Allowed types: `feat`, `fix`,
+`docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+The description is imperative, has no trailing period, and the header is at
+most 100 characters. Before `git commit`, require exit code 0 from:
+
+- Bash: `.specify/scripts/bash/check-commit-msg.sh "<message>"`
+- PowerShell: `.specify/scripts/powershell/check-commit-msg.ps1 "<message>"`
+
+Examples: `feat(auth): add login form`, `test(api): cover refresh token reuse`.
+Do not use `speckit.implement` or `[Spec Kit]` as the commit message.
+
 {CORE_TEMPLATE}

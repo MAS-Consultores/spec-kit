@@ -2,6 +2,10 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.4+mas.2] - 2026-11-25
+
+Conventional Commits 1.0.0 es obligatorio en los seis stacks MAS (principio XI de la constitución, versión de plantilla 1.1.0). Los commits de fase usan `docs(spec|plan|tasks): ...`. Los validadores `check-commit-msg.sh` y `check-commit-msg.ps1`, el hook `commit-msg` y la plantilla de CI `conventional-commits.yml` se instalan con `specify init --stack`. El esqueleto nestjs-react valida con commitlint 21.2.4 en el hook y en el job `commits`. Si la extensión git se instala junto al stack, `commit_style` queda en `conventional` y el commit inicial es `chore: initial commit`.
+
 ## [1.4.4+mas.1] - 2026-11-24
 
 MAS fork release based on upstream Spec Kit 1.4.4. Package version uses the local `+mas.N` convention; Git tags for this fork remain `vX.Y.Z-mas.N`.

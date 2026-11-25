@@ -37,20 +37,24 @@ not rely on `.specify/extensions.yml` or `speckit.git.commit`. Do not create
 
 1. `git symbolic-ref --short HEAD` must be the feature branch (`NNN-short-name`).
 2. If `git status --porcelain` is empty, stop this section.
-3. Otherwise run the commands for the current shell and require exit code 0.
+3. Otherwise validate the message, then commit. Require exit code 0. Replace
+   `<feature>` with the feature short name. The message MUST match Conventional
+   Commits 1.0.0.
 
 Bash:
 
 ```bash
 git add -A
-git commit -m "speckit.clarify"
+.specify/scripts/bash/check-commit-msg.sh "docs(spec): clarify <feature>"
+git commit -m "docs(spec): clarify <feature>"
 ```
 
 PowerShell:
 
 ```powershell
 git add -A
-git commit -m "speckit.clarify"
+.specify/scripts/powershell/check-commit-msg.ps1 "docs(spec): clarify <feature>"
+git commit -m "docs(spec): clarify <feature>"
 ```
 
 {CORE_TEMPLATE}

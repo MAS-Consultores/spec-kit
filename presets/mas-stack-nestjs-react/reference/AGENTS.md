@@ -30,6 +30,25 @@ Flujo de ramas, configurable por el producto:
 - No mergees ese pull request.
 - El merge lo hace una persona, no el agente.
 
+## Commits
+
+Cada commit y el título del pull request siguen Conventional Commits 1.0.0
+(https://www.conventionalcommits.org/en/v1.0.0/):
+
+`<tipo>[ámbito opcional][!]: <descripción>`
+
+Tipos: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+La descripción va en imperativo, sin punto final, y el encabezado no pasa de 100 caracteres.
+Un cambio que rompe compatibilidad lleva `!` o un pie `BREAKING CHANGE:`.
+Excepciones: mensajes generados por git que empiezan por `Merge ` o `Revert "`.
+Un commit que no cumple es un bloqueo.
+
+Ejemplos:
+
+- `feat(api): agregar alta de usuarios`
+- `fix(web): corregir el proxy de /api`
+- `docs(spec): specify login`
+
 ## Comandos
 
 `pnpm dev` levanta la API y la web.

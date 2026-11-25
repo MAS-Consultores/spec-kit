@@ -260,6 +260,6 @@ With multiple developers:
 - [Story] label maps task to a specific user story for traceability
 - Each user story should be independently completable and testable
 - Verify tests fail before implementing when tests are included
-- Commit after each task or logical group
+- Commit after each task or logical group using Conventional Commits 1.0.0 (`<type>[optional scope][!]: <description>`). Validate the message with `.specify/scripts/bash/check-commit-msg.sh` or `.specify/scripts/powershell/check-commit-msg.ps1` before `git commit`. Imperative description, no trailing period, header at most 100 characters.
 - Stop at any checkpoint to validate story independently
 - Avoid vague tasks, same-file conflicts, and cross-story dependencies that break independence

@@ -180,14 +180,22 @@ MAS_INIT_EXTRA_FILES = [
     ".specify/presets/mas-core/commands/speckit.specify.md",
     ".specify/presets/mas-core/commands/speckit.tasks.md",
     ".specify/presets/mas-core/preset.yml",
+    ".specify/presets/mas-core/scripts/bash/check-commit-msg.sh",
+    ".specify/presets/mas-core/scripts/powershell/check-commit-msg.ps1",
     ".specify/presets/mas-core/stack-skills.yml",
+    ".specify/presets/mas-core/templates/ci/conventional-commits.yml",
     ".specify/presets/mas-core/templates/constitution-template.md",
+    ".specify/presets/mas-core/templates/githooks/commit-msg",
     ".specify/presets/mas-core/templates/plan-template.md",
     ".specify/presets/mas-core/templates/spec-template-append.md",
     ".specify/presets/mas-core/templates/tasks-template.md",
     ".specify/presets/mas-stack-cakephp2-mysql/preset.yml",
     ".specify/presets/mas-stack-cakephp2-mysql/stack-skills.yml",
     ".specify/presets/mas-stack-cakephp2-mysql/templates/mas-stack-cakephp2-mysql.md",
+    ".specify/scripts/bash/check-commit-msg.sh",
+    ".specify/scripts/powershell/check-commit-msg.ps1",
+    ".specify/templates/ci/conventional-commits.yml",
+    ".specify/templates/githooks/commit-msg",
 ]
 
 
