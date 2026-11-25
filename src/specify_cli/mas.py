@@ -2263,7 +2263,7 @@ def install_conventional_commit_assets(project_path: Path) -> None:
         ),
     )
     from .file_helper import FileHelper
-    from .integrations._file_changes import write_text
+    from .shared_infra import _write_shared_bytes
 
     files = FileHelper(project_path)
     for source, dest, executable in pairs:
@@ -2272,9 +2272,12 @@ def install_conventional_commit_assets(project_path: Path) -> None:
         except FileNotFoundError as exc:
             raise RuntimeError(f"MAS commit asset missing: {source}") from exc
         files.mkdir(dest.parent, parents=True, exist_ok=True)
-        write_text(dest, content)
-        if executable:
-            files.write_text(dest, content, mode=0o755)
+        _write_shared_bytes(
+            project_path,
+            dest,
+            content.encode("utf-8"),
+            mode=0o755 if executable else 0o644,
+        )
 
 
 def _conventional_git_config(text: str) -> str:
