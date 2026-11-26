@@ -525,4 +525,3 @@ def test_d23_29_filehelper_reads_hygiene_assets() -> None:
     assert "gitignore-base\").read_text" not in source
     assert "files.iterdir(semgrep_src)" in source
     assert "files.read_text(core / \"templates\" / \"gitignore-base\")" in source
-

@@ -12,14 +12,18 @@ $raw = Get-Content -LiteralPath $Path -Raw
 if ($null -eq $raw) { $raw = '' }
 $raw = [regex]::Replace($raw, '(?s)<!--\s*coderabbit\s*-->.*?<!--\s*/coderabbit\s*-->', '')
 $raw = [regex]::Replace($raw, '(?s)<!--.*?-->', '')
-$required = @('Qué y por qué', 'Spec/tarea', 'Cómo se validó', 'Riesgos/rollback', 'Fuera de alcance')
+function Join-Codes([int[]]$Codes) { -join ($Codes | ForEach-Object { [char]$_ }) }
+$headingQue = Join-Codes 0x51,0x75,0xE9,0x20,0x79,0x20,0x70,0x6F,0x72,0x20,0x71,0x75,0xE9
+$headingComo = Join-Codes 0x43,0xF3,0x6D,0x6F,0x20,0x73,0x65,0x20,0x76,0x61,0x6C,0x69,0x64,0xF3
+$headingRiesgos = 'Riesgos/rollback'
+$required = @($headingQue, 'Spec/tarea', $headingComo, $headingRiesgos, 'Fuera de alcance')
 $missing = $false
 $block = $false
 foreach ($heading in $required) {
     $pattern = "(?s)^##\s+$([regex]::Escape($heading))\s*$\r?\n(.*?)(?=^##\s|\z)"
     $match = [regex]::Match($raw, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
     if (-not $match.Success -or [string]::IsNullOrWhiteSpace($match.Groups[1].Value)) {
-        if ($Evidence -and ($heading -eq 'Cómo se validó' -or $heading -eq 'Riesgos/rollback')) {
+        if ($Evidence -and ($heading -eq $headingComo -or $heading -eq $headingRiesgos)) {
             [Console]::Error.WriteLine("falta ${heading}: el PR trae otro hallazgo (tests, auth, upgrade o revert)")
             $block = $true
         } else {

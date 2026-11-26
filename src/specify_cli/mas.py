@@ -2435,9 +2435,20 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
     from .shared_infra import _write_shared_bytes
 
     files = FileHelper(project_path)
-    copies = (
-        (core / "templates" / "github" / "PULL_REQUEST_TEMPLATE.md", project_path / ".github" / "pull_request_template.md", False),
-        (core / "templates" / "github" / "PROMOTION_TEMPLATE.md", project_path / ".github" / "PROMOTION_TEMPLATE.md", False),
+    integration = ""
+    try:
+        import json
+
+        integration = json.loads(files.read_text(project_path / ".specify" / "init-options.json")).get("integration") or ""
+    except (FileNotFoundError, ValueError):
+        integration = ""
+    copies = []
+    if integration != "none":
+        copies.extend((
+            (core / "templates" / "github" / "PULL_REQUEST_TEMPLATE.md", project_path / ".github" / "pull_request_template.md", False),
+            (core / "templates" / "github" / "PROMOTION_TEMPLATE.md", project_path / ".github" / "PROMOTION_TEMPLATE.md", False),
+        ))
+    copies.extend((
         (core / "templates" / "ci" / "pr-hygiene.yml", project_path / ".specify" / "templates" / "ci" / "pr-hygiene.yml", False),
         (core / "templates" / "ci" / "security.yml", project_path / ".specify" / "templates" / "ci" / "security.yml", False),
         (core / "templates" / "githooks" / "pre-commit", project_path / ".specify" / "templates" / "githooks" / "pre-commit", True),
@@ -2445,7 +2456,7 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
         (core / "templates" / "gitleaks.toml", project_path / ".specify" / "templates" / "gitleaks.toml", False),
         (core / "templates" / "phpmd.xml", project_path / ".specify" / "templates" / "phpmd.xml", False),
         (core / "templates" / "jscpd.json", project_path / ".specify" / "templates" / "jscpd.json", False),
-    )
+    ))
     from .integrations._file_changes import directory_created, make_directories
 
     directory_created(project_path / ".specify")
@@ -2458,7 +2469,8 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
             content.encode("utf-8"),
             mode=0o755 if executable else 0o644,
         )
-    _install_codeowners(files, project_path, core, stack)
+    if integration != "none":
+        _install_codeowners(files, project_path, core, stack)
     if "js" in stack.clean_langs:
         eslint_src = (
             project_path
