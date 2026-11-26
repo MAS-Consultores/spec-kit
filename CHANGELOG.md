@@ -100,7 +100,6 @@ MAS fork release based on upstream Spec Kit 1.4.3. Package version uses the loca
 - fix: allow more time for loopback TLS in integration tests (#5513)
 - Add Task Consolidation extension to community catalog (#5530)
 - chore: release 1.4.4, begin 1.4.5.dev0 development (#5537)
->>>>>>> v1.4.5
 
 ## [1.4.4] - 2026-11-23
 
