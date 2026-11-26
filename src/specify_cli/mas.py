@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +13,19 @@ MAS_STACK_PRESET_PRIORITY = 5
 
 DEFAULT_ARTIFACT_LANGUAGE = "en"
 DEFAULT_PRODUCT_LOCALE = "es-ES"
+
+CONVENTIONAL_COMMITS_RULE = (
+    "Every commit and every pull request title MUST follow Conventional Commits 1.0.0 "
+    "(https://www.conventionalcommits.org/en/v1.0.0/): "
+    "`<type>[optional scope][!]: <description>` with types feat, fix, docs, style, "
+    "refactor, perf, test, build, ci, chore, and revert. The description is imperative, "
+    "has no trailing period, and the header is at most 100 characters. Breaking changes "
+    "use `!` or a `BREAKING CHANGE:` footer. Git-generated `Merge ...` and `Revert \"...\"` "
+    "messages are the only exceptions. Agents MUST use this format. A non-compliant commit "
+    "is a blocking violation. Before committing, run "
+    "`.specify/scripts/bash/check-commit-msg.sh` or "
+    "`.specify/scripts/powershell/check-commit-msg.ps1`."
+)
 
 
 @dataclass(frozen=True)
@@ -159,7 +173,7 @@ class MasStack:
             "",
             "## Preferred Practices",
             "",
-            _bullets(self.preferred_practices),
+            _bullets((CONVENTIONAL_COMMITS_RULE,) + self.preferred_practices),
             "",
             "## Plan Validation Checks",
             "",
@@ -2228,6 +2242,86 @@ MAS_STACKS: dict[str, MasStack] = {
         default_product_locale="es-CL",
     ),
 }
+
+
+def install_conventional_commit_assets(project_path: Path) -> None:
+    """Copy the shared commit validator, hook, and CI template into the project."""
+    core = project_path / ".specify" / "presets" / "mas-core"
+    # Validators are shared-infra scripts. Refresh rewrites that copy. Writing
+    # them again here changes newlines on Windows and leaves the file behind
+    # when init rolls back.
+    pairs = (
+        (
+            core / "templates" / "githooks" / "commit-msg",
+            project_path / ".specify" / "templates" / "githooks" / "commit-msg",
+            True,
+        ),
+        (
+            core / "templates" / "ci" / "conventional-commits.yml",
+            project_path / ".specify" / "templates" / "ci" / "conventional-commits.yml",
+            False,
+        ),
+    )
+    from .file_helper import FileHelper
+    from .shared_infra import _write_shared_bytes
+
+    files = FileHelper(project_path)
+    for source, dest, executable in pairs:
+        try:
+            content = files.read_text(source)
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"MAS commit asset missing: {source}") from exc
+        files.mkdir(dest.parent, parents=True, exist_ok=True)
+        _write_shared_bytes(
+            project_path,
+            dest,
+            content.encode("utf-8"),
+            mode=0o755 if executable else 0o644,
+        )
+
+
+def _conventional_git_config(text: str) -> str:
+    updated, init_count = re.subn(
+        r'(?m)^init_commit_message:.*$',
+        'init_commit_message: "chore: initial commit"',
+        text,
+        count=1,
+    )
+    updated, style_count = re.subn(
+        r'(?m)^commit_style:.*$',
+        "commit_style: conventional",
+        updated,
+        count=1,
+    )
+    if init_count != 1 or style_count != 1:
+        raise RuntimeError("git-config.yml is missing init_commit_message or commit_style")
+    return updated
+
+
+def apply_mas_git_commit_style(project_path: Path) -> None:
+    """When the git extension is installed with a MAS stack, require Conventional Commits."""
+    config = project_path / ".specify" / "extensions" / "git" / "git-config.yml"
+    from .file_helper import FileHelper, SymlinkDeniedError
+
+    helper = FileHelper(project_path)
+    try:
+        text = helper.read_text(config)
+    except FileNotFoundError:
+        return
+    except SymlinkDeniedError:
+        try:
+            text = helper.read_extension_git_config_through_scope_link()
+        except FileNotFoundError:
+            return
+        updated = _conventional_git_config(text)
+        if updated != text:
+            helper.write_extension_git_config_through_scope_link(updated)
+        return
+    updated = _conventional_git_config(text)
+    if updated != text:
+        from .integrations._file_changes import write_text
+
+        write_text(config, updated)
 
 
 def write_stack_memory_files(project_root: Path, stack: MasStack) -> None:

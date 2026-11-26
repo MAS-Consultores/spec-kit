@@ -14,7 +14,7 @@ Los chequeos de esta tabla se ejecutan. Una búsqueda de texto en la constitutio
 
 | ID | Descripción | Commit | Chequeo |
 | --- | --- | --- | --- |
-| D8-01 | specify, clarify, plan y tasks commitean con `git add -A` y `git commit` en bash y PowerShell; en un repo nacido vacío `finish-feature` deja `main` con el commit `speckit.specify` como raíz y primer padre del merge | `d1c8800c` | `test_specify_and_clarify_skills_commit` y `test_specify_commit_is_main_root_after_finish` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
+| D8-01 | specify, clarify, plan y tasks commitean con `git add -A` y `git commit` en bash y PowerShell; en un repo nacido vacío `finish-feature` deja `main` con el commit de specify como raíz y primer padre del merge | `d1c8800c` | `test_specify_and_clarify_skills_commit` y `test_specify_commit_is_main_root_after_finish` en `tests/test_mas_nestjs_demo8.py`, job `smoke`. El mensaje es Conventional Commits (`docs(spec): specify ...`); lo cubre D22 |
 | D8-02 | la constitution, el contexto de stack y el catálogo piden `McpModule.forRoot` con `decorators`, igual que el esqueleto; ningún artefacto generado nombra la variante async de ese registro | `d1c8800c` | `test_mcp_registration_uses_for_root` en `tests/test_mas_nestjs_demo8.py`, job `smoke` |
 
 ## Demo 7 (huecos de esta iteración)
@@ -268,6 +268,21 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D19-08 | `pnpm verify` corría Stryker (`check-mutation.mjs --run`) y un proyecto real tardaba 23 minutos | `tests/test_mas_nestjs_d19.py`: el YAML de `diff-quality.yml` declara el job `mutation`, corre `check-mutation.mjs --run` sin `continue-on-error` y el workflow es `pull_request` (el fallo del job falla el check). El script `verify` de `package.json` ya no contiene `--run`. Falla en `9b597375` y en `381b9c49`; pasa en HEAD |
 | D19-09 | un `git diff` fallido o un repo sin base salía 0 con «sin archivos mutables»; los workflows del esqueleto no declaraban `permissions`; el incremental de Stryker 10.1.1 reutiliza resultados si no hay cobertura perTest y la clave de caché no cambia con el código | `tests/test_mas_nestjs_d19.py`: un git que falla solo en `diff` sale 1 e imprime el stderr; un único commit sin base sale 1 y no imprime «sin archivos mutables». `diffNames` ya no devuelve `[]` si git falla. Cada workflow de `reference/.github/workflows` tiene `permissions.contents: read`. La clave de `actions/cache` incluye `apps/api/src/**/*.ts`. Un reporte sin `coveredBy` en mutantes Killed hace que el script descarte el incremental y, si la segunda corrida sigue sin cobertura, salga 1. Falla en `1c0b7f24`; pasa en HEAD |
 | D19-10 | un archivo mutable con solo mutantes `Ignored` o `NoCoverage` dejaba el score en NaN y Stryker salía 0; `coveredBy: []` contaba como cobertura | `tests/test_mas_nestjs_d19.py`: si no hay mutantes puntuados el score no es finito y `check-mutation.mjs --run` sale 1. Un `Killed` con `coveredBy` vacío no pasa `perTestCoverageOk`. Un score 50 con Stryker en 0 sale 1 porque está por debajo de 80. `gitDiffFailureText` incluye `error.message` (ENOBUFS). Falla en `a4ea5c5b`; pasa en HEAD |
+
+## Conventional Commits (v1.4.4-mas.2)
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D22-01 | ningún stack exigía Conventional Commits 1.0.0 en la constitución | `tests/test_mas_conventional_commits.py`: tras `specify init --stack` de los seis stacks, `constitution.md` tiene el principio XI y la URL `https://www.conventionalcommits.org/en/v1.0.0/`. Falla en `fd079188`; pasa en esta rama |
+| D22-02 | specify, clarify, plan y tasks commiteaban `speckit.<fase>` | el mismo archivo: el `git commit -m` de cada skill cumple el formato y no queda `-m "speckit.` |
+| D22-03 | no había validador ni plantilla de CI | el mismo archivo: existen `check-commit-msg.sh`, `check-commit-msg.ps1` y `.specify/templates/ci/conventional-commits.yml` con `permissions: contents: read` |
+| D22-04 | un mensaje inválido podía commitearse | el mismo archivo: bash y PowerShell aceptan `feat: x`, `fix(api)!: x`, un pie `BREAKING CHANGE:`, `Merge 001-x` y `Revert "..."`; rechazan `speckit.specify`, `[Spec Kit] Add specification`, `Feat: x`, un tipo desconocido y una descripción vacía |
+| D22-05 | no había hook `commit-msg` | el mismo archivo, en un repo temporal con `core.hooksPath .githooks`: un commit inválido sale distinto de 0 y uno válido sale 0 |
+| D22-06 | el esqueleto nestjs-react no tenía commitlint ni un job de commits | el mismo archivo: pins exactos `@commitlint/cli` y `@commitlint/config-conventional` `21.2.4`, `commitlint.config.mjs`, `.githooks/commit-msg`, job `commits` con `permissions: contents: read`, y `commitlint --edit` sale distinto de 0 con un mensaje inválido |
+| D22-07 | la extensión git, instalada con `--stack`, dejaba `commit_style: fixed` y un mensaje inicial `[Spec Kit]` | el mismo archivo: `commit_style: conventional` e `init_commit_message: "chore: initial commit"` |
+| D22-08 | `.specify/memory/` no repetía la regla en cada stack | el mismo archivo: `stack-context.md` de los seis stacks incluye la URL de Conventional Commits 1.0.0 |
+| D22-09 | `integration switch --refresh-shared-infra` no reescribía `check-commit-msg.sh` ni `.ps1`, así que un stub editado sobrevivía | el mismo archivo: tras init con stack, el manifiesto compartido registra el validador y el refresh deja los mismos bytes que el init |
+| D22-10 | con `.specify/extensions` como enlace, init con `--extension git` salía 0 y dejaba `commit_style: fixed` | el mismo archivo: ese init deja `commit_style: conventional` y `init_commit_message: "chore: initial commit"`; otro `FileHelperError` sigue propagándose |
 
 ## Versiones probadas
 

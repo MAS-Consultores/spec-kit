@@ -9,7 +9,7 @@
     "quality-gates.json",
     "knip.product.json"
   ],
-  "ignoreDependencies": ["@tanstack/react-table", "zod", "@nestjs/testing", "@nestjs/schematics", "lint-staged", "oxlint", "@stryker-mutator/core", "@stryker-mutator/vitest-runner", "size-limit", "@size-limit/file"],
+  "ignoreDependencies": ["@tanstack/react-table", "zod", "@nestjs/testing", "@nestjs/schematics", "lint-staged", "@commitlint/cli", "@commitlint/config-conventional", "oxlint", "@stryker-mutator/core", "@stryker-mutator/vitest-runner", "size-limit", "@size-limit/file"],
   "workspaces": {
     "apps/api": {
       "entry": [

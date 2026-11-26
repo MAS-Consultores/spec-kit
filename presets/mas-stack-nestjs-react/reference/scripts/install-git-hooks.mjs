@@ -21,4 +21,4 @@ if (resolve(top) !== root) {
 }
 
 execFileSync("git", ["config", "core.hooksPath", ".githooks"], { cwd: root });
-console.log("pre-commit hook installed");
+console.log("git hooks installed: pre-commit (lint-staged) and commit-msg (commitlint)");

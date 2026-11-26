@@ -448,6 +448,10 @@ def install_mas_stack_presets(project_path: Path, mas_stack: MasStack) -> None:
                 shutil.rmtree(dest)
             shutil.copytree(reference, dest)
 
+    from .mas import install_conventional_commit_assets
+
+    install_conventional_commit_assets(project_path)
+
 
 def ensure_constitution_from_template(project_path: Path, tracker: StepTracker | None = None) -> None:
     """Materialize the resolved constitution template to memory if missing.

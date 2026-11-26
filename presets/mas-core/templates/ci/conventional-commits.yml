@@ -1,0 +1,40 @@
+name: Conventional Commits
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the PR base
+        run: git fetch origin "${GITHUB_BASE_REF}"
+
+      - name: Validate the PR title and every commit since the merge base
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(git merge-base HEAD "origin/${GITHUB_BASE_REF}" || true)"
+          if [ -z "${base}" ]; then
+            echo "no se pudo calcular merge-base contra origin/${GITHUB_BASE_REF}" >&2
+            exit 1
+          fi
+          title_file="$(mktemp)"
+          printf '%s\n' "${PR_TITLE}" > "${title_file}"
+          bash .specify/scripts/bash/check-commit-msg.sh "${title_file}"
+          while IFS= read -r sha; do
+            msg_file="$(mktemp)"
+            git log -1 --format=%B "${sha}" > "${msg_file}"
+            bash .specify/scripts/bash/check-commit-msg.sh "${msg_file}"
+          done < <(git rev-list "${base}..HEAD")

@@ -61,7 +61,14 @@ def test_specify_and_clarify_skills_commit(stack_project: Path) -> None:
         assert "```bash" in text
         assert "```powershell" in text
         assert "git add -A" in text
-        assert f'git commit -m "speckit.{phase}"' in text
+        expected = {
+            "specify": "docs(spec): specify <feature>",
+            "clarify": "docs(spec): clarify <feature>",
+            "plan": "docs(plan): plan <feature>",
+            "tasks": "docs(tasks): generate tasks <feature>",
+        }[phase]
+        assert f'git commit -m "{expected}"' in text
+        assert 'git commit -m "speckit.' not in text
         assert "speckit.git.commit" in text
     specify = _skill(stack_project, "specify")
     assert "finish-feature" in specify
@@ -140,12 +147,12 @@ def _specify_then_finish(repo: Path, flavor: str) -> None:
     _create_feature(repo, flavor)
     (repo / "specs").joinpath("note.txt").parent.mkdir(exist_ok=True)
     (repo / "phase.txt").write_text("specify\n", encoding="utf-8")
-    _run_commit(repo, "speckit.specify")
+    _run_commit(repo, "docs(spec): specify user login")
     specify_sha = _git(repo, "rev-parse", "HEAD").stdout.strip()
     root = _git(repo, "rev-list", "--max-parents=0", "HEAD").stdout.splitlines()[0].strip()
     assert specify_sha == root
     (repo / "phase.txt").write_text("later\n", encoding="utf-8")
-    _run_commit(repo, "speckit.plan")
+    _run_commit(repo, "docs(plan): plan user login")
     feature_sha = _git(repo, "rev-parse", "HEAD").stdout.strip()
     finished = _finish(repo, flavor)
     assert finished.returncode == 0, finished.stderr + finished.stdout

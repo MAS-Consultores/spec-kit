@@ -26,20 +26,24 @@ current feature branch. Do not rely on `.specify/extensions.yml` or
 
 1. `git symbolic-ref --short HEAD` must be the feature branch (`NNN-short-name`).
 2. If `git status --porcelain` is empty, stop this section.
-3. Otherwise run the commands for the current shell and require exit code 0.
+3. Otherwise validate the message, then commit. Require exit code 0. Replace
+   `<feature>` with the feature short name. The message MUST match Conventional
+   Commits 1.0.0.
 
 Bash:
 
 ```bash
 git add -A
-git commit -m "speckit.plan"
+.specify/scripts/bash/check-commit-msg.sh "docs(plan): plan <feature>"
+git commit -m "docs(plan): plan <feature>"
 ```
 
 PowerShell:
 
 ```powershell
 git add -A
-git commit -m "speckit.plan"
+.specify/scripts/powershell/check-commit-msg.ps1 "docs(plan): plan <feature>"
+git commit -m "docs(plan): plan <feature>"
 ```
 
 ## MAS Stack-Aware Planning Requirements

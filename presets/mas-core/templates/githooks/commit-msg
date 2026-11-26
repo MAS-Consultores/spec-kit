@@ -1,0 +1,10 @@
+#!/bin/sh
+# commit-msg hook. Install with: git config core.hooksPath .githooks
+# after copying this file to .githooks/commit-msg (init does not change .git).
+root=$(git rev-parse --show-toplevel) || exit 1
+script="$root/.specify/scripts/bash/check-commit-msg.sh"
+if [ ! -f "$script" ]; then
+  echo "falta $script" >&2
+  exit 1
+fi
+exec "$script" "$1"

@@ -354,12 +354,28 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Database changes, configuration changes, and third-party dependency changes MUST
   be reversible or explicitly risk-accepted before release.
 - Delivery flow MUST preserve traceability: one branch per functionality, clear
-  incremental commits, QA validation before release, and promotion through
-  testing before master except for justified hotfixes.
+  incremental commits whose messages follow principle XI, QA validation before
+  release, and promotion through testing before master except for justified hotfixes.
 - Production deployment MUST include controlled execution, rollback readiness, and
   post-release validation of critical operational behavior.
 - Production promotion MUST be blocked when security, data integrity,
   observability, or recovery readiness cannot be demonstrated.
+
+### XI. Commits Convencionales
+
+- Every commit MUST follow Conventional Commits 1.0.0
+  (https://www.conventionalcommits.org/en/v1.0.0/):
+  `<type>[optional scope][!]: <description>`.
+- Allowed types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
+  `build`, `ci`, `chore`, and `revert`.
+- A breaking change MUST be marked with `!` after the type or scope, or with a
+  `BREAKING CHANGE:` footer.
+- The description MUST be imperative, MUST NOT end with a period, and the header
+  MUST be at most 100 characters.
+- The pull request title MUST follow the same format.
+- Exceptions are git-generated messages that start with `Merge ` or `Revert "`.
+- Agents MUST use this format in every commit they create. A non-compliant
+  commit is a blocking violation.
 
 ## Governance
 
@@ -379,6 +395,8 @@ active projects.
 
 Versioning follows semantic intent: MAJOR for incompatible governance changes,
 MINOR for new principles or materially expanded obligations, and PATCH for
-clarifications that do not alter enforcement.
+clarifications that do not alter enforcement. Principle XI is a MINOR bump from
+the previous template baseline (1.0.0 to 1.1.0). Maintainers edit this template
+directly; do not amend it by running `/speckit.constitution`.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
+**Version**: 1.1.0 | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]

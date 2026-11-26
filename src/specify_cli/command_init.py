@@ -32,6 +32,7 @@ from ._utils import check_tool
 from .mas import (
     example_stack_init_command,
     format_valid_stack_ids,
+    apply_mas_git_commit_style,
     get_mas_stack,
     write_stack_memory_files,
 )
@@ -1084,6 +1085,9 @@ def register(app: typer.Typer) -> None:
 
                     if any_extension_installed:
                         _refresh_events_and_warn(project_path)
+
+                if mas_stack is not None:
+                    apply_mas_git_commit_style(project_path)
 
                 tracker.complete("final", "project ready")
             except (typer.Exit, SystemExit):
