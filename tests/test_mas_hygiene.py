@@ -61,8 +61,21 @@ def projects(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     return created
 
 
+def _bash_program() -> str:
+    """Git Bash on Windows. The `bash` on PATH there is the WSL stub."""
+    if os.name == "nt":
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+        for candidate in (
+            Path(program_files) / "Git" / "bin" / "bash.exe",
+            Path(program_files) / "Git" / "usr" / "bin" / "bash.exe",
+        ):
+            if candidate.is_file():
+                return str(candidate)
+    return "bash"
+
+
 def _bash(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["bash", *args], capture_output=True, text=True, check=False)
+    return subprocess.run([_bash_program(), *args], capture_output=True, text=True, check=False)
 
 
 def _ps(script: str, *args: str) -> subprocess.CompletedProcess[str] | None:

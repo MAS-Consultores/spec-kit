@@ -27,7 +27,7 @@ case "$title" in
   "chore(release): promover"*) promotion=1 ;;
 esac
 
-body=$(hygiene_strip_coderabbit < "$file" | python3 -c 'import re,sys; sys.stdout.write(re.sub(r"<!--.*?-->", "", sys.stdin.read(), flags=re.S))')
+body=$(hygiene_strip_coderabbit < "$file" | hygiene_strip_html_comments)
 required="Qué y por qué|Spec/tarea|Cómo se validó|Riesgos/rollback|Fuera de alcance"
 missing=0
 block=0
