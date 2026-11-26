@@ -317,6 +317,10 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D23-27 | gitleaks leía todo el historial | el mismo archivo: `security.yml` pasa `--log-opts` con `base..HEAD` y, en push, `PUSH_BEFORE..PUSH_AFTER` |
 | D23-10 | el test aceptaba el exit 127 | el mismo archivo: `check-debug-leftovers` sale exactamente 1 y el mensaje contiene `MAS-DEBUG` y `dd(` |
 | D23-29 | `install_hygiene_assets` leía fuera de FileHelper | el mismo archivo: `mas.py` usa `files.iterdir` y `files.read_text` para semgrep y `gitignore-base` |
+| D23-21 | en Windows `bash` era el stub de WSL | el mismo archivo: sin bash de MSYS se usa el `.ps1` gemelo o se salta con el mismo motivo que `requires_bash` |
+| D23-30 | eslint 9.39.1 con sonarjs 3.0.5 lanzaba FunctionType | el mismo archivo y el job de lint: el pin es eslint 9.39.1 con eslint-plugin-sonarjs 3.0.1; un archivo complejo sale 1 con un hallazgo sonarjs y uno simple sale 0 |
+| D23-24 | un título `upgrade` no pedía evidencia | el mismo archivo: `chore: upgrade PHP 8.3` imprime `evidence` |
+| D23-27 | en push gitleaks hacía fetch de una base vacía | el mismo archivo: el fetch de `GITHUB_BASE_REF` solo corre en pull_request; en push el rango es `before..GITHUB_SHA` y, si before es todo ceros, solo `GITHUB_SHA` |
 
 ## Versiones probadas
 

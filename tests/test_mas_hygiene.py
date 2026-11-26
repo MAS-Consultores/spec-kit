@@ -14,6 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app
+from tests.conftest import HAS_BASH
 
 REPO = Path(__file__).resolve().parents[1]
 STACKS = (
@@ -61,21 +62,69 @@ def projects(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     return created
 
 
-def _bash_program() -> str:
-    """Git Bash on Windows. The `bash` on PATH there is the WSL stub."""
-    if os.name == "nt":
-        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
-        for candidate in (
-            Path(program_files) / "Git" / "bin" / "bash.exe",
-            Path(program_files) / "Git" / "usr" / "bin" / "bash.exe",
-        ):
-            if candidate.is_file():
-                return str(candidate)
-    return "bash"
+_PS_FLAGS = {
+    "config": "Config",
+    "numstat": "Numstat",
+    "names": "Names",
+    "diff": "Diff",
+    "root": "Root",
+    "mode": "Mode",
+    "findings": "Findings",
+    "baseline": "Baseline",
+    "labels": "Labels",
+    "body": "Body",
+    "base": "Base",
+    "head": "Head",
+    "title": "Title",
+    "deleted": "Deleted",
+    "promotion": "Promotion",
+    "evidence": "Evidence",
+}
+
+
+def _powershell() -> str | None:
+    for candidate in ("powershell", "pwsh"):
+        found = shutil.which(candidate)
+        if found:
+            return found
+    return None
 
 
 def _bash(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([_bash_program(), *args], capture_output=True, text=True, check=False)
+    """Run the bash check, or its PowerShell twin when bash is the WSL stub.
+
+    ``requires_bash`` probes bare ``bash``. On Windows that probe hits the WSL
+    launcher, so the same condition skips here unless a ``.ps1`` twin exists.
+    """
+    script = Path(args[0])
+    if not HAS_BASH:
+        twin = PS / f"{script.stem}.ps1"
+        shell = _powershell()
+        if twin.is_file() and shell:
+            ps_args: list[str] = []
+            rest = list(args[1:])
+            index = 0
+            while index < len(rest):
+                token = rest[index]
+                if token.startswith("--"):
+                    flag = _PS_FLAGS[token[2:]]
+                    if token in ("--promotion", "--evidence"):
+                        ps_args.append(f"-{flag}")
+                        index += 1
+                        continue
+                    ps_args.extend([f"-{flag}", rest[index + 1]])
+                    index += 2
+                    continue
+                ps_args.append(token)
+                index += 1
+            return subprocess.run(
+                [shell, "-NoProfile", "-File", str(twin), *ps_args],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        pytest.skip("working bash not available")
+    return subprocess.run(["bash", *args], capture_output=True, text=True, check=False)
 
 
 def _ps(script: str, *args: str) -> subprocess.CompletedProcess[str] | None:
@@ -493,6 +542,14 @@ def test_d23_24_evidence_ignores_author_tag(tmp_path: Path) -> None:
     auth = _write(tmp_path / "auth.txt", "src/auth/login.php\n")
     hit = _bash(str(BASH / "check-pr-evidence.sh"), "--names", str(auth), "--diff", str(diff), "--title", "feat(auth): add login form")
     assert "evidence" in hit.stdout
+    upgrade = _bash(
+        str(BASH / "check-pr-evidence.sh"),
+        "--names", str(names),
+        "--diff", str(diff),
+        "--title", "chore: upgrade PHP 8.3",
+    )
+    assert upgrade.returncode == 0, upgrade.stderr
+    assert "evidence" in upgrade.stdout
     workflow = (REPO / "presets/mas-core/templates/ci/pr-hygiene.yml").read_text(encoding="utf-8")
     assert "grep -Eiq 'auth|" not in workflow
     assert "check-pr-evidence.sh" in workflow
@@ -530,6 +587,9 @@ def test_d23_27_gitleaks_is_limited_to_the_pr() -> None:
     assert "--log-opts" in workflow
     assert "PUSH_BEFORE" in workflow
     assert "base}..HEAD" in workflow
+    assert "github.event_name == 'pull_request'" in workflow
+    assert "0000000000000000000000000000000000000000" in workflow
+    assert "GITHUB_SHA" in workflow
 
 
 def test_d23_29_filehelper_reads_hygiene_assets() -> None:
@@ -538,3 +598,23 @@ def test_d23_29_filehelper_reads_hygiene_assets() -> None:
     assert "gitignore-base\").read_text" not in source
     assert "files.iterdir(semgrep_src)" in source
     assert "files.read_text(core / \"templates\" / \"gitignore-base\")" in source
+
+
+def test_d23_30_eslint_sonarjs_pair_runs() -> None:
+    workflow = (REPO / "presets/mas-core/templates/ci/pr-hygiene.yml").read_text(encoding="utf-8")
+    assert "eslint@9.39.1" in workflow
+    assert "eslint-plugin-sonarjs@3.0.1" in workflow
+    assert "eslint-formatter-unix@9.0.1" in workflow
+    assert "eslint-plugin-sonarjs@3.0.5" not in workflow
+    lint = (REPO / ".github/workflows/lint.yml").read_text(encoding="utf-8")
+    assert "eslint-sonarjs-smoke.sh" in lint
+    if not HAS_BASH or shutil.which("node") is None or shutil.which("npm") is None:
+        pytest.skip("working bash not available")
+    result = subprocess.run(
+        ["bash", str(REPO / ".github/scripts/eslint-sonarjs-smoke.sh")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "eslint sonarjs ok" in result.stdout

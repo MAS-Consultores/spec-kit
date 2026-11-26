@@ -70,7 +70,7 @@ jobs:
             npm install -g jscpd@4.0.5
           fi
           if grep -q 'clean_langs:' .specify/hygiene.yml && grep -A20 '^clean_langs:' .specify/hygiene.yml | grep -q '"js"'; then
-            npm install -g eslint@9.39.1 eslint-plugin-sonarjs@3.0.5
+            npm install -g eslint@9.39.1 eslint-plugin-sonarjs@3.0.1 eslint-formatter-unix@9.0.1
           fi
           git diff --name-only "${base}..HEAD" > "${tmp}/names"
           bash .specify/scripts/bash/check-clean-diff.sh --config .specify/hygiene.yml --names "${tmp}/names" --diff "${tmp}/diff" --root .

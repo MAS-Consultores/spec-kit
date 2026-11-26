@@ -35,7 +35,7 @@ if [ -n "$diff" ]; then
 fi
 
 case "$title" in
-  *[Rr]evert*) hit=1 ;;
+  *[Rr]evert*|*[Uu]pgrade*|*[Bb]ump*) hit=1 ;;
 esac
 
 if [ "$hit" -eq 1 ]; then
