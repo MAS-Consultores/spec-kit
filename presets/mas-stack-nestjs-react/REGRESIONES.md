@@ -325,6 +325,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D24-02 | `specify init` agregaba `.specify/` al `.gitignore` de la raíz | el mismo archivo: un `.gitignore` previo conserva `node_modules/`, `vendor/` y la línea `.specify/` que ya estaba. Un init nuevo no escribe esa línea |
 | D24-03 | `specify preset update` sin `--priority` dejaba la prioridad en 10 | el mismo archivo: un preset instalado con prioridad 5 sigue en 5 tras `preset update`. Con `--priority 10` pasa a 10 |
 | D24-04 | las copias de la plantilla de PR y de los workflows en `.github/` sumaban al tope de líneas | el mismo archivo: los seis `hygiene.yml` excluyen `.github/pull_request_template.md`, `.github/PULL_REQUEST_TEMPLATE/`, `commits.yml`, `pr-hygiene.yml` y `security.yml`. 4 000 líneas en esos archivos salen 0; 1 600 en `src/App.php` salen 1 |
+| D24-05 | PowerShell no omitía una ruta que termina en `/.specify` | el mismo archivo: bash y `pwsh` dan el mismo exit en `nested/.specify`, `.specify`, `.specify/x` y `src/.specify/y` (0) y en `src/feature.specify.ts` y `src/app.ts` (1). Sin `pwsh` se salta solo la mitad PowerShell |
 
 ## Versiones probadas
 

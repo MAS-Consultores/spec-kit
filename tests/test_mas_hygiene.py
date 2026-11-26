@@ -687,6 +687,42 @@ def test_d24_01_debug_leftovers_skip_framework_copies(tmp_path: Path) -> None:
     assert "check-debug-leftovers.sh --config .specify/hygiene.yml" in workflow
 
 
+def test_d24_05_debug_skip_matches_bash_and_powershell(tmp_path: Path) -> None:
+    """Bash and PowerShell agree on a path that ends in /.specify."""
+    cases = (
+        ("nested/.specify", 0),
+        (".specify", 0),
+        (".specify/x", 0),
+        ("src/.specify/y", 0),
+        ("src/feature.specify.ts", 1),
+        ("src/app.ts", 1),
+    )
+    shell = shutil.which("pwsh")
+    for path, expect in cases:
+        diff = _write(
+            tmp_path / f"{path.replace('/', '_')}.diff",
+            f"+++ b/{path}\n+    dd($x);\n",
+        )
+        bash = subprocess.run(
+            ["bash", str(BASH / "check-debug-leftovers.sh"), "--diff", str(diff)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert bash.returncode == expect, path
+        if shell is None:
+            continue
+        ps = subprocess.run(
+            [shell, "-NoProfile", "-File", str(PS / "check-debug-leftovers.ps1"), "-Diff", str(diff)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert ps.returncode == bash.returncode, path
+    if shell is None:
+        pytest.skip("pwsh is not available; the PowerShell half was not run")
+
+
 def test_d24_02_init_does_not_ignore_specify(tmp_path: Path) -> None:
     """Fresh init leaves .specify/ visible, and a user-written line stays."""
     kept = tmp_path / "kept"

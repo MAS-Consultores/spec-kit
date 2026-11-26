@@ -33,7 +33,7 @@ function Test-DebugSkip([string]$Path, [string[]]$Extra) {
     if ([string]::IsNullOrEmpty($Path)) { return $false }
     $name = Split-Path -Leaf $Path
     if ($name -like '*.md') { return $true }
-    if ($Path -eq '.specify' -or $Path.StartsWith('.specify/') -or $Path.Contains('/.specify/')) { return $true }
+    if ($Path -eq '.specify' -or $Path.StartsWith('.specify/') -or $Path.EndsWith('/.specify') -or $Path.Contains('/.specify/')) { return $true }
     if ($name -eq 'check-debug-leftovers.sh' -or $name -eq 'check-debug-leftovers.ps1') { return $true }
     if ($Path -match '(^|/)scripts/bash/check-[^/]+\.sh$' -or $Path -match '(^|/)scripts/powershell/check-[^/]+\.ps1$') { return $true }
     if ($Extra.Count -gt 0 -and (Test-Excluded $Path $Extra)) { return $true }
