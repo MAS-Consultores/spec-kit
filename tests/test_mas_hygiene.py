@@ -698,18 +698,23 @@ def test_d24_05_debug_skip_matches_bash_and_powershell(tmp_path: Path) -> None:
         ("src/app.ts", 1),
     )
     shell = shutil.which("pwsh")
+    if not HAS_BASH and shell is None:
+        pytest.skip("working bash and pwsh are not available")
     for path, expect in cases:
         diff = _write(
             tmp_path / f"{path.replace('/', '_')}.diff",
             f"+++ b/{path}\n+    dd($x);\n",
         )
-        bash = subprocess.run(
-            ["bash", str(BASH / "check-debug-leftovers.sh"), "--diff", str(diff)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert bash.returncode == expect, path
+        saw = []
+        if HAS_BASH:
+            bash = subprocess.run(
+                ["bash", str(BASH / "check-debug-leftovers.sh"), "--diff", str(diff)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            assert bash.returncode == expect, path
+            saw.append(bash.returncode)
         if shell is None:
             continue
         ps = subprocess.run(
@@ -718,7 +723,10 @@ def test_d24_05_debug_skip_matches_bash_and_powershell(tmp_path: Path) -> None:
             text=True,
             check=False,
         )
-        assert ps.returncode == bash.returncode, path
+        assert ps.returncode == expect, path
+        saw.append(ps.returncode)
+        if HAS_BASH:
+            assert saw[0] == saw[1], path
     if shell is None:
         pytest.skip("pwsh is not available; the PowerShell half was not run")
 
