@@ -276,7 +276,7 @@ def test_init_with_valid_stack_uses_mas_constitution_source(tmp_path):
 
 
 def test_init_adds_specify_to_root_gitignore(tmp_path):
-    """Upstream init records ``.specify/`` on the root gitignore."""
+    """Init does not add a root rule that hides the versioned ``.specify/`` tree."""
     project = tmp_path / "gitignore-project"
     result = CliRunner().invoke(
         app,
@@ -294,11 +294,11 @@ def test_init_adds_specify_to_root_gitignore(tmp_path):
 
     assert result.exit_code == 0, result.output
     content = (project / ".gitignore").read_text(encoding="utf-8")
-    assert ".specify/" in content
+    assert not any(line.strip() == ".specify/" for line in content.splitlines())
 
 
 def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
-    """Existing .gitignore entries stay, and ``.specify/`` is appended."""
+    """Existing .gitignore entries stay, and init does not append ``.specify/``."""
     project = tmp_path / "existing-gitignore-project"
     project.mkdir()
     (project / ".gitignore").write_text("node_modules/\ndist/", encoding="utf-8")
@@ -322,7 +322,7 @@ def test_init_appends_specify_entry_to_existing_gitignore(tmp_path):
     gitignore = (project / ".gitignore").read_text(encoding="utf-8")
     assert "node_modules/" in gitignore
     assert "dist/" in gitignore
-    assert ".specify/" in gitignore
+    assert not any(line.strip() == ".specify/" for line in gitignore.splitlines())
 
 
 def test_nested_specify_gitignore_ignores_local_state_only(tmp_path):
@@ -379,10 +379,10 @@ def test_specify_memory_and_templates_can_be_versioned(tmp_path):
     # Initialize git repo for check-ignore to work
     subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
 
-    # Upstream init ignores the whole .specify/ tree from the root gitignore.
+    # The root gitignore does not hide the versioned .specify/ tree.
     # The nested rules still name machine-local state and leave memory/ out.
     root_ignore = (project / ".gitignore").read_text(encoding="utf-8")
-    assert ".specify/" in root_ignore
+    assert not any(line.strip() == ".specify/" for line in root_ignore.splitlines())
     nested = (project / ".specify" / ".gitignore").read_text(encoding="utf-8")
     assert "feature.json" in nested
     assert "memory/" not in nested or "NOT ignored" in nested

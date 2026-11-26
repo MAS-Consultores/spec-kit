@@ -628,3 +628,244 @@ def test_d23_30_eslint_sonarjs_pair_runs() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "eslint sonarjs ok" in result.stdout
+
+
+_SIZE_OUTSIDE_SPECIFY = (
+    ".github/pull_request_template.md",
+    ".github/PULL_REQUEST_TEMPLATE/",
+    ".github/workflows/commits.yml",
+    ".github/workflows/pr-hygiene.yml",
+    ".github/workflows/security.yml",
+)
+
+
+def test_d24_01_debug_leftovers_skip_framework_copies(tmp_path: Path) -> None:
+    """Literals in the hygiene scripts, Markdown, and .specify/ are not leftovers."""
+    diff = _write(
+        tmp_path / "framework.diff",
+        "\n".join([
+            "+++ b/presets/mas-core/scripts/bash/check-debug-leftovers.sh",
+            '+        *\"dd(\"*|\"console.log\"*',
+            "+++ b/REGRESIONES.md",
+            "+`dd(` y `console.log` en lineas nuevas",
+            "+++ b/.specify/memory/constitution.md",
+            "+console.log and dd( stay documented",
+            "+++ b/src/App.php",
+            "+    return 1;",
+            "",
+        ]),
+    )
+    quiet = _bash(str(BASH / "check-debug-leftovers.sh"), "--diff", str(diff))
+    assert quiet.returncode == 0, quiet.stderr
+    assert "MAS-DEBUG" not in quiet.stderr
+    app_diff = _write(
+        tmp_path / "app.diff",
+        "+++ b/src/App.php\n+    dd($user);\n+    console.log(user);\n",
+    )
+    hit = _bash(str(BASH / "check-debug-leftovers.sh"), "--diff", str(app_diff))
+    assert hit.returncode == 1
+    assert "MAS-DEBUG" in hit.stderr
+    allow = _write(
+        tmp_path / "hygiene.yml",
+        "debug_leftovers_exclude:\n  - src/legacy.php\n",
+    )
+    allowed = _write(
+        tmp_path / "allowed.diff",
+        "+++ b/src/legacy.php\n+    dd($user);\n+++ b/src/Live.php\n+    dd($live);\n",
+    )
+    mixed = _bash(
+        str(BASH / "check-debug-leftovers.sh"),
+        "--config",
+        str(allow),
+        "--diff",
+        str(allowed),
+    )
+    assert mixed.returncode == 1, mixed.stderr
+    assert "legacy" not in mixed.stderr
+    assert "dd($live)" in mixed.stderr
+    workflow = (REPO / "presets/mas-core/templates/ci/pr-hygiene.yml").read_text(encoding="utf-8")
+    assert "check-debug-leftovers.sh --config .specify/hygiene.yml" in workflow
+
+
+def test_d24_05_debug_skip_matches_bash_and_powershell(tmp_path: Path) -> None:
+    """Bash and PowerShell agree on a path that ends in /.specify."""
+    cases = (
+        ("nested/.specify", 0),
+        (".specify", 0),
+        (".specify/x", 0),
+        ("src/.specify/y", 0),
+        ("src/feature.specify.ts", 1),
+        ("src/app.ts", 1),
+    )
+    shell = shutil.which("pwsh")
+    if not HAS_BASH and shell is None:
+        pytest.skip("working bash and pwsh are not available")
+    for path, expect in cases:
+        diff = _write(
+            tmp_path / f"{path.replace('/', '_')}.diff",
+            f"+++ b/{path}\n+    dd($x);\n",
+        )
+        saw = []
+        if HAS_BASH:
+            bash = subprocess.run(
+                ["bash", str(BASH / "check-debug-leftovers.sh"), "--diff", str(diff)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            assert bash.returncode == expect, path
+            saw.append(bash.returncode)
+        if shell is None:
+            continue
+        ps = subprocess.run(
+            [shell, "-NoProfile", "-File", str(PS / "check-debug-leftovers.ps1"), "-Diff", str(diff)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert ps.returncode == expect, path
+        saw.append(ps.returncode)
+        if HAS_BASH:
+            assert saw[0] == saw[1], path
+    if shell is None:
+        pytest.skip("pwsh is not available; the PowerShell half was not run")
+
+
+def test_d24_02_init_does_not_ignore_specify(tmp_path: Path) -> None:
+    """Fresh init leaves .specify/ visible, and a user-written line stays."""
+    kept = tmp_path / "kept"
+    kept.mkdir()
+    (kept / ".gitignore").write_text("node_modules/\n.specify/\nvendor/\n", encoding="utf-8")
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(kept),
+            "--force",
+            "--integration",
+            "cursor-agent",
+            "--stack",
+            "moodle5-plugin",
+            "--ignore-agent-tools",
+            "--script",
+            "sh",
+            "--skip-external-skills",
+            "--non-interactive",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    kept_text = (kept / ".gitignore").read_text(encoding="utf-8")
+    assert "node_modules/" in kept_text
+    assert "vendor/" in kept_text
+    assert ".specify/" in kept_text
+    fresh = tmp_path / "fresh"
+    fresh_result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            str(fresh),
+            "--integration",
+            "none",
+            "--stack",
+            "cakephp2-mysql",
+            "--ignore-agent-tools",
+            "--script",
+            "sh",
+            "--skip-external-skills",
+            "--non-interactive",
+        ],
+        catch_exceptions=False,
+    )
+    assert fresh_result.exit_code == 0, fresh_result.output
+    fresh_text = (fresh / ".gitignore").read_text(encoding="utf-8")
+    assert not any(line.strip() == ".specify/" for line in fresh_text.splitlines())
+
+
+def test_d24_03_preset_update_keeps_priority(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Update without --priority reinstalls at the priority already recorded."""
+    import yaml
+
+    from specify_cli.presets import PresetManager
+
+    project = tmp_path / "proj"
+    templates = project / ".specify" / "templates" / "commands"
+    templates.mkdir(parents=True)
+    (project / ".specify" / "templates" / "spec-template.md").write_text("# Core\n", encoding="utf-8")
+    preset = tmp_path / "preset"
+    (preset / "templates").mkdir(parents=True)
+    (preset / "templates" / "spec-template.md").write_text("# Stack\n", encoding="utf-8")
+    (preset / "preset.yml").write_text(
+        yaml.safe_dump({
+            "schema_version": "1.0",
+            "preset": {
+                "id": "mas-stack-demo",
+                "name": "Stack Demo",
+                "version": "1.0.0",
+                "description": "Priority fixture",
+                "author": "MAS",
+                "license": "MIT",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "templates": [{
+                    "type": "template",
+                    "name": "spec-template",
+                    "file": "templates/spec-template.md",
+                    "description": "Spec",
+                    "replaces": "spec-template",
+                }]
+            },
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(project)
+    runner = CliRunner()
+    install = runner.invoke(app, ["preset", "add", "--dev", str(preset), "--priority", "5"])
+    assert install.exit_code == 0, install.output
+    updated = preset / "templates" / "spec-template.md"
+    updated.write_text("# Stack v2\n", encoding="utf-8")
+    (preset / "preset.yml").write_text(
+        (preset / "preset.yml").read_text(encoding="utf-8").replace("1.0.0", "1.0.1"),
+        encoding="utf-8",
+    )
+    update = runner.invoke(app, ["preset", "update", "mas-stack-demo", "--dev", str(preset)])
+    assert update.exit_code == 0, update.output
+    metadata = PresetManager(project).registry.get("mas-stack-demo")
+    assert metadata is not None
+    assert metadata["priority"] == 5
+    assert metadata["version"] == "1.0.1"
+    explicit = runner.invoke(
+        app,
+        ["preset", "update", "mas-stack-demo", "--dev", str(preset), "--priority", "10"],
+    )
+    assert explicit.exit_code == 0, explicit.output
+    assert PresetManager(project).registry.get("mas-stack-demo")["priority"] == 10
+
+
+def test_d24_04_size_excludes_github_copies(projects: dict[str, Path], tmp_path: Path) -> None:
+    """PR templates and the three workflows outside .specify/ do not count."""
+    for stack, project in projects.items():
+        loaded = yaml.safe_load((project / ".specify/hygiene.yml").read_text(encoding="utf-8"))
+        excludes = loaded["size_excludes"]
+        for item in _SIZE_OUTSIDE_SPECIFY:
+            assert item in excludes, stack
+        assert loaded["debug_leftovers_exclude"] == []
+    config = projects["nestjs-react"] / ".specify/hygiene.yml"
+    numstat = _write(
+        tmp_path / "github-numstat.txt",
+        "\n".join([
+            "4000\t0\t.github/pull_request_template.md",
+            "4000\t0\t.github/PULL_REQUEST_TEMPLATE/example.md",
+            "4000\t0\t.github/workflows/commits.yml",
+            "4000\t0\t.github/workflows/pr-hygiene.yml",
+            "4000\t0\t.github/workflows/security.yml",
+            "10\t0\tsrc/App.php",
+            "",
+        ]),
+    )
+    quiet = _bash(str(BASH / "check-pr-size.sh"), "--config", str(config), "--numstat", str(numstat))
+    assert quiet.returncode == 0, quiet.stderr
+    blocked = _write(tmp_path / "app-numstat.txt", "1600\t0\tsrc/App.php\n")
+    loud = _bash(str(BASH / "check-pr-size.sh"), "--config", str(config), "--numstat", str(blocked))
+    assert loud.returncode == 1, loud.stderr

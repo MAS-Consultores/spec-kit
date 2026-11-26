@@ -2,6 +2,10 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.4+mas.4] - 2026-11-26
+
+Parche de la higiene de v1.4.4-mas.3. `check-debug-leftovers` ya no marca el propio script, Markdown ni `.specify/`, y acepta `debug_leftovers_exclude`. `specify init` no agrega `.specify/` al `.gitignore` de la raíz. `specify preset update` conserva la prioridad instalada si no se pasa `--priority`. El presupuesto de líneas ignora las copias de la plantilla de PR y de los workflows `commits`, `pr-hygiene` y `security` que viven en `.github/`.
+
 ## [1.4.4+mas.3] - 2026-11-26
 
 Higiene de código y PRs en los seis stacks (principios XII y XIII, plantilla de constitución 1.2.0). La exención `Merge ` queda limitada al formato exacto de git y no aplica al título del PR. Los stacks PHP miden PHPMD y jscpd sobre el diff; laravel también mide el front con ESLint y sonarjs. En cakephp2 y moodle3 el código limpio informa. En moodle5 y laravel bloquea solo hallazgos nuevos.
