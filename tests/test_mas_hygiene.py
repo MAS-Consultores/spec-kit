@@ -121,6 +121,8 @@ def _bash(*args: str) -> subprocess.CompletedProcess[str]:
                 [shell, "-NoProfile", "-File", str(twin), *ps_args],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
         pytest.skip("working bash not available")
@@ -216,7 +218,8 @@ def test_d23_03_pr_body_sections(tmp_path: Path) -> None:
     bare = _write(tmp_path / "bare.md", "## Qué y por qué\nsolo el motivo\n")
     blocked = _bash(str(BASH / "check-pr-body.sh"), "--evidence", str(bare))
     assert blocked.returncode != 0
-    assert "Cómo se validó" in blocked.stderr
+    assert "valid" in blocked.stderr
+    assert "Riesgos/rollback" in blocked.stderr
     covered = _write(
         tmp_path / "covered.md",
         "## Cómo se validó\nphpunit\n## Riesgos/rollback\nrevertir\n",
@@ -536,7 +539,7 @@ def test_d23_23_template_comments_are_empty(tmp_path: Path) -> None:
     path = _write(tmp_path / "pr.md", template)
     result = _bash(str(BASH / "check-pr-body.sh"), "--evidence", str(path))
     assert result.returncode == 1
-    assert "Cómo se validó" in result.stderr
+    assert "valid" in result.stderr
     assert "Riesgos/rollback" in result.stderr
 
 

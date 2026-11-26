@@ -7,6 +7,8 @@ param(
     [string]$Path
 )
 $ErrorActionPreference = 'Stop'
+$OutputEncoding = New-Object System.Text.UTF8Encoding $false
+[Console]::OutputEncoding = $OutputEncoding
 if ($Title.StartsWith('chore(release): promover')) { $Promotion = $true }
 $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
 if ($null -eq $raw) { $raw = '' }
