@@ -46,3 +46,7 @@ Copy `.specify/templates/ci/conventional-commits.yml` to
 `.github/workflows/conventional-commits.yml`. The workflow has
 `permissions: contents: read` and checks the pull request title and every
 commit from the merge base to HEAD with `.specify/scripts/bash/check-commit-msg.sh`.
+
+## Higiene y código limpio
+
+Incluye la base mas-core. `moodle-plugin-ci` aplica al plugin. PHPMD y jscpd bloquean hallazgos nuevos contra `.specify/clean-baseline.txt`. `thirdpartylibs.xml` es obligatorio si hay vendor. Cada página nueva lleva `require_login()`, `require_capability()` y `sesskey` en acciones.

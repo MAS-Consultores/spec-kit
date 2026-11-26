@@ -109,7 +109,7 @@ def test_d22_01_constitution_principle_xi(projects: dict[str, Path]) -> None:
         text = (project / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
         assert "### XI. Commits Convencionales" in text, stack
         assert URL in text, stack
-        assert "**Version**: 1.1.0" in text, stack
+        assert "**Version**: 1.2.0" in text, stack
 
 
 def test_d22_02_phase_commits_are_conventional(projects: dict[str, Path]) -> None:

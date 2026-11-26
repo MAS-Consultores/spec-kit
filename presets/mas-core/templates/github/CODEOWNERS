@@ -1,0 +1,7 @@
+# Security review. Replace the team with the reviewers who approve auth changes.
+# CakePHP
+app/Controller/**Auth* @MAS-Consultores/security-review
+# Moodle entry and capabilities
+**/db/access.php @MAS-Consultores/security-review
+# Laravel policies
+app/Policies/** @MAS-Consultores/security-review

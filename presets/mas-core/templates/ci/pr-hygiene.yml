@@ -1,0 +1,66 @@
+name: PR hygiene
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the PR base
+        run: git fetch origin "${GITHUB_BASE_REF}"
+
+      - name: Hygiene on the diff
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(git merge-base HEAD "origin/${GITHUB_BASE_REF}" || true)"
+          if [ -z "${base}" ]; then
+            echo "no se pudo calcular merge-base" >&2
+            exit 1
+          fi
+          tmp="$(mktemp -d)"
+          printf '%s\n' "${PR_BODY}" > "${tmp}/body"
+          git diff --numstat "${base}..HEAD" > "${tmp}/numstat"
+          git diff --diff-filter=A --name-only "${base}..HEAD" > "${tmp}/added"
+          git diff --unified=0 "${base}..HEAD" > "${tmp}/diff"
+          git diff --diff-filter=D --name-only "${base}..HEAD" > "${tmp}/deleted"
+          # Título genérico: aviso. El formato Conventional Commits lo bloquea el job commits.
+          evidence=()
+          set +e
+          bash .specify/scripts/bash/check-tests-in-diff.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat" >"${tmp}/tests.out" 2>&1
+          tests_rc=$?
+          set -e
+          if [ "${tests_rc}" -ne 0 ] || grep -q INFORMA "${tmp}/tests.out"; then
+            evidence+=(--evidence)
+          fi
+          if grep -Eiq 'auth|credential|password|require_login' "${tmp}/diff"; then
+            evidence+=(--evidence)
+          fi
+          # upgrade or revert in the title also requires validation and rollback
+          case "${PR_TITLE}" in
+            *[Uu]pgrade*|*[Rr]evert*) evidence+=(--evidence) ;;
+          esac
+          bash .specify/scripts/bash/check-pr-body.sh --title "${PR_TITLE}" "${evidence[@]}" "${tmp}/body"
+          bash .specify/scripts/bash/check-pr-size.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat" --labels "${PR_LABELS}" --body "${tmp}/body"
+          bash .specify/scripts/bash/check-junk-files.sh --config .specify/hygiene.yml --names "${tmp}/added"
+          bash .specify/scripts/bash/check-tests-in-diff.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat"
+          bash .specify/scripts/bash/check-base-branch.sh --config .specify/hygiene.yml
+          bash .specify/scripts/bash/check-debug-leftovers.sh --diff "${tmp}/diff" --deleted "${tmp}/deleted"
+          bash .specify/scripts/bash/check-clean-diff.sh --config .specify/hygiene.yml
+          if grep -q '^entrypoint_kind: moodle' .specify/hygiene.yml; then
+            bash .specify/scripts/bash/check-moodle-entrypoints.sh --names "${tmp}/added" --root .
+          fi

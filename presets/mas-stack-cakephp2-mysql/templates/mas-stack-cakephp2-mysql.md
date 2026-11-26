@@ -19,3 +19,7 @@ Copy `.specify/templates/ci/conventional-commits.yml` to
 `.github/workflows/conventional-commits.yml`. The workflow has
 `permissions: contents: read` and checks the pull request title and every
 commit from the merge base to HEAD with `.specify/scripts/bash/check-commit-msg.sh`.
+
+## Higiene y código limpio
+
+Incluye la base mas-core (principios XII y XIII). Legacy: PHPMD, jscpd y phpcs informan sobre el diff, con baseline. Bloquean datos versionados, `Auth->allow()` nuevo sin justificación, permisos por ID de usuario y archivos basura. `check-base-branch` exige `master` desde `testing` o `hotfix/*`. Más de 300 líneas sin tests informan y piden Validación manual.

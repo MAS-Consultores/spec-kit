@@ -12,5 +12,10 @@ apps/api/.stryker-incremental.json
 playwright-report
 test-results
 .env
+.DS_Store
+*Zone.Identifier
+*.log
+*.code-workspace
+tmp-*
 .specify/telemetry/runs.jsonl
 .specify/telemetry/visual-rounds

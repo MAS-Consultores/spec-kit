@@ -448,9 +448,10 @@ def install_mas_stack_presets(project_path: Path, mas_stack: MasStack) -> None:
                 shutil.rmtree(dest)
             shutil.copytree(reference, dest)
 
-    from .mas import install_conventional_commit_assets
+    from .mas import install_conventional_commit_assets, install_hygiene_assets
 
     install_conventional_commit_assets(project_path)
+    install_hygiene_assets(project_path, mas_stack)
 
 
 def ensure_constitution_from_template(project_path: Path, tracker: StepTracker | None = None) -> None:

@@ -1,0 +1,11 @@
+rules:
+  - id: mas-cake-auth-allow
+    languages: [php]
+    severity: ERROR
+    message: A new Auth->allow() must be justified in the PR and must not expose credential recovery.
+    pattern-regex: Auth->allow\s*\(
+  - id: mas-cake-password-overwrite
+    languages: [php]
+    severity: ERROR
+    message: Do not write users.password without a verified one-time token.
+    pattern-regex: (users\.password|\['password'\]\s*=)

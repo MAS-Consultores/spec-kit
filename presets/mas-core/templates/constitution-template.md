@@ -377,6 +377,86 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
 - Agents MUST use this format in every commit they create. A non-compliant
   commit is a blocking violation.
 
+### XII. Higiene de código y PRs
+
+#### Alcance y criterio sobre legacy
+
+- Apply these rules to every new or modified line inside the preset.
+- In legacy or tightly coupled code, stay inside the spec. Do not rewrite a
+  legacy module unless the spec says so.
+- Every gate measures `merge-base..HEAD` against a baseline. Pre-existing code
+  does not block. New code does.
+- An exception needs the label `higiene/excepcion` and a reason in the pull
+  request body.
+
+#### Higiene de código
+
+- Follow the stack's names, format, and layout.
+- Remove dead code, unused imports, temporary logs (`var_dump`, `print_r`,
+  `dd(`, `console.log`, `debugger`), and edits outside the spec.
+- Do not version OS, editor, or AI junk (`.DS_Store`, `*Zone.Identifier`,
+  `*.log`, `tmp-*`, `*.code-workspace`, `.cursor/`).
+- Do not version user uploads, certificates, or backups. Run gitleaks.
+- Do not add literal user, course, section, or role ids, or emails, in logic.
+  A permission conditioned on a user id blocks.
+- Dependencies come from the package manager. Vendor, core upgrades, and Spec
+  Kit installs each get their own pull request.
+
+#### Validaciones mínimas
+
+- Run `.specify/scripts/bash/check-hygiene.sh` on the diff before closing.
+- More than 300 production lines without tests block where the stack has a
+  harness. Legacy stacks require a reproducible "Validación manual" section.
+- Authentication, credentials, permissions, and served files need negative-path
+  tests and CODEOWNERS review.
+- Semgrep and gitleaks on the diff: CRITICAL and HIGH block. MEDIUM informs.
+
+#### Higiene de PR
+
+- Conventional Commits stay the blocking rule from principle XI. This section
+  does not change that validator.
+- A specific pull request title and a body written by the author are
+  recommended; apply judgment («recomendado; aplica criterio»). The spec, the
+  plan, and the tasks already record why the change exists.
+- Generic titles and commit descriptions (`fix`, `cambios`, `update`, and the
+  same list) warn and do not fail. The Conventional Commits format from
+  principle XI stays blocking.
+- The template sections are a warning, except **Cómo se validó** and
+  **Riesgos/rollback**, which block only when the pull request already has
+  another finding: a large change without tests, authentication or credentials,
+  or an upgrade or a revert. Otherwise those two sections also only warn.
+- One `specs/NNN-*` directory per pull request. Own-code budget: 800 lines
+  inform, 1 500 lines block, unless the label `pr-grande-justificado` is set
+  and the body explains why. H4 ships in warn mode until `h4_mode` is `block`.
+- The production branch accepts only the integration refs in
+  `.specify/hygiene.yml` (by default `testing` or `hotfix/*`). A re-merge after
+  a revert links the revert and includes a test that reproduces the cause.
+- A promotion does not merge while security findings are open.
+- The agent may draft the body from spec, plan, and tasks. That draft is
+  recommended; apply judgment. It runs `check-hygiene.sh` and does not disable
+  a false positive. It proposes an entry in `.specify/hygiene-allowlist.yml`
+  with a reason and an expiry.
+
+### XIII. Código limpio
+
+Language-neutral clean code, including the rules that
+`clean-code-typescript` states for TypeScript:
+
+- Names reveal intent.
+- Functions stay short and do one thing.
+- No magic numbers or magic strings.
+- No duplication.
+- Errors are handled explicitly.
+- Commented-out code and dead code do not land.
+
+PHP stacks (cakephp2, moodle3, moodle5-plugin, moodle5-portal, and the Laravel
+back end) measure PHPMD (complexity, size, names) and jscpd on the diff only.
+The Laravel front uses ESLint with sonarjs and jscpd, the same idea as
+nestjs-react. cakephp2 and moodle3 report these findings and do not block.
+moodle5 and laravel block only findings that are not in
+`.specify/clean-baseline.txt`. nestjs-react keeps its own gates and its
+TypeScript skill unchanged.
+
 ## Governance
 
 This constitution is the shared MAS governance baseline and overrides local
@@ -395,8 +475,8 @@ active projects.
 
 Versioning follows semantic intent: MAJOR for incompatible governance changes,
 MINOR for new principles or materially expanded obligations, and PATCH for
-clarifications that do not alter enforcement. Principle XI is a MINOR bump from
-the previous template baseline (1.0.0 to 1.1.0). Maintainers edit this template
-directly; do not amend it by running `/speckit.constitution`.
+clarifications that do not alter enforcement. Principles XII and XIII are a
+MINOR bump from the previous template baseline (1.1.0 to 1.2.0). Maintainers
+edit this template directly; do not amend it by running `/speckit.constitution`.
 
-**Version**: 1.1.0 | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
+**Version**: 1.2.0 | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]

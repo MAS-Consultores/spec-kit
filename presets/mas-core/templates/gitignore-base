@@ -1,0 +1,18 @@
+# mas-hygiene-denylist
+.DS_Store
+Thumbs.db
+*Zone.Identifier
+*.log
+tmp-*
+*_tmp.*
+*.code-workspace
+.idea/
+*.orig
+*.swp
+.cursor/
+*.pfx
+*.p12
+*.pem
+*.key
+*.mbz
+*.sql.gz

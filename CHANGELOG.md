@@ -2,6 +2,10 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.4+mas.3] - 2026-11-26
+
+Higiene de código y PRs en los seis stacks (principios XII y XIII, plantilla de constitución 1.2.0). La exención `Merge ` queda limitada al formato exacto de git y no aplica al título del PR. Los stacks PHP miden PHPMD y jscpd sobre el diff; laravel también mide el front con ESLint y sonarjs. En cakephp2 y moodle3 el código limpio informa. En moodle5 y laravel bloquea solo hallazgos nuevos.
+
 ## [1.4.4+mas.2] - 2026-11-25
 
 Conventional Commits 1.0.0 es obligatorio en los seis stacks MAS (principio XI de la constitución, versión de plantilla 1.1.0). Los commits de fase usan `docs(spec|plan|tasks): ...`. Los validadores `check-commit-msg.sh` y `check-commit-msg.ps1`, el hook `commit-msg` y la plantilla de CI `conventional-commits.yml` se instalan con `specify init --stack`. El esqueleto nestjs-react valida con commitlint 21.2.4 en el hook y en el job `commits`. Si la extensión git se instala junto al stack, `commit_style` queda en `conventional` y el commit inicial es `chore: initial commit`.

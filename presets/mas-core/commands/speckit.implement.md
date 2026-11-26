@@ -38,6 +38,17 @@ is and runs the same `git merge --no-ff`. The script exits 1 when the working
 tree is dirty or when the merge does not create a merge commit. Do not use
 `--force` or reset.
 
+## PR body
+
+When the work is ready for review, a pull request body is recommended; apply
+judgment. The spec, the plan, and the tasks already record why. If you draft
+the body, start from `.github/pull_request_template.md` and prefer **Qué y por
+qué**, **Spec/tarea**, **Cómo se validó**, **Riesgos/rollback**, and **Fuera de
+alcance**. A missing body warns and does not fail CI. Run
+`.specify/scripts/bash/check-hygiene.sh` (or the PowerShell variant) and, when
+the section exists, paste its summary under **Cómo se validó**. This step does
+not push and it does not open the pull request.
+
 ## Conventional Commits during implementation
 
 Commit after each task or logical group on the feature branch. Every message

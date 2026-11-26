@@ -1,0 +1,6 @@
+{
+  "threshold": 5,
+  "minLines": 8,
+  "reporters": ["console"],
+  "ignore": ["vendor/**", "node_modules/**", ".specify/**"]
+}
