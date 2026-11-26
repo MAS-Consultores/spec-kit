@@ -8,7 +8,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if ($Title.StartsWith('chore(release): promover')) { $Promotion = $true }
-$raw = Get-Content -LiteralPath $Path -Raw
+$raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
 if ($null -eq $raw) { $raw = '' }
 $raw = [regex]::Replace($raw, '(?s)<!--\s*coderabbit\s*-->.*?<!--\s*/coderabbit\s*-->', '')
 $raw = [regex]::Replace($raw, '(?s)<!--.*?-->', '')

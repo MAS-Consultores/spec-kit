@@ -473,12 +473,19 @@ def test_d23_20_stack_context(projects: dict[str, Path]) -> None:
 def test_d23_21_clean_tools_run_on_new_lines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     bindir = tmp_path / "bin"
     bindir.mkdir()
-    phpmd = bindir / "phpmd"
-    phpmd.write_text("#!/bin/sh\necho 'src/App.php:2:CyclomaticComplexity'\nexit 2\n", encoding="utf-8")
-    phpmd.chmod(0o755)
-    jscpd = bindir / "jscpd"
-    jscpd.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    jscpd.chmod(0o755)
+    if os.name == "nt":
+        (bindir / "phpmd.cmd").write_text(
+            "@echo off\r\necho src/App.php:2:CyclomaticComplexity\r\nexit /b 2\r\n",
+            encoding="utf-8",
+        )
+        (bindir / "jscpd.cmd").write_text("@echo off\r\nexit /b 0\r\n", encoding="utf-8")
+    else:
+        phpmd = bindir / "phpmd"
+        phpmd.write_text("#!/bin/sh\necho 'src/App.php:2:CyclomaticComplexity'\nexit 2\n", encoding="utf-8")
+        phpmd.chmod(0o755)
+        jscpd = bindir / "jscpd"
+        jscpd.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        jscpd.chmod(0o755)
     monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{os.environ['PATH']}")
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "App.php").write_text("<?php\nfunction a(){ if(1){ if(1){} } }\n", encoding="utf-8")

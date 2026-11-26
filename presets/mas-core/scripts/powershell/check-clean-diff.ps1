@@ -57,7 +57,8 @@ if ($Names) {
             } else {
                 $rules = Join-Path $Root '.specify/templates/phpmd.xml'
                 $target = Join-Path $Root $path
-                $out = & phpmd $target text $rules 2>&1 | Out-String
+                $phpmd = (Get-Command phpmd).Source
+                $out = & $phpmd $target text $rules 2>&1 | Out-String
                 foreach ($row in ($out -split "`n")) {
                     if ($row -match '^(.+):(\d+):') {
                         if (Test-AddedLine $Matches[1] ([int]$Matches[2])) { $extra += $row.Trim() }
