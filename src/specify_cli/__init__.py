@@ -509,16 +509,13 @@ def ensure_specify_gitignored(project_path: Path, tracker: StepTracker | None = 
     """Leave the project root gitignore untouched.
 
     MAS projects version ``.specify/``. Init must not add a root rule for that
-    tree. Lines the user already wrote, including an existing ``.specify/``
-    entry, stay as they are. Machine-local files stay selected by the nested
-    ``.specify/.gitignore``.
+    tree and must not read or rewrite the file: lines the user already wrote,
+    including an existing ``.specify/`` entry, stay as they are. Machine-local
+    files stay selected by the nested ``.specify/.gitignore``.
     """
-    gitignore = project_path / ".gitignore"
+    del project_path
+    detail = "left .specify/ versioned"
     try:
-        if gitignore.is_file():
-            detail = "left user rules unchanged"
-        else:
-            detail = "no root ignore added"
         if tracker:
             tracker.complete("gitignore", detail)
         else:
