@@ -2278,6 +2278,11 @@ _COMMON_EXCLUDES = (
     "pnpm-lock.yaml",
     "package-lock.json",
     ".specify/",
+    ".github/pull_request_template.md",
+    ".github/PULL_REQUEST_TEMPLATE/",
+    ".github/workflows/commits.yml",
+    ".github/workflows/pr-hygiene.yml",
+    ".github/workflows/security.yml",
 )
 
 _MOODLE3_CORE = tuple(
@@ -2423,6 +2428,7 @@ def render_hygiene_yml(stack: MasStack) -> str:
         *lines("size_excludes", stack.size_excludes),
         *lines("data_paths", stack.data_paths),
         *lines("clean_langs", stack.clean_langs),
+        "debug_leftovers_exclude: []",
     ]
     return "\n".join(rows) + "\n"
 

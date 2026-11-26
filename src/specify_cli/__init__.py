@@ -506,39 +506,23 @@ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker |
 
 
 def ensure_specify_gitignored(project_path: Path, tracker: StepTracker | None = None) -> None:
-    """Ensure generated Spec Kit state is ignored by git.
+    """Leave the project root gitignore untouched.
 
-    Upstream writes ``.specify/`` to the project root gitignore through
-    ``write_text``. The nested ``.specify/.gitignore`` still selects which
-    files inside that tree are machine-local.
+    MAS projects version ``.specify/``. Init must not add a root rule for that
+    tree. Lines the user already wrote, including an existing ``.specify/``
+    entry, stay as they are. Machine-local files stay selected by the nested
+    ``.specify/.gitignore``.
     """
     gitignore = project_path / ".gitignore"
-    entry = ".specify/"
-
     try:
-        if gitignore.exists():
-            content = gitignore.read_text(encoding="utf-8")
-            lines = content.splitlines()
-            if any(line.strip() == entry for line in lines):
-                if tracker:
-                    tracker.complete("gitignore", "already ignored")
-                return
-
-            from .integrations._file_changes import write_text
-
-            separator = "" if content == "" or content.endswith(("\n", "\r")) else "\n"
-            write_text(gitignore, f"{content}{separator}{entry}\n")
-            detail = "updated"
+        if gitignore.is_file():
+            detail = "left user rules unchanged"
         else:
-            from .integrations._file_changes import write_text
-
-            write_text(gitignore, f"{entry}\n")
-            detail = "created"
-
+            detail = "no root ignore added"
         if tracker:
             tracker.complete("gitignore", detail)
         else:
-            console.print(f"[cyan]{detail.capitalize()} .gitignore with .specify/[/cyan]")
+            console.print(f"[cyan]{detail.capitalize()}[/cyan]")
     except Exception as e:
         if tracker:
             tracker.error("gitignore", str(e))
