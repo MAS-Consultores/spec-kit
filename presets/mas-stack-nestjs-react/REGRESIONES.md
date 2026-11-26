@@ -284,6 +284,44 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D22-09 | `integration switch --refresh-shared-infra` no reescribía `check-commit-msg.sh` ni `.ps1`, así que un stub editado sobrevivía | el mismo archivo: tras init con stack, el manifiesto compartido registra el validador y el refresh deja los mismos bytes que el init |
 | D22-10 | con `.specify/extensions` como enlace, init con `--extension git` salía 0 y dejaba `commit_style: fixed` | el mismo archivo: ese init deja `commit_style: conventional` y `init_commit_message: "chore: initial commit"`; otro `FileHelperError` sigue propagándose |
 
+## Higiene y código limpio (v1.4.4-mas.3)
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D23-01 | la constitución no tenía los principios XII y XIII | `tests/test_mas_hygiene.py`: tras init, `constitution.md` está en 1.2.0, nombra ambos principios y dice «recomendado; aplica criterio» |
+| D23-02 | no había plantilla de PR ni job `pr-hygiene` | el mismo archivo: `.github/pull_request_template.md` es una plantilla recomendada con las cinco secciones. La plantilla de CI tiene `contents: read`, el evento `edited` y no llama a `check-commit-msg` |
+| D23-03 | el cuerpo no distinguía aviso de evidencia | el mismo archivo: sin otro hallazgo, un cuerpo incompleto sale 0 con `INFORMA`. Con `--evidence` (cambio grande sin tests, auth, upgrade o revert) faltan **Cómo se validó** o **Riesgos/rollback** y sale distinto de 0. `pr-hygiene.yml` pasa `--evidence` en esos casos |
+| D23-04 | el ajuste de cuerpo no debía cambiar Conventional Commits | el mismo archivo: `check-commit-msg.sh` sigue aceptando `Merge 001-x` y `conventional-commits.yml` no usa `--title`. Un título `Update` solo informa |
+| D23-05 | la lista genérica (`fix`, `cambios`, `update`) bloqueaba o no avisaba | el mismo archivo: `feat: update` y `feat(api): Update` salen 0 con `INFORMA`. `fix: add login form` sale 0 sin aviso. `Update` sigue distinto de 0 porque no es Conventional Commits |
+| D23-06 | `.DS_Store`, logs y certificados se podían agregar | el mismo archivo: `check-junk-files` sale 1; un fixture `.pem` no |
+| D23-07 | el presupuesto de líneas contaba vendor y no distinguía aviso de bloqueo | el mismo archivo: `vendor/` no suma; h4_mode warn no bloquea 1600 líneas; h4_mode block sí, salvo `pr-grande-justificado` |
+| D23-08 | más de 300 líneas sin tests no se medían | el mismo archivo: harness sale 1; legacy sale 0 con `INFORMA` |
+| D23-09 | un feature podía ir directo a master | el mismo archivo: `feature` hacia `master` sale 1; `testing` y `hotfix/login` salen 0 |
+| D23-10 | `dd(` y `console.log` en líneas nuevas no se veían | el mismo archivo: el diff con debug sale 1 |
+| D23-11 | un diff vacío no informaba | el mismo archivo: numstat vacío sale 0 con `INFORMA` |
+| D23-12 | no había Semgrep MAS ni `security.yml` con baseline | el mismo archivo: las reglas `mas-user-id-permission` y `mas-cake-auth-allow` existen y el workflow usa `--baseline-commit` |
+| D23-13 | `hygiene.yml` no cambiaba por stack | el mismo archivo: cake ignora `webroot/files/`, moodle3 ignora `public_html/lib/`, nest usa `main` y `clean_code_mode: block` |
+| D23-14 | no había hook `pre-commit` de basura | el mismo archivo: el hook generado llama a `check-junk-files.sh` |
+| D23-15 | no había skill PHP de código limpio | el mismo archivo: los cinco stacks PHP tienen `skills/clean-code-php/SKILL.md` y el skill TypeScript de nest no cambia de hash |
+| D23-16 | el código limpio bloqueaba legacy o ignoraba el baseline | el mismo archivo: modo `info` sale 0; modo `block` sale 1 solo si el hallazgo no está en el baseline |
+| D23-17 | PHP no tenía ruleset PHPMD ni el front de laravel sonarjs | el mismo archivo: `phpmd.xml` trae CyclomaticComplexity y el eslint de laravel trae `sonarjs/cognitive-complexity` |
+| D23-18 | un entrypoint Moodle nuevo no exigía login | el mismo archivo: un PHP sin `require_login` sale 1; con la llamada sale 0 |
+| D23-19 | nestjs-react no tenía plantilla de PR, denylist ni CODEOWNERS | el mismo archivo: el reference tiene la plantilla, `.DS_Store` en `.gitignore` y CODEOWNERS de `auth`. `check-commits.mjs` no gana un rechazo nuevo de `Merge ` |
+| D23-20 | `stack-context.md` no repetía XII ni XIII | el mismo archivo: los seis contextos nombran el principio XIII y `check-hygiene.sh` |
+| D23-21 | PHPMD, jscpd y ESLint no se ejecutaban | el mismo archivo: con `phpmd` y `jscpd` en el PATH, un hallazgo en una línea nueva sale 1 si `clean_code_mode` es `block` y 0 con `INFORMA` si es `info`. El config de laravel importa `eslint-plugin-sonarjs` y `pr-hygiene.yml` instala phpmd y jscpd |
+| D23-22 | el CODEOWNERS de nestjs-react se pisaba | el mismo archivo: tras init, `.github/CODEOWNERS` conserva `modules/auth/`, throttle, casl y uploads, y suma las rutas comunes. El del reference sigue igual |
+| D23-23 | los comentarios de la plantilla contaban como contenido | el mismo archivo: la plantilla sin rellenar con `--evidence` sale 1 por **Cómo se validó** y **Riesgos/rollback** |
+| D23-24 | `@author` activaba la evidencia de auth | el mismo archivo: `check-pr-evidence.sh` no imprime `evidence` ante `@author` y sí ante `src/auth/login.php`. El workflow ya no usa `grep auth\|` |
+| D23-25 | 1.500 líneas no bloqueaban | el mismo archivo: los seis `hygiene.yml` traen `h4_mode: block`, la constitución dice que 1 500 líneas cambiadas bloquean, y 1.600 líneas propias salen 1 aunque vendor sume más |
+| D23-26 | `hygiene.yml` no era YAML | el mismo archivo: `yaml.safe_load` lee los seis archivos y los globs van entre comillas |
+| D23-27 | gitleaks leía todo el historial | el mismo archivo: `security.yml` pasa `--log-opts` con `base..HEAD` y, en push, `PUSH_BEFORE..PUSH_AFTER` |
+| D23-10 | el test aceptaba el exit 127 | el mismo archivo: `check-debug-leftovers` sale exactamente 1 y el mensaje contiene `MAS-DEBUG` y `dd(` |
+| D23-29 | `install_hygiene_assets` leía fuera de FileHelper | el mismo archivo: `mas.py` usa `files.iterdir` y `files.read_text` para semgrep y `gitignore-base` |
+| D23-21 | en Windows `bash` era el stub de WSL | el mismo archivo: sin bash de MSYS se usa el `.ps1` gemelo o se salta con el mismo motivo que `requires_bash` |
+| D23-30 | eslint 9.39.1 con sonarjs 3.0.5 lanzaba FunctionType | el mismo archivo y el job de lint: el pin es eslint 9.39.1 con eslint-plugin-sonarjs 3.0.1; un archivo complejo sale 1 con un hallazgo sonarjs y uno simple sale 0 |
+| D23-24 | un título `upgrade` no pedía evidencia | el mismo archivo: `chore: upgrade PHP 8.3` imprime `evidence` |
+| D23-27 | en push gitleaks hacía fetch de una base vacía | el mismo archivo: el fetch de `GITHUB_BASE_REF` solo corre en pull_request; en push el rango es `before..GITHUB_SHA` y, si before es todo ceros, solo `GITHUB_SHA` |
+
 ## Versiones probadas
 
 `specify init --stack nestjs-react` copia `pnpm-lock.yaml` y los `package.json` del esqueleto a `.specify/reference/`. Lo comprueba `test_reference_lockfile_is_what_init_installs`. El job `reference` hace `pnpm install --frozen-lockfile` sobre esa copia. Renovate solo actualiza el esqueleto (`renovate.json`); ese PR tiene que pasar este workflow. Así se cumple «última estable» sin resolver versiones en cada proyecto.

@@ -1,0 +1,19 @@
+rules:
+  - id: mas-hardcoded-email
+    languages: [php, javascript, typescript]
+    severity: WARNING
+    message: Do not add a new literal email in logic. Move it to configuration.
+    pattern-regex: (?i)["'][A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}["']
+  - id: mas-user-id-permission
+    languages: [php]
+    severity: ERROR
+    message: A permission conditioned on a user id blocks. Use roles, ACL, or capabilities.
+    pattern-either:
+      - pattern: if ($user['id'] == $N) ...
+      - pattern: if ($user->id == $N) ...
+      - pattern: if ($user->id === $N) ...
+  - id: mas-hardcoded-id-list
+    languages: [php]
+    severity: WARNING
+    message: Course, section, or user id lists belong in configuration. Informational on legacy stacks.
+    pattern-regex: \[\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\]

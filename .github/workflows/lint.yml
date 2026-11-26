@@ -165,6 +165,16 @@ jobs:
       # expansions error with "bad substitution". shellcheck assumes bash 4+
       # from the shebang and cannot flag these, so guard explicitly; use tr
       # for portable case conversion.
+      - name: ESLint sonarjs smoke
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      - name: Run ESLint with sonarjs
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        run: bash .github/scripts/eslint-sonarjs-smoke.sh
+
       - name: Reject bash 4+ case-modification expansions
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         run: |

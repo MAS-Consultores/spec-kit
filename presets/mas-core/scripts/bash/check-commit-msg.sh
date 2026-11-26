@@ -39,3 +39,10 @@ if ! printf '%s\n' "$first" | grep -Eq "$pattern"; then
   echo "el mensaje no cumple Conventional Commits 1.0.0: ${first}" >&2
   exit 1
 fi
+
+desc=${first#*: }
+desc=${desc# }
+low=$(printf '%s' "$desc" | tr '[:upper:]' '[:lower:]')
+if printf '%s\n' "$low" | grep -Eq '^(testing|update|cambios( sp)?|fix[0-9]*|fix|pruebas|modificaciones|pedidas|qa moni|fixs qas)$'; then
+  echo "INFORMA: descripción genérica (${low}); el formato Conventional Commits sí cumple" >&2
+fi

@@ -41,4 +41,9 @@ if (-not [regex]::IsMatch($first, $pattern)) {
     exit 1
 }
 
+$desc = $first.Substring($first.IndexOf(':') + 1).Trim().ToLowerInvariant()
+if ($desc -match '^(testing|update|cambios( sp)?|fix[0-9]*|fix|pruebas|modificaciones|pedidas|qa moni|fixs qas)$') {
+    [Console]::Error.WriteLine("INFORMA: descripcion generica ($desc); el formato Conventional Commits si cumple")
+}
+
 exit 0

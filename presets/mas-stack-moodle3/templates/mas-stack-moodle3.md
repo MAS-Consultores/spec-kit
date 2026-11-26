@@ -47,3 +47,7 @@ Copy `.specify/templates/ci/conventional-commits.yml` to
 `.github/workflows/conventional-commits.yml`. The workflow has
 `permissions: contents: read` and checks the pull request title and every
 commit from the merge base to HEAD with `.specify/scripts/bash/check-commit-msg.sh`.
+
+## Higiene y código limpio
+
+Incluye la base mas-core. El core bajo `public_html/` queda fuera del presupuesto. phpcs moodle, PHPMD y jscpd informan sobre líneas tocadas. Un `.php` de entrada nuevo llama `require_login()` o declara `mas-hygiene: public`. IDs y correos nuevos informan, y bloquean si condicionan acceso.

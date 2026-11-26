@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 
@@ -52,6 +52,17 @@ class MasStack:
     plan_validation_checks: tuple[str, ...]
     likely_project_shape: tuple[str, ...]
     default_product_locale: str | None = None
+    test_globs: tuple[str, ...] = ()
+    size_excludes: tuple[str, ...] = ()
+    data_paths: tuple[str, ...] = ()
+    hygiene_tools: tuple[str, ...] = ()
+    hygiene_legacy: bool = False
+    hygiene_harness: bool = False
+    production_branch: str = "master"
+    integration_refs: tuple[str, ...] = ("testing", "hotfix/*")
+    clean_code_mode: str = "block"
+    clean_langs: tuple[str, ...] = ()
+    entrypoint_kind: str = "none"
 
     @property
     def stack_preset_id(self) -> str:
@@ -183,7 +194,23 @@ class MasStack:
             "",
             _bullets(self.likely_project_shape),
             "",
+            "## Code and PR Hygiene",
+            "",
+            _bullets(self.hygiene_context_lines()),
+            "",
         ])
+
+    def hygiene_context_lines(self) -> tuple[str, ...]:
+        mode = "informational" if self.hygiene_legacy else "blocking on new lines"
+        langs = ", ".join(self.clean_langs) or "none"
+        return (
+            "Principle XII applies: PR body sections, junk files, secrets, and diff-only gates.",
+            "Principle XIII applies: names that reveal intent, short single-purpose functions, "
+            "no magic numbers or strings, no duplication, explicit errors, and no commented-out or dead code.",
+            f"Clean code tools ({langs}): {mode}.",
+            "Run `.specify/scripts/bash/check-hygiene.sh` and paste the summary under Cómo se validó.",
+            *self.hygiene_tools,
+        )
 
 
 def _bullets(items: tuple[str, ...]) -> str:
@@ -2242,6 +2269,275 @@ MAS_STACKS: dict[str, MasStack] = {
         default_product_locale="es-CL",
     ),
 }
+
+
+_COMMON_EXCLUDES = (
+    "vendor/",
+    "node_modules/",
+    "composer.lock",
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    ".specify/",
+)
+
+_MOODLE3_CORE = tuple(
+    f"public_html/{name}/"
+    for name in (
+        "lib", "admin", "course", "enrol", "grade", "user", "login", "question",
+        "repository", "cache", "cohort", "comment", "completion", "calendar",
+        "blog", "backup", "auth", "webservice", "search", "message", "filter",
+        "editor",
+    )
+)
+
+_MOODLE5_CORE = tuple(item.replace("public_html/", "public/") for item in _MOODLE3_CORE)
+
+
+def _apply_hygiene_profiles() -> None:
+    profiles: dict[str, dict[str, object]] = {
+        "cakephp2-mysql": {
+            "test_globs": ("*Test.php", "*/Test/*", "*/tests/*"),
+            "size_excludes": _COMMON_EXCLUDES,
+            "data_paths": ("webroot/files/", "app/tmp/", "tmp/"),
+            "hygiene_tools": (
+                "phpcs --standard=CakePHP on touched lines, with a phpcs baseline.",
+                "PHPMD and jscpd on the diff are informational.",
+                "Semgrep mas-cake-auth and mas-user-id-permission block.",
+            ),
+            "hygiene_legacy": True,
+            "hygiene_harness": False,
+            "clean_code_mode": "info",
+            "clean_langs": ("php",),
+            "entrypoint_kind": "cake",
+        },
+        "moodle3": {
+            "test_globs": ("*Test.php", "*/tests/*", "*_test.php"),
+            "size_excludes": _COMMON_EXCLUDES + _MOODLE3_CORE,
+            "data_paths": ("moodledata/",),
+            "hygiene_tools": (
+                "phpcs --standard=moodle on touched lines only.",
+                "PHPMD and jscpd on the diff are informational.",
+                "New entry PHP calls require_login() or declares mas-hygiene: public.",
+            ),
+            "hygiene_legacy": True,
+            "hygiene_harness": False,
+            "clean_code_mode": "info",
+            "clean_langs": ("php",),
+            "entrypoint_kind": "moodle",
+        },
+        "moodle5-plugin": {
+            "test_globs": ("*Test.php", "*/tests/*"),
+            "size_excludes": _COMMON_EXCLUDES,
+            "data_paths": ("moodledata/",),
+            "hygiene_tools": (
+                "moodle-plugin-ci on the plugin, with a phpcs baseline for inherited warnings.",
+                "thirdpartylibs.xml is required when third-party libraries are vendored.",
+                "PHPMD and jscpd block new findings against .specify/clean-baseline.txt.",
+            ),
+            "hygiene_legacy": False,
+            "hygiene_harness": True,
+            "clean_code_mode": "block",
+            "clean_langs": ("php",),
+            "entrypoint_kind": "moodle",
+        },
+        "moodle5-portal": {
+            "test_globs": ("*Test.php", "*/tests/*"),
+            "size_excludes": _COMMON_EXCLUDES + _MOODLE5_CORE,
+            "data_paths": ("moodledata/",),
+            "hygiene_tools": (
+                "moodle-plugin-ci on touched own plugins.",
+                "A core upgrade is its own pull request, with no functional edits.",
+                "PHPMD and jscpd block new findings against the baseline.",
+            ),
+            "hygiene_legacy": False,
+            "hygiene_harness": True,
+            "clean_code_mode": "block",
+            "clean_langs": ("php",),
+            "entrypoint_kind": "moodle",
+        },
+        "laravel-inertia-react": {
+            "test_globs": ("tests/*", "*.test.ts", "*.test.tsx", "*.spec.ts"),
+            "size_excludes": _COMMON_EXCLUDES + ("public/build/",),
+            "data_paths": ("storage/app/",),
+            "hygiene_tools": (
+                "Larastan with phpstan-baseline.neon. Pint and ESLint on touched files.",
+                "Pest or PHPUnit plus Vitest. Diff coverage target is 80 percent.",
+                "PHPMD on PHP and ESLint sonarjs plus jscpd on the front block new findings.",
+            ),
+            "hygiene_legacy": False,
+            "hygiene_harness": True,
+            "clean_code_mode": "block",
+            "clean_langs": ("php", "js"),
+            "entrypoint_kind": "none",
+        },
+        "nestjs-react": {
+            "test_globs": ("*.spec.ts", "*.test.ts", "*.e2e.ts"),
+            "size_excludes": _COMMON_EXCLUDES + ("openapi.json", "api-snapshots/", "src/generated"),
+            "data_paths": ("uploads/",),
+            "hygiene_tools": (
+                "Existing nest gates stay in force: diff coverage, gitleaks, Semgrep, jscpd.",
+                "CODEOWNERS covers auth, throttle, casl, and uploads.",
+                "Pull request titles do not use the Merge exemption.",
+            ),
+            "hygiene_legacy": False,
+            "hygiene_harness": True,
+            "production_branch": "main",
+            "integration_refs": ("*",),
+            "clean_code_mode": "block",
+            "clean_langs": ("ts",),
+            "entrypoint_kind": "none",
+        },
+    }
+    for stack_id, fields in profiles.items():
+        MAS_STACKS[stack_id] = replace(MAS_STACKS[stack_id], **fields)
+
+
+_apply_hygiene_profiles()
+
+
+def yaml_quote(value: str) -> str:
+    """Quote a YAML scalar so globs such as ``*.php`` stay strings."""
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def render_hygiene_yml(stack: MasStack) -> str:
+    """Render `.specify/hygiene.yml` for one stack."""
+    def lines(key: str, values: tuple[str, ...]) -> list[str]:
+        body = [f"{key}:"]
+        body.extend(f"  - {yaml_quote(value)}" for value in values)
+        return body
+
+    rows = [
+        f"legacy: {'true' if stack.hygiene_legacy else 'false'}",
+        f"harness: {'true' if stack.hygiene_harness else 'false'}",
+        "h4_mode: block",
+        f"production_branch: {stack.production_branch}",
+        f"clean_code_mode: {stack.clean_code_mode}",
+        f"entrypoint_kind: {stack.entrypoint_kind}",
+        "own_code_warn: 800",
+        "own_code_block: 1500",
+        "test_line_threshold: 300",
+        *lines("integration_refs", stack.integration_refs),
+        *lines("test_globs", stack.test_globs),
+        *lines("size_excludes", stack.size_excludes),
+        *lines("data_paths", stack.data_paths),
+        *lines("clean_langs", stack.clean_langs),
+    ]
+    return "\n".join(rows) + "\n"
+
+
+def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
+    """Copy PR, CI, hook, and Semgrep assets and write stack hygiene.yml."""
+    core = project_path / ".specify" / "presets" / "mas-core"
+    from .file_helper import FileHelper
+    from .integrations._file_changes import write_text
+    from .shared_infra import _write_shared_bytes
+
+    files = FileHelper(project_path)
+    integration = ""
+    try:
+        import json
+
+        integration = json.loads(files.read_text(project_path / ".specify" / "init-options.json")).get("integration") or ""
+    except (FileNotFoundError, ValueError):
+        integration = ""
+    copies = []
+    if integration != "none":
+        copies.extend((
+            (core / "templates" / "github" / "PULL_REQUEST_TEMPLATE.md", project_path / ".github" / "pull_request_template.md", False),
+            (core / "templates" / "github" / "PROMOTION_TEMPLATE.md", project_path / ".github" / "PROMOTION_TEMPLATE.md", False),
+        ))
+    copies.extend((
+        (core / "templates" / "ci" / "pr-hygiene.yml", project_path / ".specify" / "templates" / "ci" / "pr-hygiene.yml", False),
+        (core / "templates" / "ci" / "security.yml", project_path / ".specify" / "templates" / "ci" / "security.yml", False),
+        (core / "templates" / "githooks" / "pre-commit", project_path / ".specify" / "templates" / "githooks" / "pre-commit", True),
+        (core / "templates" / "gitignore-base", project_path / ".specify" / "templates" / "gitignore-base", False),
+        (core / "templates" / "gitleaks.toml", project_path / ".specify" / "templates" / "gitleaks.toml", False),
+        (core / "templates" / "phpmd.xml", project_path / ".specify" / "templates" / "phpmd.xml", False),
+        (core / "templates" / "jscpd.json", project_path / ".specify" / "templates" / "jscpd.json", False),
+    ))
+    from .integrations._file_changes import directory_created, make_directories
+
+    directory_created(project_path / ".specify")
+    for source, dest, executable in copies:
+        content = files.read_text(source)
+        make_directories(dest.parent)
+        _write_shared_bytes(
+            project_path,
+            dest,
+            content.encode("utf-8"),
+            mode=0o755 if executable else 0o644,
+        )
+    if integration != "none":
+        _install_codeowners(files, project_path, core, stack)
+    if "js" in stack.clean_langs:
+        eslint_src = (
+            project_path
+            / ".specify"
+            / "presets"
+            / stack.stack_preset_id
+            / "templates"
+            / "eslint.clean.config.mjs"
+        )
+        eslint_text = files.read_text(eslint_src)
+        _write_shared_bytes(
+            project_path,
+            project_path / "eslint.clean.config.mjs",
+            eslint_text.encode("utf-8"),
+            mode=0o644,
+        )
+    semgrep_src = core / "semgrep"
+    semgrep_dst = project_path / ".specify" / "semgrep"
+    make_directories(semgrep_dst)
+    for rule in files.iterdir(semgrep_src):
+        if rule.suffix != ".yml":
+            continue
+        payload = files.read_text(rule)
+        _write_shared_bytes(project_path, semgrep_dst / rule.name, payload.encode("utf-8"), mode=0o644)
+    write_text(project_path / ".specify" / "hygiene.yml", render_hygiene_yml(stack))
+    gitignore = project_path / ".gitignore"
+    marker = "# mas-hygiene-denylist"
+    block = files.read_text(core / "templates" / "gitignore-base")
+    try:
+        current = files.read_text(gitignore)
+    except FileNotFoundError:
+        current = None
+    if current is None:
+        write_text(gitignore, block)
+    elif marker not in current:
+        sep = "" if current.endswith("\n") or current == "" else "\n"
+        write_text(gitignore, f"{current}{sep}{block}")
+
+
+def _install_codeowners(files: object, project_path: Path, core: Path, stack: MasStack) -> None:
+    """Merge the reference CODEOWNERS into the project file. Never replace it."""
+    from .file_helper import FileHelper
+    from .shared_infra import _write_shared_bytes
+
+    helper = files if isinstance(files, FileHelper) else FileHelper(project_path)
+    template = helper.read_text(core / "templates" / "github" / "CODEOWNERS")
+    reference = project_path / ".specify" / "reference" / ".github" / "CODEOWNERS"
+    existing = ""
+    if stack.id == "nestjs-react":
+        try:
+            existing = helper.read_text(reference)
+        except FileNotFoundError:
+            existing = ""
+    lines: list[str] = []
+    seen: set[str] = set()
+    for chunk in (existing, template):
+        for line in chunk.splitlines():
+            key = line.strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            lines.append(line)
+    from .integrations._file_changes import make_directories
+
+    dest = project_path / ".github" / "CODEOWNERS"
+    make_directories(dest.parent)
+    _write_shared_bytes(project_path, dest, ("\n".join(lines) + "\n").encode("utf-8"), mode=0o644)
 
 
 def install_conventional_commit_assets(project_path: Path) -> None:

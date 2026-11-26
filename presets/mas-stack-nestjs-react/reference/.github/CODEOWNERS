@@ -1,0 +1,4 @@
+apps/api/src/modules/auth/** @MAS-Consultores/security-review
+apps/api/src/modules/throttle/** @MAS-Consultores/security-review
+**/casl/** @MAS-Consultores/security-review
+**/uploads/** @MAS-Consultores/security-review

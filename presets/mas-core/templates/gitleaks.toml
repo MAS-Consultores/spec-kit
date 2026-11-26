@@ -1,0 +1,13 @@
+title = "MAS hygiene"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fixtures are not production secrets"
+paths = [
+  '''Test/Fixture''',
+  '''tests/fixtures''',
+  '''(.*)\.spec\.ts''',
+  '''(.*)\.test\.ts''',
+]

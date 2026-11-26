@@ -1,0 +1,16 @@
+#!/bin/sh
+# pre-commit hook. Install with the commit-msg hook:
+#   cp .specify/templates/githooks/pre-commit .githooks/pre-commit
+root=$(git rev-parse --show-toplevel) || exit 1
+script="$root/.specify/scripts/bash/check-junk-files.sh"
+if [ ! -f "$script" ]; then
+  echo "falta $script" >&2
+  exit 1
+fi
+list=$(mktemp)
+git diff --cached --diff-filter=A --name-only > "$list"
+config="$root/.specify/hygiene.yml"
+if [ -f "$config" ]; then
+  exec "$script" --config "$config" --names "$list"
+fi
+exec "$script" --names "$list"

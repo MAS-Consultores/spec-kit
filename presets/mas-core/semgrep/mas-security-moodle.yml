@@ -1,0 +1,11 @@
+rules:
+  - id: mas-moodle-sql-concat
+    languages: [php]
+    severity: WARNING
+    message: Moodle SQL must use $DB and placeholders, not concatenation.
+    pattern-regex: get_records_sql\s*\(\s*["'][^"']*\{\$
+  - id: mas-moodle-public-entry
+    languages: [php]
+    severity: ERROR
+    message: New entry scripts need require_login(), require_capability(), or a public declaration.
+    pattern-regex: \$_GET

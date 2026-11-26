@@ -193,3 +193,7 @@ The following structure MUST be present for a valid `nestjs-react` project:
 
 - [ ] `Dockerfile` — Multi-stage, non-root user
 - [ ] `docker-compose.yml` — Local PostgreSQL + Mailpit
+
+## Higiene y código limpio
+
+Incluye la base mas-core sin reemplazar los gates existentes. La plantilla de PR, el denylist de basura y CODEOWNERS de auth, throttle, casl y uploads se agregan al reference. El título del PR no usa la exención `Merge `. El presupuesto de líneas del PR excluye lockfile, openapi, snapshots y código generado.

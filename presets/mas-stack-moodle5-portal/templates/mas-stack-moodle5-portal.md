@@ -48,3 +48,7 @@ Copy `.specify/templates/ci/conventional-commits.yml` to
 `.github/workflows/conventional-commits.yml`. The workflow has
 `permissions: contents: read` and checks the pull request title and every
 commit from the merge base to HEAD with `.specify/scripts/bash/check-commit-msg.sh`.
+
+## Higiene y código limpio
+
+Incluye la base mas-core. El core de Moodle en `public/` se excluye del presupuesto. Los plugins propios usan `moodle-plugin-ci`. Un upgrade de core no se mezcla con cambios funcionales. PHPMD y jscpd bloquean solo líneas nuevas.

@@ -1,0 +1,79 @@
+name: PR hygiene
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the PR base
+        run: git fetch origin "${GITHUB_BASE_REF}"
+
+      - name: Hygiene on the diff
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(git merge-base HEAD "origin/${GITHUB_BASE_REF}" || true)"
+          if [ -z "${base}" ]; then
+            echo "no se pudo calcular merge-base" >&2
+            exit 1
+          fi
+          tmp="$(mktemp -d)"
+          printf '%s\n' "${PR_BODY}" > "${tmp}/body"
+          git diff --numstat "${base}..HEAD" > "${tmp}/numstat"
+          git diff --diff-filter=A --name-only "${base}..HEAD" > "${tmp}/added"
+          git diff --unified=0 "${base}..HEAD" > "${tmp}/diff"
+          git diff --diff-filter=D --name-only "${base}..HEAD" > "${tmp}/deleted"
+          # Título genérico: aviso. El formato Conventional Commits lo bloquea el job commits.
+          evidence=""
+          set +e
+          bash .specify/scripts/bash/check-tests-in-diff.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat" >"${tmp}/tests.out" 2>&1
+          tests_rc=$?
+          set -e
+          if [ "${tests_rc}" -ne 0 ] || grep -q INFORMA "${tmp}/tests.out"; then
+            evidence="--evidence"
+          fi
+          # Paths and whole words: auth/, login, password, credential, token, secret, upgrade, revert.
+          if bash .specify/scripts/bash/check-pr-evidence.sh --names "${tmp}/added" --diff "${tmp}/diff" --title "${PR_TITLE}" | grep -q evidence; then
+            evidence="--evidence"
+          fi
+          # shellcheck disable=SC2086
+          bash .specify/scripts/bash/check-pr-body.sh --title "${PR_TITLE}" ${evidence} "${tmp}/body"
+          bash .specify/scripts/bash/check-pr-size.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat" --labels "${PR_LABELS}" --body "${tmp}/body"
+          bash .specify/scripts/bash/check-junk-files.sh --config .specify/hygiene.yml --names "${tmp}/added"
+          bash .specify/scripts/bash/check-tests-in-diff.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat"
+          bash .specify/scripts/bash/check-base-branch.sh --config .specify/hygiene.yml
+          bash .specify/scripts/bash/check-debug-leftovers.sh --diff "${tmp}/diff" --deleted "${tmp}/deleted"
+          if ! command -v phpmd >/dev/null 2>&1; then
+            curl -fsSL -o /tmp/phpmd https://github.com/phpmd/phpmd/releases/download/2.15.0/phpmd.phar
+            chmod +x /tmp/phpmd
+            echo '#!/bin/sh' > /tmp/phpmd-bin
+            echo 'exec php /tmp/phpmd "$@"' >> /tmp/phpmd-bin
+            chmod +x /tmp/phpmd-bin
+            sudo mv /tmp/phpmd-bin /usr/local/bin/phpmd || mv /tmp/phpmd-bin "$HOME/.local/bin/phpmd"
+          fi
+          if ! command -v jscpd >/dev/null 2>&1; then
+            npm install -g jscpd@4.0.5
+          fi
+          if grep -q 'clean_langs:' .specify/hygiene.yml && grep -A20 '^clean_langs:' .specify/hygiene.yml | grep -q '"js"'; then
+            npm install -g eslint@9.39.1 eslint-plugin-sonarjs@3.0.1 eslint-formatter-unix@9.0.1
+          fi
+          git diff --name-only "${base}..HEAD" > "${tmp}/names"
+          bash .specify/scripts/bash/check-clean-diff.sh --config .specify/hygiene.yml --names "${tmp}/names" --diff "${tmp}/diff" --root .
+          if grep -q '^entrypoint_kind: moodle' .specify/hygiene.yml; then
+            bash .specify/scripts/bash/check-moodle-entrypoints.sh --names "${tmp}/added" --root .
+          fi
