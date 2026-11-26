@@ -57,7 +57,7 @@ jobs:
           bash .specify/scripts/bash/check-junk-files.sh --config .specify/hygiene.yml --names "${tmp}/added"
           bash .specify/scripts/bash/check-tests-in-diff.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat"
           bash .specify/scripts/bash/check-base-branch.sh --config .specify/hygiene.yml
-          bash .specify/scripts/bash/check-debug-leftovers.sh --diff "${tmp}/diff" --deleted "${tmp}/deleted"
+          bash .specify/scripts/bash/check-debug-leftovers.sh --config .specify/hygiene.yml --diff "${tmp}/diff" --deleted "${tmp}/deleted"
           if ! command -v phpmd >/dev/null 2>&1; then
             curl -fsSL -o /tmp/phpmd https://github.com/phpmd/phpmd/releases/download/2.15.0/phpmd.phar
             chmod +x /tmp/phpmd

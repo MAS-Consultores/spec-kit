@@ -26,10 +26,10 @@ def preset_update(
         "--dev",
         help="Install the replacement from a local directory (development mode)",
     ),
-    priority: int = typer.Option(
-        10,
+    priority: int | None = typer.Option(
+        None,
         "--priority",
-        help="Resolution priority for the replacement (default 10)",
+        help="Resolution priority for the replacement (keeps the installed priority when omitted)",
     ),
 ):
     """Replace an installed preset using the normal remove and add flows."""
@@ -46,13 +46,21 @@ def preset_update(
         console.print("[red]Error:[/red] --dev must not be empty")
         raise typer.Exit(1)
 
-    _commands._validate_priority(priority)
+    if priority is not None:
+        _commands._validate_priority(priority)
 
     project_root = _require_specify_project()
     manager = PresetManager(project_root)
     if not manager.registry.is_installed(preset_id):
         console.print(f"[red]Error:[/red] Preset '{preset_id}' is not installed")
         raise typer.Exit(1)
+
+    if priority is None:
+        from ..extensions import normalize_priority
+
+        installed = manager.registry.get(preset_id) or {}
+        priority = normalize_priority(installed.get("priority"))
+        _commands._validate_priority(priority)
 
     _commands.preset_remove(preset_id)
 

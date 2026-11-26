@@ -17,7 +17,7 @@ fail=0
 bash "$root/.specify/scripts/bash/check-pr-size.sh" --config "$config" --numstat "$tmp/numstat" || fail=1
 bash "$root/.specify/scripts/bash/check-junk-files.sh" --config "$config" --names "$tmp/added" || fail=1
 bash "$root/.specify/scripts/bash/check-tests-in-diff.sh" --config "$config" --numstat "$tmp/numstat" || fail=1
-bash "$root/.specify/scripts/bash/check-debug-leftovers.sh" --diff "$tmp/diff" || fail=1
+bash "$root/.specify/scripts/bash/check-debug-leftovers.sh" --config "$config" --diff "$tmp/diff" || fail=1
 git diff --name-only "${base}..HEAD" > "$tmp/names"
 bash "$root/.specify/scripts/bash/check-clean-diff.sh" --config "$config" --names "$tmp/names" --diff "$tmp/diff" --root "$root" || fail=1
 if [ -n "${GITHUB_BASE_REF:-}" ]; then

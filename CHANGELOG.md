@@ -6,7 +6,11 @@
 
 MAS fork release based on upstream Spec Kit 1.4.5. Package version uses the local `+mas.N` convention; Git tags for this fork remain `vX.Y.Z-mas.N`.
 
-Upstream 1.4.5 is included in full. There are no new or removed `/speckit-*` commands. The release is bugfixes: UTF-8 (BOM, streams, CLI credentials, template output), preset and extension command resolution, Copilot hook output, and shared infrastructure writes through FileHelper. The MAS stacks, constitution (principles XI, XII, and XIII), guidelines, workflows, release tag patterns, nestjs-react quality gates, Conventional Commits, and hygiene standards stay in place. The bundled git extension stays at 1.0.10 because upstream did not change its helpers.
+Upstream 1.4.5 is included in full. There are no new or removed `/speckit-*` commands. The release is bugfixes: UTF-8 (BOM, streams, CLI credentials, template output), preset and extension command resolution, Copilot hook output, and shared infrastructure writes through FileHelper. The MAS stacks, constitution (principles XI, XII, and XIII), guidelines, workflows, release tag patterns, nestjs-react quality gates, Conventional Commits, and hygiene standards stay in place. The bundled git extension stays at 1.0.10 because upstream did not change its helpers. This merge also keeps the v1.4.4-mas.4 hygiene fixes: `check-debug-leftovers` skips its own scripts, Markdown, and `.specify/`, `specify init` does not add `.specify/` to the root `.gitignore`, `specify preset update` keeps the installed priority, and the line budget ignores the copied PR template and the `commits`, `pr-hygiene`, and `security` workflows under `.github/`.
+
+## [1.4.4+mas.4] - 2026-11-26
+
+Parche de la higiene de v1.4.4-mas.3. `check-debug-leftovers` ya no marca el propio script, Markdown ni `.specify/`, y acepta `debug_leftovers_exclude`. `specify init` no agrega `.specify/` al `.gitignore` de la raíz. `specify preset update` conserva la prioridad instalada si no se pasa `--priority`. El presupuesto de líneas ignora las copias de la plantilla de PR y de los workflows `commits`, `pr-hygiene` y `security` que viven en `.github/`.
 
 ## [1.4.4+mas.3] - 2026-11-26
 
