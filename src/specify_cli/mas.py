@@ -2395,17 +2395,23 @@ def _apply_hygiene_profiles() -> None:
 _apply_hygiene_profiles()
 
 
+def yaml_quote(value: str) -> str:
+    """Quote a YAML scalar so globs such as ``*.php`` stay strings."""
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
 def render_hygiene_yml(stack: MasStack) -> str:
     """Render `.specify/hygiene.yml` for one stack."""
     def lines(key: str, values: tuple[str, ...]) -> list[str]:
         body = [f"{key}:"]
-        body.extend(f"  - {value}" for value in values)
+        body.extend(f"  - {yaml_quote(value)}" for value in values)
         return body
 
     rows = [
         f"legacy: {'true' if stack.hygiene_legacy else 'false'}",
         f"harness: {'true' if stack.hygiene_harness else 'false'}",
-        "h4_mode: warn",
+        "h4_mode: block",
         f"production_branch: {stack.production_branch}",
         f"clean_code_mode: {stack.clean_code_mode}",
         f"entrypoint_kind: {stack.entrypoint_kind}",
@@ -2432,7 +2438,6 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
     copies = (
         (core / "templates" / "github" / "PULL_REQUEST_TEMPLATE.md", project_path / ".github" / "pull_request_template.md", False),
         (core / "templates" / "github" / "PROMOTION_TEMPLATE.md", project_path / ".github" / "PROMOTION_TEMPLATE.md", False),
-        (core / "templates" / "github" / "CODEOWNERS", project_path / ".github" / "CODEOWNERS", False),
         (core / "templates" / "ci" / "pr-hygiene.yml", project_path / ".specify" / "templates" / "ci" / "pr-hygiene.yml", False),
         (core / "templates" / "ci" / "security.yml", project_path / ".specify" / "templates" / "ci" / "security.yml", False),
         (core / "templates" / "githooks" / "pre-commit", project_path / ".specify" / "templates" / "githooks" / "pre-commit", True),
@@ -2441,19 +2446,39 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
         (core / "templates" / "phpmd.xml", project_path / ".specify" / "templates" / "phpmd.xml", False),
         (core / "templates" / "jscpd.json", project_path / ".specify" / "templates" / "jscpd.json", False),
     )
+    from .integrations._file_changes import directory_created, make_directories
+
+    directory_created(project_path / ".specify")
     for source, dest, executable in copies:
         content = files.read_text(source)
-        files.mkdir(dest.parent, parents=True, exist_ok=True)
+        make_directories(dest.parent)
         _write_shared_bytes(
             project_path,
             dest,
             content.encode("utf-8"),
             mode=0o755 if executable else 0o644,
         )
+    _install_codeowners(files, project_path, core, stack)
+    if "js" in stack.clean_langs:
+        eslint_src = (
+            project_path
+            / ".specify"
+            / "presets"
+            / stack.stack_preset_id
+            / "templates"
+            / "eslint.clean.config.mjs"
+        )
+        eslint_text = files.read_text(eslint_src)
+        _write_shared_bytes(
+            project_path,
+            project_path / "eslint.clean.config.mjs",
+            eslint_text.encode("utf-8"),
+            mode=0o644,
+        )
     semgrep_src = core / "semgrep"
     semgrep_dst = project_path / ".specify" / "semgrep"
-    files.mkdir(semgrep_dst, parents=True, exist_ok=True)
-    for rule in semgrep_src.iterdir():
+    make_directories(semgrep_dst)
+    for rule in files.iterdir(semgrep_src):
         if rule.suffix != ".yml":
             continue
         payload = files.read_text(rule)
@@ -2461,14 +2486,46 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
     write_text(project_path / ".specify" / "hygiene.yml", render_hygiene_yml(stack))
     gitignore = project_path / ".gitignore"
     marker = "# mas-hygiene-denylist"
-    block = (core / "templates" / "gitignore-base").read_text(encoding="utf-8")
-    if gitignore.is_file():
-        current = gitignore.read_text(encoding="utf-8")
-        if marker not in current:
-            sep = "" if current.endswith("\n") or current == "" else "\n"
-            write_text(gitignore, f"{current}{sep}{block}")
-    else:
+    block = files.read_text(core / "templates" / "gitignore-base")
+    try:
+        current = files.read_text(gitignore)
+    except FileNotFoundError:
+        current = None
+    if current is None:
         write_text(gitignore, block)
+    elif marker not in current:
+        sep = "" if current.endswith("\n") or current == "" else "\n"
+        write_text(gitignore, f"{current}{sep}{block}")
+
+
+def _install_codeowners(files: object, project_path: Path, core: Path, stack: MasStack) -> None:
+    """Merge the reference CODEOWNERS into the project file. Never replace it."""
+    from .file_helper import FileHelper
+    from .shared_infra import _write_shared_bytes
+
+    helper = files if isinstance(files, FileHelper) else FileHelper(project_path)
+    template = helper.read_text(core / "templates" / "github" / "CODEOWNERS")
+    reference = project_path / ".specify" / "reference" / ".github" / "CODEOWNERS"
+    existing = ""
+    if stack.id == "nestjs-react":
+        try:
+            existing = helper.read_text(reference)
+        except FileNotFoundError:
+            existing = ""
+    lines: list[str] = []
+    seen: set[str] = set()
+    for chunk in (existing, template):
+        for line in chunk.splitlines():
+            key = line.strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            lines.append(line)
+    from .integrations._file_changes import make_directories
+
+    dest = project_path / ".github" / "CODEOWNERS"
+    make_directories(dest.parent)
+    _write_shared_bytes(project_path, dest, ("\n".join(lines) + "\n").encode("utf-8"), mode=0o644)
 
 
 def install_conventional_commit_assets(project_path: Path) -> None:

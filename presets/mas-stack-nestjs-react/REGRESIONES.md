@@ -308,6 +308,15 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D23-18 | un entrypoint Moodle nuevo no exigía login | el mismo archivo: un PHP sin `require_login` sale 1; con la llamada sale 0 |
 | D23-19 | nestjs-react no tenía plantilla de PR, denylist ni CODEOWNERS | el mismo archivo: el reference tiene la plantilla, `.DS_Store` en `.gitignore` y CODEOWNERS de `auth`. `check-commits.mjs` no gana un rechazo nuevo de `Merge ` |
 | D23-20 | `stack-context.md` no repetía XII ni XIII | el mismo archivo: los seis contextos nombran el principio XIII y `check-hygiene.sh` |
+| D23-21 | PHPMD, jscpd y ESLint no se ejecutaban | el mismo archivo: con `phpmd` y `jscpd` en el PATH, un hallazgo en una línea nueva sale 1 si `clean_code_mode` es `block` y 0 con `INFORMA` si es `info`. El config de laravel importa `eslint-plugin-sonarjs` y `pr-hygiene.yml` instala phpmd y jscpd |
+| D23-22 | el CODEOWNERS de nestjs-react se pisaba | el mismo archivo: tras init, `.github/CODEOWNERS` conserva `modules/auth/`, throttle, casl y uploads, y suma las rutas comunes. El del reference sigue igual |
+| D23-23 | los comentarios de la plantilla contaban como contenido | el mismo archivo: la plantilla sin rellenar con `--evidence` sale 1 por **Cómo se validó** y **Riesgos/rollback** |
+| D23-24 | `@author` activaba la evidencia de auth | el mismo archivo: `check-pr-evidence.sh` no imprime `evidence` ante `@author` y sí ante `src/auth/login.php`. El workflow ya no usa `grep auth\|` |
+| D23-25 | 1.500 líneas no bloqueaban | el mismo archivo: los seis `hygiene.yml` traen `h4_mode: block`, la constitución dice que 1 500 líneas cambiadas bloquean, y 1.600 líneas propias salen 1 aunque vendor sume más |
+| D23-26 | `hygiene.yml` no era YAML | el mismo archivo: `yaml.safe_load` lee los seis archivos y los globs van entre comillas |
+| D23-27 | gitleaks leía todo el historial | el mismo archivo: `security.yml` pasa `--log-opts` con `base..HEAD` y, en push, `PUSH_BEFORE..PUSH_AFTER` |
+| D23-10 | el test aceptaba el exit 127 | el mismo archivo: `check-debug-leftovers` sale exactamente 1 y el mensaje contiene `MAS-DEBUG` y `dd(` |
+| D23-29 | `install_hygiene_assets` leía fuera de FileHelper | el mismo archivo: `mas.py` usa `files.iterdir` y `files.read_text` para semgrep y `gitignore-base` |
 
 ## Versiones probadas
 

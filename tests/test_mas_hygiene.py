@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
+
+import yaml
 from pathlib import Path
 
 import pytest
@@ -289,7 +292,9 @@ def test_d23_09_base_branch(tmp_path: Path) -> None:
 def test_d23_10_debug_leftovers(tmp_path: Path) -> None:
     diff = _write(tmp_path / "diff.txt", "+++ src/App.php\n+    dd($user);\n+    return 1;\n")
     result = _bash(str(BASH / "check-debug-leftovers.sh"), "--diff", str(diff))
-    assert result.returncode != 0
+    assert result.returncode == 1
+    assert "MAS-DEBUG" in result.stderr
+    assert "dd(" in result.stderr
     ps = _ps("check-debug-leftovers.ps1", "-Diff", str(diff))
     if ps is not None:
         assert ps.returncode != 0
@@ -401,4 +406,123 @@ def test_d23_20_stack_context(projects: dict[str, Path]) -> None:
         text = (project / ".specify/memory/stack-context.md").read_text(encoding="utf-8")
         assert "Principle XIII" in text, stack
         assert "check-hygiene.sh" in text, stack
+
+
+def test_d23_21_clean_tools_run_on_new_lines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    phpmd = bindir / "phpmd"
+    phpmd.write_text("#!/bin/sh\necho 'src/App.php:2:CyclomaticComplexity'\nexit 2\n", encoding="utf-8")
+    phpmd.chmod(0o755)
+    jscpd = bindir / "jscpd"
+    jscpd.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    jscpd.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{os.environ['PATH']}")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "App.php").write_text("<?php\nfunction a(){ if(1){ if(1){} } }\n", encoding="utf-8")
+    names = _write(tmp_path / "names.txt", "src/App.php\n")
+    diff = _write(tmp_path / "diff.txt", "+++ b/src/App.php\n@@ -0,0 +2,1 @@\n+function a(){ if(1){ if(1){} } }\n")
+    rules = tmp_path / ".specify" / "templates"
+    rules.mkdir(parents=True)
+    (rules / "phpmd.xml").write_text("<ruleset/>\n", encoding="utf-8")
+    blocked = _write(tmp_path / "block.yml", 'clean_code_mode: block\nclean_langs:\n  - "php"\n')
+    result = _bash(
+        str(BASH / "check-clean-diff.sh"),
+        "--config", str(blocked),
+        "--names", str(names),
+        "--diff", str(diff),
+        "--root", str(tmp_path),
+    )
+    assert result.returncode == 1, result.stderr
+    assert "hallazgos nuevos" in result.stderr
+    informed = _write(tmp_path / "info.yml", 'clean_code_mode: info\nclean_langs:\n  - "php"\n')
+    soft = _bash(
+        str(BASH / "check-clean-diff.sh"),
+        "--config", str(informed),
+        "--names", str(names),
+        "--diff", str(diff),
+        "--root", str(tmp_path),
+    )
+    assert soft.returncode == 0, soft.stderr
+    assert "INFORMA" in soft.stderr
+    workflow = (REPO / "presets/mas-core/templates/ci/pr-hygiene.yml").read_text(encoding="utf-8")
+    assert "phpmd" in workflow and "jscpd" in workflow
+    eslint = (REPO / "presets/mas-stack-laravel-inertia-react/templates/eslint.clean.config.mjs").read_text(encoding="utf-8")
+    assert "eslint-plugin-sonarjs" in eslint
+
+
+def test_d23_22_nest_codeowners_are_merged(projects: dict[str, Path]) -> None:
+    owners = (projects["nestjs-react"] / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+    reference = (projects["nestjs-react"] / ".specify/reference/.github/CODEOWNERS").read_text(encoding="utf-8")
+    assert "modules/auth/" in owners
+    assert "throttle" in owners
+    assert "casl" in owners
+    assert "uploads" in owners
+    assert "modules/auth/" in reference
+    assert "app/Controller" in owners
+
+
+def test_d23_23_template_comments_are_empty(tmp_path: Path) -> None:
+    template = (REPO / "presets/mas-core/templates/github/PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8")
+    path = _write(tmp_path / "pr.md", template)
+    result = _bash(str(BASH / "check-pr-body.sh"), "--evidence", str(path))
+    assert result.returncode == 1
+    assert "Cómo se validó" in result.stderr
+    assert "Riesgos/rollback" in result.stderr
+
+
+def test_d23_24_evidence_ignores_author_tag(tmp_path: Path) -> None:
+    diff = _write(tmp_path / "diff.txt", "+++ b/src/User.php\n@@ -1 +1 @@\n+ * @author Ada\n")
+    names = _write(tmp_path / "names.txt", "src/User.php\n")
+    quiet = _bash(str(BASH / "check-pr-evidence.sh"), "--names", str(names), "--diff", str(diff), "--title", "feat(user): add profile page")
+    assert quiet.returncode == 0
+    assert "evidence" not in quiet.stdout
+    auth = _write(tmp_path / "auth.txt", "src/auth/login.php\n")
+    hit = _bash(str(BASH / "check-pr-evidence.sh"), "--names", str(auth), "--diff", str(diff), "--title", "feat(auth): add login form")
+    assert "evidence" in hit.stdout
+    workflow = (REPO / "presets/mas-core/templates/ci/pr-hygiene.yml").read_text(encoding="utf-8")
+    assert "grep -Eiq 'auth|" not in workflow
+    assert "check-pr-evidence.sh" in workflow
+
+
+def test_d23_25_size_cap_blocks(projects: dict[str, Path]) -> None:
+    for stack, project in projects.items():
+        text = (project / ".specify/hygiene.yml").read_text(encoding="utf-8")
+        assert "h4_mode: block" in text, stack
+        constitution = (project / ".specify/memory/constitution.md").read_text(encoding="utf-8")
+        assert "1 500 changed lines blocks" in constitution, stack
+        assert "warn mode" not in constitution, stack
+    config = projects["cakephp2-mysql"] / ".specify/hygiene.yml"
+    numstat = _write(projects["cakephp2-mysql"] / "numstat-d23.txt", "1600\t0\tsrc/App.php\n9000\t0\tvendor/lib.php\n")
+    result = _bash(str(BASH / "check-pr-size.sh"), "--config", str(config), "--numstat", str(numstat))
+    assert result.returncode == 1, result.stderr
+
+
+def test_d23_26_hygiene_yml_is_quoted(projects: dict[str, Path]) -> None:
+    for stack, project in projects.items():
+        path = project / ".specify/hygiene.yml"
+        raw = path.read_text(encoding="utf-8")
+        loaded = yaml.safe_load(raw)
+        assert isinstance(loaded["test_globs"], list), stack
+        assert isinstance(loaded["size_excludes"], list), stack
+        assert loaded["h4_mode"] == "block", stack
+        assert '"' in raw, stack
+    eslint = projects["laravel-inertia-react"] / "eslint.clean.config.mjs"
+    assert eslint.is_file()
+    assert "eslint-plugin-sonarjs" in eslint.read_text(encoding="utf-8")
+
+
+def test_d23_27_gitleaks_is_limited_to_the_pr() -> None:
+    workflow = (REPO / "presets/mas-core/templates/ci/security.yml").read_text(encoding="utf-8")
+    assert "--log-opts" in workflow
+    assert "PUSH_BEFORE" in workflow
+    assert "base}..HEAD" in workflow
+
+
+def test_d23_29_filehelper_reads_hygiene_assets() -> None:
+    source = (REPO / "src/specify_cli/mas.py").read_text(encoding="utf-8")
+    assert "semgrep_src.iterdir" not in source
+    assert "gitignore-base\").read_text" not in source
+    assert "files.iterdir(semgrep_src)" in source
+    assert "files.read_text(core / \"templates\" / \"gitignore-base\")" in source
 

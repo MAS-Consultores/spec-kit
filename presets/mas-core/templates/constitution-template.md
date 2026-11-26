@@ -425,9 +425,11 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
   **Riesgos/rollback**, which block only when the pull request already has
   another finding: a large change without tests, authentication or credentials,
   or an upgrade or a revert. Otherwise those two sections also only warn.
-- One `specs/NNN-*` directory per pull request. Own-code budget: 800 lines
-  inform, 1 500 lines block, unless the label `pr-grande-justificado` is set
-  and the body explains why. H4 ships in warn mode until `h4_mode` is `block`.
+- One `specs/NNN-*` directory per pull request. Own-code budget: more than
+  800 changed lines informs and more than 1 500 changed lines blocks, on every
+  stack. Lockfiles, generated files, and vendor do not count. Legacy stacks
+  measure the diff only. The label `pr-grande-justificado` plus a reason in
+  the body is the exception.
 - The production branch accepts only the integration refs in
   `.specify/hygiene.yml` (by default `testing` or `hotfix/*`). A re-merge after
   a revert links the revert and includes a test that reproduces the cause.

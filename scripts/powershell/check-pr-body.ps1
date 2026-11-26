@@ -11,6 +11,7 @@ if ($Title.StartsWith('chore(release): promover')) { $Promotion = $true }
 $raw = Get-Content -LiteralPath $Path -Raw
 if ($null -eq $raw) { $raw = '' }
 $raw = [regex]::Replace($raw, '(?s)<!--\s*coderabbit\s*-->.*?<!--\s*/coderabbit\s*-->', '')
+$raw = [regex]::Replace($raw, '(?s)<!--.*?-->', '')
 $required = @('Qué y por qué', 'Spec/tarea', 'Cómo se validó', 'Riesgos/rollback', 'Fuera de alcance')
 $missing = $false
 $block = $false

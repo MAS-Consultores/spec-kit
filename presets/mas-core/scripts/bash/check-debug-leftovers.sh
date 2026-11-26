@@ -20,7 +20,7 @@ if [ -n "$diff" ]; then
       +*)
         case "$line" in
           *var_dump*|*print_r*|*error_log\(*|*"dd("*|*"dump("*|*"console.log"*|*debugger*|*"ray("*)
-            echo "debug en línea agregada: ${line}" >&2
+            echo "MAS-DEBUG dd( ${line}" >&2
             fail=1
             ;;
         esac

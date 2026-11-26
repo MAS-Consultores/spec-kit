@@ -9,7 +9,7 @@ if ($Diff) {
     foreach ($line in Get-Content -LiteralPath $Diff) {
         if ($line.StartsWith('+++')) { continue }
         if ($line.StartsWith('+') -and $line -match 'var_dump|print_r|error_log\(|dd\(|dump\(|console\.log|debugger|ray\(') {
-            [Console]::Error.WriteLine("debug en linea agregada: $line")
+            [Console]::Error.WriteLine("MAS-DEBUG dd( $line")
             $fail = $true
         }
     }

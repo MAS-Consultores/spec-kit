@@ -39,28 +39,41 @@ jobs:
           git diff --unified=0 "${base}..HEAD" > "${tmp}/diff"
           git diff --diff-filter=D --name-only "${base}..HEAD" > "${tmp}/deleted"
           # Título genérico: aviso. El formato Conventional Commits lo bloquea el job commits.
-          evidence=()
+          evidence=""
           set +e
           bash .specify/scripts/bash/check-tests-in-diff.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat" >"${tmp}/tests.out" 2>&1
           tests_rc=$?
           set -e
           if [ "${tests_rc}" -ne 0 ] || grep -q INFORMA "${tmp}/tests.out"; then
-            evidence+=(--evidence)
+            evidence="--evidence"
           fi
-          if grep -Eiq 'auth|credential|password|require_login' "${tmp}/diff"; then
-            evidence+=(--evidence)
+          # Paths and whole words: auth/, login, password, credential, token, secret, upgrade, revert.
+          if bash .specify/scripts/bash/check-pr-evidence.sh --names "${tmp}/added" --diff "${tmp}/diff" --title "${PR_TITLE}" | grep -q evidence; then
+            evidence="--evidence"
           fi
-          # upgrade or revert in the title also requires validation and rollback
-          case "${PR_TITLE}" in
-            *[Uu]pgrade*|*[Rr]evert*) evidence+=(--evidence) ;;
-          esac
-          bash .specify/scripts/bash/check-pr-body.sh --title "${PR_TITLE}" "${evidence[@]}" "${tmp}/body"
+          # shellcheck disable=SC2086
+          bash .specify/scripts/bash/check-pr-body.sh --title "${PR_TITLE}" ${evidence} "${tmp}/body"
           bash .specify/scripts/bash/check-pr-size.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat" --labels "${PR_LABELS}" --body "${tmp}/body"
           bash .specify/scripts/bash/check-junk-files.sh --config .specify/hygiene.yml --names "${tmp}/added"
           bash .specify/scripts/bash/check-tests-in-diff.sh --config .specify/hygiene.yml --numstat "${tmp}/numstat"
           bash .specify/scripts/bash/check-base-branch.sh --config .specify/hygiene.yml
           bash .specify/scripts/bash/check-debug-leftovers.sh --diff "${tmp}/diff" --deleted "${tmp}/deleted"
-          bash .specify/scripts/bash/check-clean-diff.sh --config .specify/hygiene.yml
+          if ! command -v phpmd >/dev/null 2>&1; then
+            curl -fsSL -o /tmp/phpmd https://github.com/phpmd/phpmd/releases/download/2.15.0/phpmd.phar
+            chmod +x /tmp/phpmd
+            echo '#!/bin/sh' > /tmp/phpmd-bin
+            echo 'exec php /tmp/phpmd "$@"' >> /tmp/phpmd-bin
+            chmod +x /tmp/phpmd-bin
+            sudo mv /tmp/phpmd-bin /usr/local/bin/phpmd || mv /tmp/phpmd-bin "$HOME/.local/bin/phpmd"
+          fi
+          if ! command -v jscpd >/dev/null 2>&1; then
+            npm install -g jscpd@4.0.5
+          fi
+          if grep -q 'clean_langs:' .specify/hygiene.yml && grep -A20 '^clean_langs:' .specify/hygiene.yml | grep -q '"js"'; then
+            npm install -g eslint@9.39.1 eslint-plugin-sonarjs@3.0.5
+          fi
+          git diff --name-only "${base}..HEAD" > "${tmp}/names"
+          bash .specify/scripts/bash/check-clean-diff.sh --config .specify/hygiene.yml --names "${tmp}/names" --diff "${tmp}/diff" --root .
           if grep -q '^entrypoint_kind: moodle' .specify/hygiene.yml; then
             bash .specify/scripts/bash/check-moodle-entrypoints.sh --names "${tmp}/added" --root .
           fi

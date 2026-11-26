@@ -1,6 +1,9 @@
 // Front clean-code gate for laravel-inertia-react. Measure changed files only.
+import sonarjs from "eslint-plugin-sonarjs";
+
 export default [
   {
+    plugins: { sonarjs },
     files: ["resources/js/**/*.{js,jsx,ts,tsx}"],
     rules: {
       "sonarjs/cognitive-complexity": ["error", 15],

@@ -18,7 +18,8 @@ bash "$root/.specify/scripts/bash/check-pr-size.sh" --config "$config" --numstat
 bash "$root/.specify/scripts/bash/check-junk-files.sh" --config "$config" --names "$tmp/added" || fail=1
 bash "$root/.specify/scripts/bash/check-tests-in-diff.sh" --config "$config" --numstat "$tmp/numstat" || fail=1
 bash "$root/.specify/scripts/bash/check-debug-leftovers.sh" --diff "$tmp/diff" || fail=1
-bash "$root/.specify/scripts/bash/check-clean-diff.sh" --config "$config" || true
+git diff --name-only "${base}..HEAD" > "$tmp/names"
+bash "$root/.specify/scripts/bash/check-clean-diff.sh" --config "$config" --names "$tmp/names" --diff "$tmp/diff" --root "$root" || fail=1
 if [ -n "${GITHUB_BASE_REF:-}" ]; then
   bash "$root/.specify/scripts/bash/check-base-branch.sh" --config "$config" || fail=1
 fi
