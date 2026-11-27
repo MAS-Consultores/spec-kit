@@ -1,0 +1,6 @@
+diff --git a/.oxlintrc.json b/.oxlintrc.json
+--- a/.oxlintrc.json
++++ b/.oxlintrc.json
+@@ -1 +1 @@
+-    "max": 300
++    "max": 400

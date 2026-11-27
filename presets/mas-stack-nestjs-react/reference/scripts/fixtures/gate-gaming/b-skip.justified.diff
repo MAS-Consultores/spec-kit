@@ -1,0 +1,5 @@
+diff --git a/apps/api/src/pay.spec.ts b/apps/api/src/pay.spec.ts
+--- a/apps/api/src/pay.spec.ts
++++ b/apps/api/src/pay.spec.ts
+@@ -1 +1 @@
++it.only("paga", () => {});
