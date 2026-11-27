@@ -351,6 +351,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D26-06 | `check-mutation` ignoraba `mutation.exclude` | el mismo archivo: un `**/*.repository.ts` no entra al plan y el service sí |
 | D26-07 | la cobertura contaba `.specify/reference` | el mismo archivo: un diff bajo `.specify/reference/apps/api/src` deja `lineTotal` en 0 |
 | D26-08 | `specify preset list` con la misma prioridad ordenaba `mas-core` antes que el stack | el mismo archivo: la salida lista `mas-stack-nestjs-react` antes que `mas-core`. `list_by_priority` coincide |
+| D26-09 | la telemetría leía `process.env.CI` y `check-env-example`, que también recorría `scripts/`, lo exigía en `.env.example` | el mismo archivo: `check-env-example.mjs --self-test` falla si `PORT` falta en la app, ignora `process.env.CI` en `scripts/` y rechaza un nombre armado por partes en `apps/`. La telemetría usa `process.env.CI` y `process.env.SPEC_FEATURE` literales |
 
 ## Versiones probadas
 
