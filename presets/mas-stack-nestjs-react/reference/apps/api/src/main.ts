@@ -1,7 +1,8 @@
 import "reflect-metadata";
-import { Logger, VersioningType } from "@nestjs/common";
+import { Logger as NestLogger, VersioningType } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
+import { Logger } from "nestjs-pino";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -10,7 +11,8 @@ import { trustProxySetting } from "./client-ip.js";
 import { configNumber, configString } from "./config/read.js";
 
 async function main(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
   app.use(helmet());
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
@@ -32,6 +34,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  Logger.error(error instanceof Error ? error.message : "api failed to start");
+  NestLogger.error(error instanceof Error ? error.message : "api failed to start");
   process.exit(1);
 });

@@ -8,6 +8,8 @@ export type AppEnv = {
   PORT: number;
   CORS_ORIGIN: string;
   TRUST_PROXY: string;
+  LOG_LEVEL: string;
+  NODE_ENV: string;
 };
 
 /** MCP HTTP stays off unless the process opts in. Projects without tools leave it unset. */
@@ -45,6 +47,8 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   const port = source["PORT"];
   const corsOrigin = source["CORS_ORIGIN"];
   const trustProxy = source["TRUST_PROXY"];
+  const logLevel = source["LOG_LEVEL"];
+  const nodeEnv = source["NODE_ENV"];
   return {
     DATABASE_URL: requiredText(databaseUrl, "DATABASE_URL"),
     JWT_ACCESS_SECRET: requiredText(accessSecret, "JWT_ACCESS_SECRET"),
@@ -53,5 +57,7 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     PORT: optionalNumber(port, 0, "PORT"),
     CORS_ORIGIN: typeof corsOrigin === "string" ? corsOrigin : "",
     TRUST_PROXY: typeof trustProxy === "string" ? trustProxy : "",
+    LOG_LEVEL: typeof logLevel === "string" && logLevel.length > 0 ? logLevel : "info",
+    NODE_ENV: typeof nodeEnv === "string" && nodeEnv.length > 0 ? nodeEnv : "development",
   };
 }

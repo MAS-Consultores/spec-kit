@@ -8,6 +8,7 @@ import type { Response } from "express";
 import { configString } from "../../config/read.js";
 import { AuthRepository, type AuthUserRecord } from "./auth.repository.js";
 import { businessScopes, refreshIssuedAfterPasswordChange } from "./session.token.js";
+import { emitAudit } from "../../logging/audit-log.js";
 import { SystemClock, SystemIdGenerator } from "../platform/index.js";
 
 const REFRESH_TTL_MS = 604_800_000;
@@ -59,13 +60,15 @@ export class AuthService {
     private readonly ids: SystemIdGenerator,
   ) {}
 
-  async login(body: unknown, res: Response): Promise<{ csrfToken: string }> {
+  async login(body: unknown, res: Response, requestId = "unavailable"): Promise<{ csrfToken: string }> {
     const input = loginSchema.parse(body);
     const user = await this.users.findUserByEmail(input.email);
     const isValid = await this.verifyPresentedPassword(storedPasswordHash(user), input.password);
     if (user === null || loginRejected(user, isValid)) {
+      emitAudit({ actor: "anonymous", action: "login_failed", resource: "session", result: "denied", requestId });
       throw new UnauthorizedException();
     }
+    emitAudit({ actor: user.id, action: "login", resource: "session", result: "ok", requestId });
     await this.issue(res, user, this.ids.uuid());
     return { csrfToken: this.readCsrf(res) };
   }
