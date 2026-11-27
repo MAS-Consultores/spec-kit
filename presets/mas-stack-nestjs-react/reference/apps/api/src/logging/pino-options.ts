@@ -25,7 +25,7 @@ type PinoHttp = {
   genReqId: (req: IncomingMessage, res: ServerResponse) => string;
   hooks: { logMethod: (this: unknown, args: readonly unknown[], method: LogMethod) => void };
   transport?:
-    | { target: "pino-pretty"; options: Record<string, boolean> }
+    | { target: string; options: Record<string, unknown> }
     | { targets: Array<{ target: string; options: Record<string, unknown> }> };
 };
 
@@ -47,7 +47,7 @@ export function pinoHttpOptions(env: LogEnv): PinoHttp {
     },
     hooks: {
       logMethod(this: unknown, args: readonly unknown[], method: LogMethod) {
-        method.apply(this, redactArgs(args));
+        method.apply(this, [...redactArgs(args)]);
       },
     },
   };
@@ -83,10 +83,10 @@ export async function writeRolledLog(env: LogEnv, record: Record<string, unknown
   const logger = pino({
     hooks: {
       logMethod(this: unknown, args: unknown[], method: LogMethod) {
-        method.apply(this, redactArgs(args));
+        method.apply(this, [...redactArgs(args)]);
       },
     },
-  }, stream);
+  }, stream as pino.DestinationStream);
   logger.info(record);
   stream.flushSync();
   stream.end();
