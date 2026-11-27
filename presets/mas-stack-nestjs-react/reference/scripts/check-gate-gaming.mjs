@@ -19,6 +19,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DISABLE = /eslint-disable|oxlint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck/;
 const SKIP = /\.(skip|only)\b|\bxit\s*\(|\bxdescribe\s*\(/;
 const ENV_SPLIT = /process\.env\s*\[\s*\[|process\.env\s*\[[^\]]*\.join\s*\(|process\.env\s*\[[^\]]*\$\{|process\.env\s*\[[^\]]*?\+/;
+const WRAPPED_NUMBER = /\b(?:Number\.parseInt|parseInt|Number)\s*\(\s*["'`]\d+/;
 const TEST_FILE = /\.(spec|test)\.[cm]?[jt]sx?$|\/e2e\//;
 const CONFIG = /(^|\/)(quality-gates\.json|quality-baseline\.json|\.oxlintrc\.json|eslint\.config\.js|vitest\.config\.ts|stryker\.conf\.json|\.semgrepignore|\.jscpd\.json|jscpd\.json)$/;
 const CEILING = /["']?(max-lines|max-params|max-depth|complexity|max)["']?\s*[:=]\s*(\d+)/g;
@@ -88,6 +89,7 @@ export function findingsIn(diffText) {
       if (DISABLE.test(line)) findings.push({ file, kind: "disable", detail: line.trim() });
       if (TEST_FILE.test(file) && SKIP.test(line)) findings.push({ file, kind: "skip", detail: line.trim() });
       if (ENV_SPLIT.test(line)) findings.push({ file, kind: "env", detail: line.trim() });
+      if (WRAPPED_NUMBER.test(line)) findings.push({ file, kind: "wrapped-number", detail: line.trim() });
     }
     if (CONFIG.test(file)) {
       for (const change of weaker(hunk.removed, hunk.added)) findings.push({ file, kind: "threshold", detail: change });
@@ -121,7 +123,7 @@ function selfTest() {
     const diff = readFileSync(join(dir, name), "utf8");
     const body = name.endsWith(".justified.diff") ? readFileSync(join(dir, name.replace(/\.diff$/, ".md")), "utf8") : "";
     const found = unwaived(diff, body);
-    const kind = { a: "disable", b: "skip", c: "threshold", d: "ignore", e: "env" }[name[0]];
+    const kind = { a: "disable", b: "skip", c: "threshold", d: "ignore", e: "env", f: "wrapped-number" }[name[0]];
     const expectFail = !name.endsWith(".justified.diff");
     if (expectFail && !found.some((finding) => finding.kind === kind)) {
       console.error(`self-test: ${name} debía fallar`);

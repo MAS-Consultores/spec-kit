@@ -18,7 +18,7 @@ El service no llama a `Date.now()`, `new Date()` sin argumento ni `Math.random()
 Inyectá Clock e IdGenerator desde `apps/api/src/modules/platform`.
 `mas/no-hidden-service-deps` avisa en lo viejo y falla en el diff (`scripts/check-diff-quality.mjs`).
 Imágenes PNG o JPG con `file-type` y `sharp`. No sirvas el original.
-Logs con `nestjs-pino` (`no-console`). Correo en MJML (`mas/no-handmade-email-html`).
+Logs con `nestjs-pino` y pino (`no-console`). `LOG_LEVEL` en `.env.example`. `pino-pretty` solo en desarrollo. `X-Request-Id` en cada línea y en la respuesta. Ocultá password, token, authorization, cookie, set-cookie, rut, email y refreshToken. Las acciones sensibles (login, roles, permisos, borrado) usan `emitAudit` en `apps/api/src/logging/audit-log.ts`, sin datos personales en claro. Correo en MJML (`mas/no-handmade-email-html`).
 El test del service es un spec al lado. El e2e vive en `apps/api/test`.
 
 ## Seguridad

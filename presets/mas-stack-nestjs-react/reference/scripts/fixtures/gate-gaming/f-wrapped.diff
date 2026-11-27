@@ -1,0 +1,6 @@
+diff --git a/apps/api/src/config/env.ts b/apps/api/src/config/env.ts
+--- a/apps/api/src/config/env.ts
++++ b/apps/api/src/config/env.ts
+@@ -1 +1,2 @@
++const hidden = Number("14");
++const parsed = Number.parseInt("8", 10);

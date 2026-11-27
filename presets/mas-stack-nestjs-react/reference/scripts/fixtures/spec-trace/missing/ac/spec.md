@@ -1,0 +1,2 @@
+- **AC-01**: el usuario entra
+- **AC-02**: el usuario sale

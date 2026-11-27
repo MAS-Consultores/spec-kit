@@ -15,8 +15,13 @@ export class AuthController {
   @Post("login")
   @SensitiveThrottle()
   @Audit("auth.login")
-  login(@Body() body: unknown, @Res({ passthrough: true }) res: Response): Promise<{ csrfToken: string }> {
-    return this.auth.login(body, res);
+  login(
+    @Body() body: unknown,
+    @Req() request: Request & { id?: string },
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ csrfToken: string }> {
+    const requestId = typeof request.id === "string" ? request.id : "unavailable";
+    return this.auth.login(body, res, requestId);
   }
 
   @Public()

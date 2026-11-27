@@ -104,9 +104,117 @@ def test_d26_11_gate_gaming_catches_each_trick() -> None:
     assert "check-gate-gaming.mjs" in workflow
     agents = (REFERENCE / "AGENTS.md").read_text(encoding="utf-8")
     assert "Prohibido esquivar un gate" in agents
-    for name in ("a-disable.diff", "b-skip.diff", "c-threshold.diff", "d-ignore.diff", "e-env.diff"):
+    for name in ("a-disable.diff", "b-skip.diff", "c-threshold.diff", "d-ignore.diff", "e-env.diff", "f-wrapped.diff"):
         assert (REFERENCE / "scripts/fixtures/gate-gaming" / name).is_file()
         assert (REFERENCE / "scripts/fixtures/gate-gaming" / name.replace(".diff", ".justified.diff")).is_file()
+
+
+def test_d26_12_api_logs_are_structured_without_telemetry_sdk() -> None:
+    package = json.loads((REFERENCE / "apps/api/package.json").read_text(encoding="utf-8"))
+    assert package["dependencies"]["nestjs-pino"] == "5.3.2"
+    assert package["dependencies"]["pino"] == "10.4.0"
+    assert package["devDependencies"]["pino-pretty"] == "13.2.0"
+    blob = json.dumps(package)
+    assert "@opentelemetry" not in blob
+    example = (REFERENCE / ".env.example").read_text(encoding="utf-8")
+    assert "LOG_LEVEL=" in example
+    redact = (REFERENCE / "apps/api/src/logging/redact.ts").read_text(encoding="utf-8")
+    for field in ("password", "token", "authorization", "cookie", "set-cookie", "rut", "email", "refreshtoken"):
+        assert field in redact
+    spec = (REFERENCE / "apps/api/src/logging/logging.spec.ts").read_text(encoding="utf-8")
+    for action in ("login", "login_failed", "roles_changed", "permissions_changed", "delete"):
+        assert action in spec
+    assert "JSON.parse" in spec
+    assert "X-Request-Id" in (REFERENCE / "apps/api/src/logging/request-id.ts").read_text(encoding="utf-8")
+    assert "pino-pretty" in (REFERENCE / "apps/api/src/logging/pino-options.ts").read_text(encoding="utf-8")
+    assert "nestjs-pino" in (REFERENCE / "apps/api/src/main.ts").read_text(encoding="utf-8")
+    fixtures = (REFERENCE / "scripts/check-lint-fixtures.mjs").read_text(encoding="utf-8")
+    assert "apps/web/lint-fixtures/console-log.tsx" in fixtures
+    assert "console.log" in (REFERENCE / "apps/web/lint-fixtures/console-log.tsx").read_text(encoding="utf-8")
+    constitution = (REPO / "presets/mas-stack-nestjs-react/templates/constitution-template-append.md").read_text(encoding="utf-8")
+    assert "emitir un audit" in constitution
+    agents = (REFERENCE / "AGENTS.md").read_text(encoding="utf-8")
+    assert "emitAudit" in agents
+    assert package["dependencies"]["pino-roll"] == "4.0.0"
+    assert "LOG_FILE=" in example
+    assert "LOG_FILE_RETENTION_DAYS=" in example
+    assert "logs/" in (REFERENCE / ".gitignore").read_text(encoding="utf-8")
+    assert "logs/" in (REFERENCE / ".dockerignore").read_text(encoding="utf-8")
+    assert "does not create a file when the path is empty" in spec
+    assert "writes redacted JSON when a path is set" in spec
+
+
+def test_d26_14_example_domain_and_knip_imports() -> None:
+    spec = (REFERENCE / "apps/api/src/logging/logging.spec.ts").read_text(encoding="utf-8")
+    assert "example.com" not in spec
+    assert "person@infra.test" in spec
+    result = subprocess.run(
+        ["node", "scripts/check-no-example-slice.mjs"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    options = (REFERENCE / "apps/api/src/logging/pino-options.ts").read_text(encoding="utf-8")
+    assert 'require.resolve("pino-pretty")' in options
+    assert "export function rollOptions" not in options
+    redact = (REFERENCE / "apps/api/src/logging/redact.ts").read_text(encoding="utf-8")
+    assert "export function isSensitiveKey" not in redact
+
+
+def test_d26_15_magic_numbers_are_errors_and_wrappers_fail() -> None:
+    env = (REFERENCE / "apps/api/src/config/env.ts").read_text(encoding="utf-8")
+    assert "export const DEFAULT_LOG_FILE_RETENTION_DAYS = 14" in env
+    assert 'Number("14")' not in env
+    assert "parseInt(" not in env
+    package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
+    assert package["scripts"]["lint:fast"].endswith("oxlint --deny-warnings")
+    owned = (REFERENCE / "eslint/oxlint-ownership.mjs").read_text(encoding="utf-8")
+    assert 'oxlint: "no-magic-numbers"' in owned
+    assert 'severity: "error"' in owned
+    result = subprocess.run(
+        ["node", "scripts/check-gate-gaming.mjs", "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_d26_16_acceptance_ids_are_traced() -> None:
+    template = (REPO / "presets/mas-stack-nestjs-react/templates/spec-template-append.md").read_text(encoding="utf-8")
+    assert "AC-01" in template
+    assert "covers: AC-01" in (REPO / "presets/mas-stack-nestjs-react/commands/speckit.tasks.md").read_text(encoding="utf-8")
+    assert "check-spec-traceability.mjs" in (REPO / "presets/mas-stack-nestjs-react/commands/speckit.implement.md").read_text(encoding="utf-8")
+    workflow = (REFERENCE / ".github/workflows/lint-gates.yml").read_text(encoding="utf-8")
+    assert "check-spec-traceability.mjs" in workflow
+    assert "if: always()" in workflow
+    result = subprocess.run(
+        ["node", "scripts/check-spec-traceability.mjs", "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_d26_17_new_deps_use_the_allowlist_without_network() -> None:
+    gates = json.loads((REFERENCE / "quality-gates.json").read_text(encoding="utf-8"))
+    assert "MIT" in gates["deps"]["allowedLicenses"]
+    assert "Apache-2.0" in gates["deps"]["allowedLicenses"]
+    workflow = (REFERENCE / ".github/workflows/lint-gates.yml").read_text(encoding="utf-8")
+    assert "check-new-deps.mjs" in workflow
+    result = subprocess.run(
+        ["node", "scripts/check-new-deps.mjs", "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_d26_03_evals_pass() -> None:

@@ -201,6 +201,7 @@ export default tseslint.config(
     rules: {
       "max-lines-per-function": "off",
       "mas/max-callable-params": "off",
+      "no-console": "off",
       "no-magic-numbers": "off",
       "sonarjs/cognitive-complexity": "off",
     },
