@@ -17,10 +17,6 @@ export function telemetryPath(root) {
   return join(root, ".specify", "telemetry", "runs.jsonl");
 }
 
-function gateEnv(parts) {
-  return process.env[parts.join("_")] ?? "";
-}
-
 export function ruleName(code) {
   const wrapped = String(code ?? "").match(/^[a-z0-9-]+\((.+)\)$/i);
   return wrapped ? wrapped[1] : String(code ?? "");
@@ -91,15 +87,15 @@ export function buildRecord({ gate, ok, durationMs, rules, byRule, byFile, featu
     ? { byRule, byFile: byFile ?? {}, rules: rules ?? Object.keys(byRule) }
     : summarizeFindings((rules ?? []).map((rule) => ({ rule, file: "unknown" })));
   return {
-    feature: feature || gateEnv(["SPEC", "FEATURE"]) || "skeleton",
-    phase: phase || gateEnv(["SPEC", "PHASE"]) || "verify",
+    feature: feature || process.env.SPEC_FEATURE || "skeleton",
+    phase: phase || process.env.SPEC_PHASE || "verify",
     gate,
     ok: Boolean(ok),
     rules: [...new Set(summary.rules)].slice(0, 40),
     byRule: summary.byRule,
     byFile: summary.byFile,
     durationMs,
-    round: Number(gateEnv(["QUALITY", "LOOP", "ROUND"]) || round || 1),
+    round: Number(process.env.QUALITY_LOOP_ROUND || round || 1),
     at: new Date().toISOString(),
     source: process.env.CI ? "ci" : "local",
   };
