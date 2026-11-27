@@ -352,6 +352,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D26-07 | la cobertura contaba `.specify/reference` | el mismo archivo: un diff bajo `.specify/reference/apps/api/src` deja `lineTotal` en 0 |
 | D26-08 | `specify preset list` con la misma prioridad ordenaba `mas-core` antes que el stack | el mismo archivo: la salida lista `mas-stack-nestjs-react` antes que `mas-core`. `list_by_priority` coincide |
 | D26-09 | la telemetría leía `process.env.CI` y `check-env-example`, que también recorría `scripts/`, lo exigía en `.env.example` | el mismo archivo: `check-env-example.mjs --self-test` falla si `PORT` falta en la app, ignora `process.env.CI` en `scripts/` y rechaza un nombre armado por partes en `apps/`. La telemetría usa `process.env.CI` y `process.env.SPEC_FEATURE` literales |
+| D26-10 | la tendencia semanal se perdía si `docs/metrics/runs.jsonl` no se versionaba | el mismo archivo: `.gitignore` no excluye `runs.jsonl` ni `harness.md`. `AGENTS.md` dice que se versionan y que el CI no hace push. `speckit.implement.md` manda commitearlos tras `pnpm metrics`. `lint:fast` no lleva `--deny-warnings` |
 
 ## Versiones probadas
 

@@ -59,6 +59,29 @@ def test_d26_02_lint_counts_and_weekly_report() -> None:
     assert (REFERENCE / "docs/metrics/harness.md").is_file()
 
 
+def test_d26_10_metrics_files_stay_in_git() -> None:
+    ignored = [
+        line.strip()
+        for line in (REFERENCE / ".gitignore").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    for name in ("docs/metrics/runs.jsonl", "docs/metrics/harness.md", "runs.jsonl", "harness.md"):
+        assert name not in ignored
+    agents = (REFERENCE / "AGENTS.md").read_text(encoding="utf-8")
+    assert "docs/metrics/runs.jsonl" in agents
+    assert "docs/metrics/harness.md" in agents
+    assert "se versionan" in agents
+    assert "El CI no hace push" in agents
+    implement = (REPO / "presets/mas-stack-nestjs-react/commands/speckit.implement.md").read_text(encoding="utf-8")
+    assert "Run `pnpm metrics`, then commit `docs/metrics/runs.jsonl` and `docs/metrics/harness.md`" in implement
+    assert "CI does not push those files" in implement
+    package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
+    assert "--deny-warnings" not in package["scripts"]["lint:fast"]
+    weekly = (REFERENCE / ".github/workflows/harness-weekly.yml").read_text(encoding="utf-8")
+    assert "git push" not in weekly
+    assert "contents: write" not in weekly
+
+
 def test_d26_03_evals_pass() -> None:
     result = subprocess.run(
         ["node", "scripts/run-evals.mjs"],

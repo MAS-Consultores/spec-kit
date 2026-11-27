@@ -1,6 +1,6 @@
 /**
  * Append new JSONL runs onto docs/metrics/runs.jsonl.
- * The committed file is the store. CI uploads the merged file; it does not push.
+ * The project commits that file and docs/metrics/harness.md. CI does not push.
  *
  *   node scripts/harness-collect.mjs [extra.jsonl ...]
  */
