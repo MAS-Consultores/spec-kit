@@ -213,11 +213,11 @@ Reglas medibles, en `pnpm lint`:
 - F1: `mas/max-callable-params` máximo 3. Los constructores NestJS con DI no cuentan. `max-params` de ESLint queda apagado para no duplicar el conteo
 - G30: `sonarjs/cognitive-complexity` ≤ 15, `max-depth` 3, `max-lines-per-function` 60. Los tests no cuentan para el tope de líneas
 - `@typescript-eslint/no-explicit-any` es error en todo el esqueleto, incluidos contratos, DTOs y exports públicos. Desactivarlo sigue prohibido
-- C5: `mas/no-commented-code` en warn. G25: `no-magic-numbers` en warn (permitidos -1, 0, 1 y los códigos HTTP; tests excluidos)
+- C5: `mas/no-commented-code` en warn. G25: `no-magic-numbers` en error (permitidos -1, 0, 1 y los códigos HTTP; tests excluidos). `pnpm lint:fast` falla si oxlint avisa o si queda un número mágico.
 - knip (código, exports, archivos y dependencias sin uso) y `sonarjs/no-identical-functions` más jscpd
 - `mas/no-hidden-service-deps` (adopción: warn en lo existente, error en el diff): un `*.service.ts` no llama a `Date.now()`, `new Date()` sin argumento ni `Math.random()`, y no hace `new` de una clase con efectos. Inyecta `SystemClock` e `SystemIdGenerator` de `apps/api/src/modules/platform`
 
-Adopción: lo existente queda en warn y entra al trinquete `quality-baseline.json` (por regla y archivo, más clones de jscpd y hallazgos de knip). El CI falla si un conteo sube. Si baja, el mismo PR corre `node scripts/check-quality-baseline.mjs --update`. `scripts/check-diff-quality.mjs` trata warn de adopción como error en las líneas nuevas del diff. El paso a error total está en `docs/quality-loop.md`.
+Adopción: `no-magic-numbers` es error. `mas/no-commented-code` y `mas/no-hidden-service-deps` quedan en warn y entran al trinquete `quality-baseline.json` (por regla y archivo, más clones de jscpd y hallazgos de knip). El CI falla si un conteo sube. Si baja, el mismo PR corre `node scripts/check-quality-baseline.mjs --update`. `scripts/check-diff-quality.mjs` trata esos warn como error en las líneas nuevas del diff.
 
 `/speckit.converge` (y cualquier corrección de bugs) corre el quality loop: tras implementar y tras cada ronda, lint, knip, jscpd y dependency-cruiser, hasta 3 vueltas. Termina con cero hallazgos nuevos o con la excepción escrita (archivo, regla, motivo).
 

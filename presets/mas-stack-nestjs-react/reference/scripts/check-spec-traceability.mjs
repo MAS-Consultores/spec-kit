@@ -28,7 +28,14 @@ function files(dir, out = [], skipFixtures = true) {
 
 export function trace(root) {
   const skip = !root.includes(`${join("scripts", "fixtures")}`);
-  const specs = files(join(root, "specs"), [], skip).filter((path) => path.endsWith(`${join("spec.md")}`));
+  const specRoot = ["specs", "ac"].map((name) => join(root, name)).find((dir) => {
+    try {
+      return statSync(dir).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+  const specs = specRoot ? files(specRoot, [], skip).filter((path) => path.endsWith("spec.md")) : [];
   const tests = files(root, [], skip).filter((path) => /\.(spec|test)\.tsx?$/.test(path));
   const declared = new Set();
   for (const path of specs) {
