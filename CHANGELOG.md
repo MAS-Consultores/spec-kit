@@ -2,6 +2,10 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.5+mas.3] - 2026-11-27
+
+Parche del preset `nestjs-react` y del desempate de `specify preset list`. Oxlint corre `no-magic-numbers` en error, `max-lines`, `max-params` y `complexity`. El historial de harness vive en la rama `metrics`. Los logs de la API son JSON con pino y, si `LOG_FILE` tiene ruta, archivo rotado. Cada criterio de aceptación lleva un id que los tests citan. Una dependencia nueva se comprueba contra npm, 30 días y la allowlist de licencias.
+
 ## [1.4.5+mas.2] - 2026-11-27
 
 `specify init` sin `--integration`, en modo no interactivo, reutiliza la integración ya instalada (manifiesto, estado o carpeta única) y no elige Copilot en silencio. Si hay varias y ninguna es la registrada, el comando falla y pide `--integration`. `specify preset update` con `mas-core` y `mas-stack-*` en la misma prioridad deja el stack encima del core, así que los `.composed` no se pierden. La guía de presets documenta el orden recomendado (stack 5, core 10). `specify init --force` mezcla `.specify/hygiene.yml` con lo que el proyecto ya configuró (`debug_leftovers_exclude` y el resto de claves) en lugar de resetearlo. Al cerrar `/speckit.implement` el agente recomienda el PR con `.github/pull_request_template.md` y, si el dev acepta, lo crea y lo publica sin mergearlo. `specify init` instala esa regla en `.cursor/rules/pr.mdc` o en `AGENTS.md`. La constitución pasa a 1.2.1: el cambio es un parche y no vuelve el PR bloqueante. `check-pr-body` sigue solo avisando.

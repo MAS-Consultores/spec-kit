@@ -19,6 +19,10 @@ Record these decisions in the spec:
 
 Do not add an example slice to illustrate the map. The map belongs to the feature spec.
 
+## Acceptance ids
+
+Number every acceptance criterion `AC-01`, `AC-02`, and so on. The spec template already shows the shape.
+
 ## Eventos de bitácora
 
 `spec.md` MUST include a section titled **Eventos de bitácora**. For each user story or functional requirement that creates, updates, or deletes data, changes configuration, permissions, language, brand, or session, or is a security event (login, failure, lockout, recovery, impersonation), list one row: event key, actor, affected person when one exists, result, and the metadata that is safe to store. Pure reads stay out of the list unless the spec asks for them. An omission is allowed only as an explicit exception with a reason in that section. Every key MUST be a new or existing entry of the audit catalog (`packages/contracts/src/audit/index.ts`): key, i18n key in every declared locale, and tone. The catalog feeds the Actividad type filter. A language change in admin is a state change and MUST appear in this section.

@@ -3,6 +3,10 @@ description: NestJS + React task requirements on top of MAS task generation.
 strategy: wrap
 ---
 
+## Acceptance ids
+
+Every task that adds a test MUST cite the acceptance id in the test name or in a comment `// covers: AC-01`. `scripts/check-spec-traceability.mjs` fails the pull request when an id in `specs/*/spec.md` has no test, or a test cites an id the spec does not declare.
+
 ## Reference skeleton
 
 Tasks that create the monorepo MUST start from `.specify/reference/` and adapt

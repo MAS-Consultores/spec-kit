@@ -358,6 +358,8 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D26-13 | no había archivo de log, o quedaba prendido sin pedirlo | el mismo archivo: sin `LOG_FILE` no aparece `pino-roll` ni un archivo; con `LOG_FILE` el JSON oculta `password`. `.env.example` documenta `LOG_FILE` y `LOG_FILE_RETENTION_DAYS`. `.gitignore` y `.dockerignore` ignoran `logs/` |
 | D26-14 | el spec de logging usaba `@example.com` y knip veía `pino-pretty` y exports sin uso | el mismo archivo: `check-no-example-slice.mjs` sale 0 y el spec usa `person@infra.test`. `pino-pretty` se resuelve con `require.resolve`. `rollOptions` e `isSensitiveKey` no se exportan |
 | D26-15 | `no-magic-numbers` era warning y `Number("14")` esquivaba el gate | el mismo archivo: `.oxlintrc.json` trae `error`, `lint:fast` termina en `oxlint --deny-warnings` y `DEFAULT_LOG_FILE_RETENTION_DAYS` es 14. `check-gate-gaming.mjs --self-test` falla el fixture `f-wrapped` y pasa justificado |
+| D26-16 | un criterio de aceptación podía quedar sin test, o un test citar un id inexistente | el mismo archivo: `check-spec-traceability.mjs --self-test` falla los fixtures `missing` y `unknown` y pasa `ok`. La plantilla de spec numera `AC-01`. `lint-gates.yml` corre el check con `if: always()` |
+| D26-17 | una dependencia nueva podía no existir, tener menos de 30 días o traer otra licencia | el mismo archivo: `check-new-deps.mjs --self-test` falla joven, ausente, registro caído y licencia fuera de `deps.allowedLicenses`, y pasa con MIT viejo o con `## Excepciones de gates`. Sin red |
 
 ## Versiones probadas
 

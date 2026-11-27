@@ -181,6 +181,40 @@ def test_d26_15_magic_numbers_are_errors_and_wrappers_fail() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_d26_16_acceptance_ids_are_traced() -> None:
+    template = (REPO / "presets/mas-stack-nestjs-react/templates/spec-template-append.md").read_text(encoding="utf-8")
+    assert "AC-01" in template
+    assert "covers: AC-01" in (REPO / "presets/mas-stack-nestjs-react/commands/speckit.tasks.md").read_text(encoding="utf-8")
+    assert "check-spec-traceability.mjs" in (REPO / "presets/mas-stack-nestjs-react/commands/speckit.implement.md").read_text(encoding="utf-8")
+    workflow = (REFERENCE / ".github/workflows/lint-gates.yml").read_text(encoding="utf-8")
+    assert "check-spec-traceability.mjs" in workflow
+    assert "if: always()" in workflow
+    result = subprocess.run(
+        ["node", "scripts/check-spec-traceability.mjs", "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_d26_17_new_deps_use_the_allowlist_without_network() -> None:
+    gates = json.loads((REFERENCE / "quality-gates.json").read_text(encoding="utf-8"))
+    assert "MIT" in gates["deps"]["allowedLicenses"]
+    assert "Apache-2.0" in gates["deps"]["allowedLicenses"]
+    workflow = (REFERENCE / ".github/workflows/lint-gates.yml").read_text(encoding="utf-8")
+    assert "check-new-deps.mjs" in workflow
+    result = subprocess.run(
+        ["node", "scripts/check-new-deps.mjs", "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_d26_03_evals_pass() -> None:
     result = subprocess.run(
         ["node", "scripts/run-evals.mjs"],

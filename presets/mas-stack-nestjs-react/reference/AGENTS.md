@@ -64,6 +64,8 @@ Pegala ahí al abrirlo.
 
 Prohibido esquivar un gate. Hay que arreglar la causa. `scripts/check-gate-gaming.mjs` mira el diff del PR. Una excepción va en el cuerpo del pull request, en la sección Excepciones de gates, con el archivo y el motivo.
 
+Cada criterio de aceptación lleva un id `AC-01`. El test lo cita en el nombre o con `// covers: AC-01`. `scripts/check-spec-traceability.mjs` falla si falta un test o si el id no está en la spec. Una dependencia nueva, directa o transitiva, tiene que existir en npm, llevar 30 días publicada y usar una licencia de `quality-gates.json`. `scripts/check-new-deps.mjs` lo comprueba contra el merge-base. La misma sección de excepciones justifica un paquete.
+
 ## Logs
 
 La API loguea con `nestjs-pino` y pino, en JSON. El nivel es `LOG_LEVEL`. `pino-pretty` solo en desarrollo. `LOG_FILE` vacío no escribe archivo. Si apunta a una ruta (`logs/api.log`), pino también escribe JSON ahí con `pino-roll`, rotación diaria y `LOG_FILE_RETENTION_DAYS` (14 si queda vacío). `logs/` no se versiona. Cada request lleva `X-Request-Id` (el entrante, si es un UUID, o uno nuevo) en el log y en la respuesta. Se ocultan password, token, authorization, cookie, set-cookie, rut, email y refreshToken en cualquier anidación. Login, cambio de roles o permisos y borrados pasan por `emitAudit` con actor, acción, recurso, resultado y requestId, sin datos personales en claro. Prohibido `console.*` en `apps/api/src` y `apps/web/src` (los tests y `scripts/` no). `no-magic-numbers` es error. `pnpm lint:fast` usa `--deny-warnings`. Un número va en una constante con nombre (`DEFAULT_LOG_FILE_RETENTION_DAYS`), no dentro de `Number("14")` ni `parseInt("14")`.
