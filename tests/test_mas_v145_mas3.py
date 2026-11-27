@@ -133,6 +133,13 @@ def test_d26_12_api_logs_are_structured_without_telemetry_sdk() -> None:
     assert "emitir un audit" in constitution
     agents = (REFERENCE / "AGENTS.md").read_text(encoding="utf-8")
     assert "emitAudit" in agents
+    assert package["dependencies"]["pino-roll"] == "4.0.0"
+    assert "LOG_FILE=" in example
+    assert "LOG_FILE_RETENTION_DAYS=" in example
+    assert "logs/" in (REFERENCE / ".gitignore").read_text(encoding="utf-8")
+    assert "logs/" in (REFERENCE / ".dockerignore").read_text(encoding="utf-8")
+    assert "does not create a file when the path is empty" in spec
+    assert "writes redacted JSON when a path is set" in spec
 
 
 def test_d26_03_evals_pass() -> None:

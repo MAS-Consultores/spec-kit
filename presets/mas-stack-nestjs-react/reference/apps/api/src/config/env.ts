@@ -10,6 +10,8 @@ export type AppEnv = {
   TRUST_PROXY: string;
   LOG_LEVEL: string;
   NODE_ENV: string;
+  LOG_FILE: string;
+  LOG_FILE_RETENTION_DAYS: number;
 };
 
 /** MCP HTTP stays off unless the process opts in. Projects without tools leave it unset. */
@@ -49,6 +51,9 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   const trustProxy = source["TRUST_PROXY"];
   const logLevel = source["LOG_LEVEL"];
   const nodeEnv = source["NODE_ENV"];
+  const logFile = source["LOG_FILE"];
+  const logRetention = source["LOG_FILE_RETENTION_DAYS"];
+  const defaultRetention = Number("14");
   return {
     DATABASE_URL: requiredText(databaseUrl, "DATABASE_URL"),
     JWT_ACCESS_SECRET: requiredText(accessSecret, "JWT_ACCESS_SECRET"),
@@ -59,5 +64,7 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     TRUST_PROXY: typeof trustProxy === "string" ? trustProxy : "",
     LOG_LEVEL: typeof logLevel === "string" && logLevel.length > 0 ? logLevel : "info",
     NODE_ENV: typeof nodeEnv === "string" && nodeEnv.length > 0 ? nodeEnv : "development",
+    LOG_FILE: typeof logFile === "string" ? logFile.trim() : "",
+    LOG_FILE_RETENTION_DAYS: optionalNumber(logRetention, defaultRetention, "LOG_FILE_RETENTION_DAYS"),
   };
 }

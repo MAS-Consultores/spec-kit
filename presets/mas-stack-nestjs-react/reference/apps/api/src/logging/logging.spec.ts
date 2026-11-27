@@ -1,12 +1,26 @@
+import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Writable } from "node:stream";
 import pino from "pino";
 import { describe, expect, it } from "vitest";
 import { emitAudit, setAuditSink, type AuditAction, type AuditEvent } from "./audit-log.js";
-import { pinoHttpOptions } from "./pino-options.js";
+import { pinoHttpOptions, writeRolledLog, type LogEnv } from "./pino-options.js";
 import { REDACTED, redactSensitive } from "./redact.js";
 import { assignRequestId, resolveRequestId } from "./request-id.js";
 
 const knownId = "11111111-1111-4111-8111-111111111111";
+const fileSecret = "archivo-secreto";
+
+function logEnv(partial: Partial<LogEnv> = {}): LogEnv {
+  return {
+    LOG_LEVEL: "info",
+    NODE_ENV: "production",
+    LOG_FILE: "",
+    LOG_FILE_RETENTION_DAYS: 14,
+    ...partial,
+  };
+}
 
 function capture(): { lines: string[]; stream: Writable } {
   const lines: string[] = [];
@@ -29,11 +43,38 @@ describe("structured logs", () => {
   });
 
   it("uses pino-pretty only outside production", () => {
-    const dev = pinoHttpOptions({ LOG_LEVEL: "info", NODE_ENV: "development" });
-    const prod = pinoHttpOptions({ LOG_LEVEL: "info", NODE_ENV: "production" });
+    const dev = pinoHttpOptions(logEnv({ NODE_ENV: "development" }));
+    const prod = pinoHttpOptions(logEnv());
     expect("transport" in dev && dev.transport.target).toBe("pino-pretty");
     expect("transport" in prod).toBe(false);
     expect(dev.level).toBe("info");
+  });
+});
+
+describe("log file", () => {
+  it("does not create a file when the path is empty", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "log-off-"));
+    await writeRolledLog(logEnv({ LOG_FILE: "" }), { password: fileSecret });
+    expect(readdirSync(dir)).toEqual([]);
+    const options = pinoHttpOptions(logEnv());
+    expect(JSON.stringify(options)).not.toContain("pino-roll");
+  });
+
+  it("writes redacted JSON when a path is set", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "log-on-"));
+    const file = join(dir, "api.log");
+    await writeRolledLog(logEnv({ LOG_FILE: file, LOG_FILE_RETENTION_DAYS: 14 }), {
+      password: fileSecret,
+      keep: "visible",
+    });
+    const written = readdirSync(dir).map((name) => readFileSync(join(dir, name), "utf8")).join("\n");
+    const parsed = JSON.parse(written.trim().split("\n").find((line) => line.startsWith("{")) ?? "") as {
+      password: string;
+      keep: string;
+    };
+    expect(parsed.password).toBe("[Redacted]");
+    expect(parsed.keep).toBe("visible");
+    expect(written).not.toContain(fileSecret);
   });
 });
 

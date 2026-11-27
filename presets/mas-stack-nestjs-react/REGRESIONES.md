@@ -355,6 +355,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D26-10 | `docs/metrics/runs.jsonl` no debe versionarse en las ramas de trabajo ni en main o master; el historial va a la rama `metrics` | el mismo archivo: `.gitignore` excluye `docs/metrics/runs.jsonl` y `.specify/telemetry/runs.jsonl`. `harness-weekly.yml` tiene schedule y `workflow_dispatch`, `contents: write` solo en el job, y `git push origin metrics` sin `--force`. `pnpm metrics` lee `origin/metrics` |
 | D26-11 | un diff podía agregar un disable, un test saltado, un umbral más bajo, un ignore nuevo o un `process.env` armado por partes | el mismo archivo: `check-gate-gaming.mjs --self-test` falla en los cinco fixtures y pasa en la versión justificada. `lint-gates.yml` lo corre con `if: always()`. `AGENTS.md` prohíbe esquivar un gate |
 | D26-12 | la API no tenía logs JSON, request id, ocultamiento ni audit, y la web no tenía fixture de `console.log` | el mismo archivo: `logging.spec.ts` exige JSON, `X-Request-Id`, cada campo oculto y los cinco eventos de audit. `apps/web/lint-fixtures/console-log.tsx` está en `check-lint-fixtures.mjs`. `.env.example` tiene `LOG_LEVEL`. No hay `@opentelemetry` |
+| D26-13 | no había archivo de log, o quedaba prendido sin pedirlo | el mismo archivo: sin `LOG_FILE` no aparece `pino-roll` ni un archivo; con `LOG_FILE` el JSON oculta `password`. `.env.example` documenta `LOG_FILE` y `LOG_FILE_RETENTION_DAYS`. `.gitignore` y `.dockerignore` ignoran `logs/` |
 
 ## Versiones probadas
 

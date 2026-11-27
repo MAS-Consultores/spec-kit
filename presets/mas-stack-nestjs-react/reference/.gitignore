@@ -19,4 +19,5 @@ test-results
 tmp-*
 .specify/telemetry/runs.jsonl
 docs/metrics/runs.jsonl
+logs/
 .specify/telemetry/visual-rounds

@@ -66,7 +66,7 @@ Prohibido esquivar un gate. Hay que arreglar la causa. `scripts/check-gate-gamin
 
 ## Logs
 
-La API loguea con `nestjs-pino` y pino, en JSON. El nivel es `LOG_LEVEL`. `pino-pretty` solo en desarrollo. Cada request lleva `X-Request-Id` (el entrante, si es un UUID, o uno nuevo) en el log y en la respuesta. Se ocultan password, token, authorization, cookie, set-cookie, rut, email y refreshToken en cualquier anidación. Login, cambio de roles o permisos y borrados pasan por `emitAudit` con actor, acción, recurso, resultado y requestId, sin datos personales en claro. Prohibido `console.*` en `apps/api/src` y `apps/web/src` (los tests y `scripts/` no).
+La API loguea con `nestjs-pino` y pino, en JSON. El nivel es `LOG_LEVEL`. `pino-pretty` solo en desarrollo. `LOG_FILE` vacío no escribe archivo. Si apunta a una ruta (`logs/api.log`), pino también escribe JSON ahí con `pino-roll`, rotación diaria y `LOG_FILE_RETENTION_DAYS` (14 si queda vacío). `logs/` no se versiona. Cada request lleva `X-Request-Id` (el entrante, si es un UUID, o uno nuevo) en el log y en la respuesta. Se ocultan password, token, authorization, cookie, set-cookie, rut, email y refreshToken en cualquier anidación. Login, cambio de roles o permisos y borrados pasan por `emitAudit` con actor, acción, recurso, resultado y requestId, sin datos personales en claro. Prohibido `console.*` en `apps/api/src` y `apps/web/src` (los tests y `scripts/` no).
 
 Dos bucles de lint:
 
