@@ -10,6 +10,9 @@ export const FULL_ESLINT_ENV = ["HARNESS", "ESLINT", "FULL"].join("_");
 
 export const OXLINT_OWNED = [
   { oxlint: "max-params", eslint: "max-params", severity: "error" },
+  { oxlint: "max-lines", eslint: "max-lines", severity: "error" },
+  { oxlint: "complexity", eslint: "complexity", severity: "error" },
+  { oxlint: "no-magic-numbers", eslint: "no-magic-numbers", severity: "error" },
   { oxlint: "max-depth", eslint: "max-depth", severity: "error" },
   { oxlint: "typescript/no-explicit-any", eslint: "@typescript-eslint/no-explicit-any", severity: "error" },
   { oxlint: "react/rules-of-hooks", eslint: "react-hooks/rules-of-hooks", severity: "error" },

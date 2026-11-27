@@ -58,6 +58,10 @@ Verify en verde y el CI en verde son la definición de listo.
 La cobertura del diff es `scripts/check-diff-coverage.mjs`.
 Sin lcov ese gate sale distinto de cero.
 
+`pnpm metrics` junta la telemetría local y escribe el informe del harness. Esos archivos no se citan aquí: el esqueleto de esta etapa todavía no los trae.
+`pnpm metrics:pr` imprime la tabla de lint para el cuerpo del pull request.
+Pegala ahí al abrirlo.
+
 Dos bucles de lint:
 
 - El rápido, sobre los archivos tocados: `pnpm exec oxlint` (menos de 200 ms).

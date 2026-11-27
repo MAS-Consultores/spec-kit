@@ -1,0 +1,40 @@
+name: Lint gates
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+
+jobs:
+  oxlint-and-madge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: oxlint
+        id: oxlint
+        continue-on-error: true
+        run: pnpm exec oxlint
+
+      - name: madge
+        id: madge
+        if: always()
+        continue-on-error: true
+        run: pnpm madge
+
+      - name: Fail if a gate failed
+        if: always()
+        run: |
+          set -euo pipefail
+          test "${{ steps.oxlint.outcome }}" = "success"
+          test "${{ steps.madge.outcome }}" = "success"

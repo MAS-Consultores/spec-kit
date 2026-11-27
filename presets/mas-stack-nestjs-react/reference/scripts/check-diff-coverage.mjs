@@ -42,6 +42,7 @@ export function coverageRatio(lcovText, diffText, threshold) {
   let branchHit = 0;
   let branchTotal = 0;
   for (const [file, lines] of added) {
+    if (file.includes(".specify/reference")) continue;
     const product = file.includes("apps/api/src/") && !file.endsWith(".spec.ts") && !file.endsWith(".e2e.ts") && !file.includes("lint-fixtures/");
     const record = [...lcov.entries()].find(([name]) => name.endsWith(file) || file.endsWith(name));
     if (!record) {
@@ -91,6 +92,15 @@ function selfTest() {
   );
   if (absent.ok || absent.lineTotal < 1) {
     console.error("self-test: un archivo nuevo de la API que no está en el lcov debe contar como descubierto");
+    process.exit(1);
+  }
+  const reference = coverageRatio(
+    "",
+    "diff --git a/.specify/reference/apps/api/src/miss.ts b/.specify/reference/apps/api/src/miss.ts\n--- a/.specify/reference/apps/api/src/miss.ts\n+++ b/.specify/reference/apps/api/src/miss.ts\n@@ -0,0 +1,2 @@\n+export function miss() {\n+  return 1;\n+}\n",
+    0.8,
+  );
+  if (!reference.ok || reference.lineTotal !== 0) {
+    console.error("self-test: .specify/reference no entra en la cobertura");
     process.exit(1);
   }
   console.log("check-diff-coverage self-test ok");

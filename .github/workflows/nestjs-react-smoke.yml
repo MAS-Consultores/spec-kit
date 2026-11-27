@@ -611,8 +611,16 @@ jobs:
           node "$GITHUB_WORKSPACE/scripts/compile-preset-snippets.mjs" "$work"
           node scripts/check-gen-fitness.mjs
           mkdir -p "$GITHUB_WORKSPACE/harness-artifact"
+          node scripts/harness-collect.mjs .specify/telemetry/runs.jsonl || true
+          node scripts/harness-report.mjs --write || true
           if [ -f .specify/telemetry/runs.jsonl ]; then
             cp .specify/telemetry/runs.jsonl "$GITHUB_WORKSPACE/harness-artifact/runs.jsonl"
+          fi
+          if [ -f docs/metrics/runs.jsonl ]; then
+            cp docs/metrics/runs.jsonl "$GITHUB_WORKSPACE/harness-artifact/runs.accumulated.jsonl"
+          fi
+          if [ -f docs/metrics/harness.md ]; then
+            cp docs/metrics/harness.md "$GITHUB_WORKSPACE/harness-artifact/harness.md"
           fi
 
       - name: Upload harness telemetry
@@ -620,7 +628,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: harness-telemetry
-          path: harness-artifact/runs.jsonl
+          path: harness-artifact/
           if-no-files-found: ignore
 
   skeleton-boot:

@@ -14,6 +14,7 @@ from .._installed_list_json import (
 )
 from .._project import resolve_specify_project_root
 from ._commands import preset_app
+from ._registry import preset_resolution_sort_key
 
 
 @preset_app.command("list", cls=InstalledListJSONCommand)
@@ -31,10 +32,7 @@ def preset_list(
             project_root = resolve_specify_project_root()
             manager = PresetManager(project_root)
             installed = manager.list_installed()
-            installed = sorted(
-                installed,
-                key=lambda pack: (pack.get("priority", 10), str(pack.get("id", ""))),
-            )
+            installed = sorted(installed, key=_installed_sort_key)
             emit_json(
                 [installed_list_item(pack, include_hooks=False) for pack in installed]
             )
@@ -52,13 +50,9 @@ def preset_list(
         console.print("  [cyan]specify preset add <pack-name>[/cyan]")
         return
 
-    # Sort by actual resolution precedence: lower priority number wins, ties
-    # broken by preset id (matching PresetRegistry.list_by_priority()). This
-    # keeps the printed order aligned with how presets are composed/resolved.
-    installed = sorted(
-        installed,
-        key=lambda pack: (pack.get("priority", 10), str(pack.get("id", ""))),
-    )
+    # Same key as PresetRegistry.list_by_priority(): lower number first, and
+    # mas-core after any other preset that shares that number.
+    installed = sorted(installed, key=_installed_sort_key)
 
     console.print(
         "\n[bold cyan]Installed Presets[/bold cyan] [dim](in resolution order — highest precedence first)[/dim]\n"
@@ -85,5 +79,9 @@ def preset_list(
         console.print()
 
     console.print(
-        "[dim]Lower priority number = higher precedence. Ties are broken by preset id (alphabetical).[/dim]"
+        "[dim]Lower priority number = higher precedence. Ties put mas-core after other presets. Ties are broken by preset id (alphabetical).[/dim]"
     )
+
+
+def _installed_sort_key(pack: dict) -> tuple:
+    return preset_resolution_sort_key(str(pack.get("id", "")), pack.get("priority", 10))

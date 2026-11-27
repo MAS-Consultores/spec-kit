@@ -50,6 +50,22 @@ function selfTest() {
     console.error("los umbrales de oxlint no coinciden con max-depth 3 y max-params 3");
     process.exit(1);
   }
+  const lines = oxlintrc.rules["max-lines"];
+  const magic = oxlintrc.rules["no-magic-numbers"];
+  const complexity = oxlintrc.rules.complexity;
+  const ignore = magic?.[1]?.ignore ?? [];
+  if (lines?.[1]?.max !== 300 || lines?.[1]?.skipBlankLines !== true || lines?.[1]?.skipComments !== true) {
+    console.error("max-lines de oxlint no copia el umbral de ESLint (300, skipBlankLines, skipComments)");
+    process.exit(1);
+  }
+  if (complexity?.[1]?.max !== 10) {
+    console.error("complexity de oxlint no copia el máximo 10 de ESLint");
+    process.exit(1);
+  }
+  if (magic?.[0] !== "error" || ignore[0] !== -1 || ignore[1] !== 0 || ignore[2] !== 1 || !ignore.includes(404)) {
+    console.error("no-magic-numbers de oxlint no copia el error ni los ignorados de ESLint");
+    process.exit(1);
+  }
   const configText = readFileSync(join(referenceRoot, "eslint.config.js"), "utf8");
   const problems = assertSingleOwner(configText);
   if (problems.length) {

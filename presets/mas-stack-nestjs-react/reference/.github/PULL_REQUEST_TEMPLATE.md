@@ -8,6 +8,10 @@
 
 <!-- Ruta `specs/NNN-*` o el ticket. -->
 
+## Lint
+
+<!-- Salida de `pnpm metrics:pr`: reglas y archivos. -->
+
 ## Cómo se validó
 
 <!-- Comandos y resultado, o pasos manuales reproducibles. El agente pega el resumen de `check-hygiene.sh`. -->

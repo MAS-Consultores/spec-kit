@@ -9,6 +9,17 @@ from typing import Dict, List, Optional
 from ..extensions import normalize_priority
 
 
+def preset_resolution_sort_key(pack_id: str, priority: object) -> tuple:
+    """Sort key for preset resolution and ``specify preset list``.
+
+    Lower priority numbers win. At the same number ``mas-core`` stays after
+    every other preset (alphabetical order would put it before ``mas-stack-*``),
+    then the remaining ids sort alphabetically.
+    """
+    family = 1 if pack_id == "mas-core" else 0
+    return (normalize_priority(priority), family, pack_id)
+
+
 class PresetRegistry:
     """Manages the registry of installed presets."""
 
@@ -230,14 +241,10 @@ class PresetRegistry:
             metadata_copy = copy.deepcopy(meta)
             metadata_copy["priority"] = normalize_priority(metadata_copy.get("priority", 10))
             sortable_packs.append((pack_id, metadata_copy))
-        def _sort_key(item: tuple) -> tuple:
-            pack_id, meta = item
-            # mas-core is the base layer. At the same number it must not
-            # outrank a stack preset (alphabetical order would put it first).
-            family = 1 if pack_id == "mas-core" else 0
-            return (meta["priority"], family, pack_id)
-
-        return sorted(sortable_packs, key=_sort_key)
+        return sorted(
+            sortable_packs,
+            key=lambda item: preset_resolution_sort_key(item[0], item[1]["priority"]),
+        )
 
     def is_installed(self, pack_id: str) -> bool:
         """Check if preset is installed.

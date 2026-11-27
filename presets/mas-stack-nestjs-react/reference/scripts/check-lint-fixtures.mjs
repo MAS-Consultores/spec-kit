@@ -338,7 +338,7 @@ const eslint = new ESLint({
         "mas/max-callable-params": ["error", { max: 3 }],
         "mas/no-commented-code": "warn",
         "mas/no-hidden-service-deps": "error",
-        "no-magic-numbers": ["warn", { ignore: [-1, 0, 1] }],
+        "no-magic-numbers": ["error", { ignore: [-1, 0, 1] }],
         "sonarjs/no-identical-functions": "error",
         "no-useless-catch": "error",
         "import-x/no-cycle": "error",
@@ -421,7 +421,7 @@ cases.push(
   },
   {
     file: "apps/api/lint-fixtures/magic-number.ts",
-    expects: [{ ruleId: "no-magic-numbers", severity: "warn" }],
+    expects: [{ ruleId: "no-magic-numbers", severity: "error" }],
   },
   {
     file: "apps/api/lint-fixtures/hidden-deps.service.ts",

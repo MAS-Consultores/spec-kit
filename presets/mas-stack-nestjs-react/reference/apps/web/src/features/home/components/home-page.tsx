@@ -3,6 +3,8 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDate, formatNumber, formatRut } from "../../../format";
 
+const SAMPLE_AMOUNT = 1234.5;
+
 export function HomePage(): ReactElement {
   const { t, i18n } = useTranslation();
   return (
@@ -15,7 +17,7 @@ export function HomePage(): ReactElement {
         {t("dateLabel")}: {formatDate(new Date("2026-11-13T00:00:00Z"), i18n.language)}
       </p>
       <p>
-        {t("numberLabel")}: {formatNumber(1234.5, i18n.language)}
+        {t("numberLabel")}: {formatNumber(SAMPLE_AMOUNT, i18n.language)}
       </p>
       <Button type="button">{t("create")}</Button>
     </main>

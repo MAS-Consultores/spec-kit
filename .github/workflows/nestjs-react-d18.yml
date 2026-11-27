@@ -30,6 +30,12 @@ jobs:
           node scripts/check-oxlint-split.mjs --self-test
           node scripts/harness-telemetry.mjs --self-test
           node scripts/harness-report.mjs --self-test
+          node scripts/harness-collect.mjs --self-test
+          node scripts/lint-stats.mjs --self-test
+          node scripts/lint-pr-summary.mjs --self-test
+          node scripts/run-independent-gates.mjs --self-test
+          node scripts/run-evals.mjs
+          node scripts/gen-page.mjs --self-test
 
   security-scan:
     runs-on: ubuntu-latest
