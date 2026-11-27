@@ -38,3 +38,26 @@ jobs:
           set -euo pipefail
           test "${{ steps.oxlint.outcome }}" = "success"
           test "${{ steps.madge.outcome }}" = "success"
+
+  gate-gaming:
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the PR base
+        run: git fetch origin "${GITHUB_BASE_REF}"
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Gate gaming
+        if: always()
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/check-gate-gaming.mjs

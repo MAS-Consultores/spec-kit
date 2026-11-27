@@ -1,0 +1,5 @@
+diff --git a/quality-gates.json b/quality-gates.json
+--- a/quality-gates.json
++++ b/quality-gates.json
+@@ -1 +1 @@
++  "exclude": ["**/*.repository.ts"],

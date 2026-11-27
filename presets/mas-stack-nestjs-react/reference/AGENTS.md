@@ -58,9 +58,11 @@ Verify en verde y el CI en verde son la definición de listo.
 La cobertura del diff es `scripts/check-diff-coverage.mjs`.
 Sin lcov ese gate sale distinto de cero.
 
-`pnpm metrics` junta la telemetría local y escribe el informe del harness. Esos archivos no se citan aquí: el esqueleto de esta etapa todavía no los trae.
+`pnpm metrics` lee la rama `metrics` (`git fetch origin metrics`) y muestra el top y la tendencia. No commitees docs/metrics/runs.jsonl ni .specify/telemetry/runs.jsonl: están en `.gitignore` y no van en las ramas de trabajo ni en main o master. El workflow semanal los publica solo en la rama `metrics`. `docs/metrics/harness.md` en el esqueleto es la plantilla. `no-magic-numbers` es error y `pnpm lint:fast` usa `--deny-warnings`.
 `pnpm metrics:pr` imprime la tabla de lint para el cuerpo del pull request.
 Pegala ahí al abrirlo.
+
+Prohibido esquivar un gate. Hay que arreglar la causa. `scripts/check-gate-gaming.mjs` mira el diff del PR. Una excepción va en el cuerpo del pull request, en la sección Excepciones de gates, con el archivo y el motivo.
 
 Dos bucles de lint:
 

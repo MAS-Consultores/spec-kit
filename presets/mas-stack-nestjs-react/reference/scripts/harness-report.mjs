@@ -55,7 +55,7 @@ export function renderHarness(records) {
   return [
     "# Harness",
     "",
-    "Top de reglas, top de archivos y tendencia semanal. Lo genera `pnpm metrics` desde `docs/metrics/runs.jsonl`.",
+    "Top de reglas, top de archivos y tendencia semanal. El historial vive en la rama metrics. main no versiona runs.jsonl.",
     "",
     "## Reglas",
     "",

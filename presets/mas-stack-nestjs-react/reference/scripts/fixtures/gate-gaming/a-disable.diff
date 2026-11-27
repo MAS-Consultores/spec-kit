@@ -1,0 +1,5 @@
+diff --git a/apps/api/src/pay.ts b/apps/api/src/pay.ts
+--- a/apps/api/src/pay.ts
++++ b/apps/api/src/pay.ts
+@@ -1 +1 @@
++// eslint-disable-next-line no-magic-numbers

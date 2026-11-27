@@ -1,11 +1,12 @@
 /**
  * Append new JSONL runs onto docs/metrics/runs.jsonl.
- * The committed file is the store. CI uploads the merged file; it does not push.
+ * El archivo local está en .gitignore. La rama metrics es el historial.
  *
  *   node scripts/harness-collect.mjs [extra.jsonl ...]
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export function mergeLines(existing, incoming) {
   const seen = new Set(existing);
@@ -36,9 +37,10 @@ function selfTest() {
   console.log("harness-collect self-test ok");
 }
 
-if (process.argv.includes("--self-test")) {
+const collectInvoked = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (collectInvoked && process.argv.includes("--self-test")) {
   selfTest();
-} else {
+} else if (collectInvoked) {
   const root = process.cwd();
   const target = join(root, "docs/metrics/runs.jsonl");
   const sources = [

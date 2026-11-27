@@ -344,7 +344,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | ID | Qué se rompió | Dónde se prueba |
 | --- | --- | --- |
 | D26-01 | `no-magic-numbers` estaba en warn y no bloqueaba `lint:fast` | `tests/test_mas_v145_mas3.py`: `.oxlintrc.json` trae error con -1, 0, 1 y 404, `lint:fast` termina en `oxlint --deny-warnings`, `max-lines` 300 y `complexity` 10. `oxlint-ownership.mjs` declara la regla en error |
-| D26-02 | el jsonl no tenía conteos por regla y por archivo, y no había `docs/metrics/harness.md` ni `pnpm metrics` | el mismo archivo: `lintFindings` cuenta `max-lines` en `pay.ts` y `renderHarness` escribe Archivos y Semanas. `package.json` tiene `metrics` y `metrics:pr` |
+| D26-02 | el jsonl no tenía conteos por regla y por archivo, y no había `docs/metrics/harness.md` ni `pnpm metrics` | el mismo archivo: `lintFindings` cuenta `max-lines` en `pay.ts` y `renderHarness` escribe Archivos y Semanas. `pnpm metrics` es `harness-metrics.mjs`. El esqueleto incluye la plantilla `docs/metrics/harness.md` y no trae `runs.jsonl` |
 | D26-03 | no había evals del harness en CI | el mismo archivo: `node scripts/run-evals.mjs` sale 0. El workflow `nestjs-react-d18.yml` lo ejecuta |
 | D26-04 | no existían `pnpm gen module` ni `pnpm gen page` | el mismo archivo: `renderPage` incluye `useTranslation` y `t("title")` y no tiene dígitos. El script `gen` despacha `module` y `page` |
 | D26-05 | si `pnpm audit` fallaba no corría Semgrep, y si oxlint fallaba no corría madge | el mismo archivo: `security.yml` y `lint-gates.yml` tienen `if: always()` y un paso final. `run-independent-gates.mjs --self-test` sale 0 |
@@ -352,6 +352,8 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D26-07 | la cobertura contaba `.specify/reference` | el mismo archivo: un diff bajo `.specify/reference/apps/api/src` deja `lineTotal` en 0 |
 | D26-08 | `specify preset list` con la misma prioridad ordenaba `mas-core` antes que el stack | el mismo archivo: la salida lista `mas-stack-nestjs-react` antes que `mas-core`. `list_by_priority` coincide |
 | D26-09 | la telemetría leía `process.env.CI` y `check-env-example`, que también recorría `scripts/`, lo exigía en `.env.example` | el mismo archivo: `check-env-example.mjs --self-test` falla si `PORT` falta en la app, ignora `process.env.CI` en `scripts/` y rechaza un nombre armado por partes en `apps/`. La telemetría usa `process.env.CI` y `process.env.SPEC_FEATURE` literales |
+| D26-10 | `docs/metrics/runs.jsonl` no debe versionarse en las ramas de trabajo ni en main o master; el historial va a la rama `metrics` | el mismo archivo: `.gitignore` excluye `docs/metrics/runs.jsonl` y `.specify/telemetry/runs.jsonl`. `harness-weekly.yml` tiene schedule y `workflow_dispatch`, `contents: write` solo en el job, y `git push origin metrics` sin `--force`. `pnpm metrics` lee `origin/metrics` |
+| D26-11 | un diff podía agregar un disable, un test saltado, un umbral más bajo, un ignore nuevo o un `process.env` armado por partes | el mismo archivo: `check-gate-gaming.mjs --self-test` falla en los cinco fixtures y pasa en la versión justificada. `lint-gates.yml` lo corre con `if: always()`. `AGENTS.md` prohíbe esquivar un gate |
 
 ## Versiones probadas
 

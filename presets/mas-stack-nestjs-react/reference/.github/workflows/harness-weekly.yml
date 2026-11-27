@@ -1,36 +1,70 @@
 name: Harness weekly
 
-permissions:
-  contents: read
+# Publica docs/metrics/runs.jsonl y harness.md solo en la rama metrics.
+# main y las ramas de trabajo no los versionan.
 
 on:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  aggregate:
+  publish-metrics:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
 
-      - name: Aggregate telemetry
+      - name: Download the week's harness artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          node scripts/harness-collect.mjs
-          node scripts/harness-report.mjs --write
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/artifacts" "$RUNNER_TEMP/metrics-in"
+          since="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)"
+          gh run list --limit 40 --json databaseId,createdAt,conclusion \
+            --jq ".[] | select(.conclusion == \"success\" and .createdAt >= \"$since\") | .databaseId" \
+            > "$RUNNER_TEMP/run-ids.txt" || true
+          while read -r id; do
+            [ -n "$id" ] || continue
+            gh run download "$id" -n harness-telemetry -D "$RUNNER_TEMP/artifacts/$id" || true
+          done < "$RUNNER_TEMP/run-ids.txt"
+          find "$RUNNER_TEMP/artifacts" -type f -name '*.jsonl' -print > "$RUNNER_TEMP/jsonl-list.txt" || true
 
-      - name: Upload harness report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: harness-report
-          path: |
-            docs/metrics/harness.md
-            docs/metrics/runs.jsonl
-          if-no-files-found: ignore
+      - name: Merge runs
+        run: |
+          set -euo pipefail
+          mapfile -t files < "$RUNNER_TEMP/jsonl-list.txt" || true
+          node scripts/merge-week-metrics.mjs --out "$RUNNER_TEMP/metrics-out" "${files[@]}"
+
+      - name: Push the metrics branch
+        run: |
+          set -euo pipefail
+          git fetch origin metrics || true
+          if git rev-parse --verify --quiet refs/remotes/origin/metrics >/dev/null; then
+            git checkout -B metrics origin/metrics
+          else
+            git checkout --orphan metrics
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          mkdir -p docs/metrics
+          cp "$RUNNER_TEMP/metrics-out/runs.jsonl" docs/metrics/runs.jsonl
+          cp "$RUNNER_TEMP/metrics-out/harness.md" docs/metrics/harness.md
+          git add -f docs/metrics/runs.jsonl docs/metrics/harness.md
+          git -c user.email="41898282+github-actions[bot]@users.noreply.github.com" -c user.name="github-actions[bot]" \
+            commit -m "chore(metrics): acumula la semana" || exit 0
+          git push origin metrics
