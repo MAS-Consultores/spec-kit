@@ -1,11 +1,6 @@
 {
   "warnings": {
-    "no-magic-numbers": {
-      "apps/api/src/config/env.ts": 1,
-      "apps/api/src/modules/auth/session.token.ts": 2,
-      "apps/web/src/features/home/components/home-page.tsx": 1,
-      "packages/contracts/src/auth/index.ts": 1
-    },
+    "no-magic-numbers": {},
     "mas/no-commented-code": {}
   },
   "knip": 0,

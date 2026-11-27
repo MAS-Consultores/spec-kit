@@ -13,7 +13,7 @@ export type LogEnv = {
   LOG_FILE_RETENTION_DAYS: number;
 };
 
-export function rollOptions(file: string, days: number): Record<string, unknown> {
+function rollOptions(file: string, days: number): Record<string, unknown> {
   return { file, frequency: "daily", mkdir: true, limit: { count: days } };
 }
 
@@ -52,7 +52,7 @@ export function pinoHttpOptions(env: LogEnv): PinoHttp {
     },
   };
   const file = env.LOG_FILE.trim();
-  const pretty = { target: "pino-pretty", options: { ["singleLine"]: true } };
+  const pretty = { target: require.resolve("pino-pretty"), options: { ["singleLine"]: true } };
   if (file.length === 0) {
     if (env.NODE_ENV === "production") return base;
     return { ...base, transport: pretty };

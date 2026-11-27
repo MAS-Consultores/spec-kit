@@ -11,7 +11,7 @@ const SENSITIVE = [
 
 export const REDACTED = "[Redacted]";
 
-export function isSensitiveKey(key: string): boolean {
+function isSensitiveKey(key: string): boolean {
   return (SENSITIVE as readonly string[]).includes(key.toLowerCase());
 }
 
