@@ -60,53 +60,71 @@ def detect_installed_integration(project_path: Path) -> tuple[str | None, tuple[
     and none is the project's recorded default. An empty project returns
     ``(None, ())`` so the caller keeps :func:`resolve_default_init_integration`.
     """
+    from .file_helper import FileHelper, FileHelperError
+
     found: set[str] = set()
     recorded: str | None = None
-
-    options_path = project_path / ".specify" / "init-options.json"
     try:
-        options = json.loads(options_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        options = {}
-    if isinstance(options, dict):
-        for field in ("integration", "ai"):
-            value = options.get(field)
-            if isinstance(value, str) and value in AGENT_CONFIG:
-                recorded = value
-                break
+        files = FileHelper(project_path)
+    except (FileNotFoundError, NotADirectoryError, OSError, FileHelperError):
+        return None, ()
 
-    state_path = project_path / ".specify" / "integration.json"
-    try:
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        state = {}
-    if isinstance(state, dict):
-        installed = state.get("installed_integrations")
-        if isinstance(installed, list):
-            for key in installed:
-                if isinstance(key, str) and key in AGENT_CONFIG:
+    def _read_json(relative: str) -> dict[str, Any]:
+        try:
+            payload = json.loads(files.read_text(relative))
+        except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError, FileHelperError):
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    with files:
+        options = _read_json(".specify/init-options.json")
+        if isinstance(options, dict):
+            for field in ("integration", "ai"):
+                value = options.get(field)
+                if isinstance(value, str) and value in AGENT_CONFIG:
+                    recorded = value
+                    break
+
+        state = _read_json(".specify/integration.json")
+        if isinstance(state, dict):
+            installed = state.get("installed_integrations")
+            if isinstance(installed, list):
+                for key in installed:
+                    if isinstance(key, str) and key in AGENT_CONFIG:
+                        found.add(key)
+            for field in ("default_integration", "integration"):
+                value = state.get(field)
+                if isinstance(value, str) and value in AGENT_CONFIG:
+                    recorded = recorded or value
+                    found.add(value)
+
+        try:
+            integrations_present = files.directory_exists(".specify/integrations")
+        except (OSError, FileHelperError):
+            integrations_present = False
+        if integrations_present:
+            for manifest in files.iterdir(
+                ".specify/integrations",
+                select=lambda name: name.endswith(".manifest.json"),
+            ):
+                key = manifest.name[: -len(".manifest.json")]
+                if key in AGENT_CONFIG:
                     found.add(key)
-        for field in ("default_integration", "integration"):
-            value = state.get(field)
-            if isinstance(value, str) and value in AGENT_CONFIG:
-                recorded = recorded or value
-                found.add(value)
 
-    integrations_dir = project_path / ".specify" / "integrations"
-    if integrations_dir.is_dir():
-        for manifest in integrations_dir.glob("*.manifest.json"):
-            key = manifest.name[: -len(".manifest.json")]
-            if key in AGENT_CONFIG:
-                found.add(key)
-
-    folders: dict[str, list[str]] = {}
-    for key, config in AGENT_CONFIG.items():
-        folder = config.get("folder") if isinstance(config, dict) else None
-        if isinstance(folder, str) and folder.strip():
-            folders.setdefault(folder.rstrip("/"), []).append(key)
-    for folder, keys in folders.items():
-        if len(keys) == 1 and (project_path / folder).is_dir():
-            found.add(keys[0])
+        folders: dict[str, list[str]] = {}
+        for key, config in AGENT_CONFIG.items():
+            folder = config.get("folder") if isinstance(config, dict) else None
+            if isinstance(folder, str) and folder.strip():
+                folders.setdefault(folder.rstrip("/"), []).append(key)
+        for folder, keys in folders.items():
+            if len(keys) != 1:
+                continue
+            try:
+                present = files.directory_exists(folder)
+            except (OSError, FileHelperError):
+                present = False
+            if present:
+                found.add(keys[0])
 
     if recorded and (not found or recorded in found):
         return recorded, ()

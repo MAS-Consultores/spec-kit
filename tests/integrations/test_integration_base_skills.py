@@ -15,7 +15,7 @@ import yaml
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import SkillsIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
-from tests.conftest import mas_init_extra_files
+from tests.conftest import mas_init_extra_files, mas_pr_rule_files
 
 
 class SkillsIntegrationTests:
@@ -523,7 +523,11 @@ class SkillsIntegrationTests:
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
         ]
-        return sorted([*files, *mas_init_extra_files(script_variant)])
+        return sorted([
+            *files,
+            *mas_init_extra_files(script_variant),
+            *mas_pr_rule_files(self.KEY),
+        ])
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""

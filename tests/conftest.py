@@ -282,6 +282,15 @@ def mas_init_extra_files(script: str) -> list[str]:
         ],
     }
     return [*MAS_INIT_EXTRA_FILES, *branch_scripts[script]]
+
+
+def mas_pr_rule_files(integration: str) -> list[str]:
+    """Agent rule installed with hygiene assets, keyed by integration."""
+    if integration == "cursor-agent":
+        return [".cursor/rules/pr.mdc"]
+    if integration in ("", "none"):
+        return []
+    return ["AGENTS.md"]
 _SKIP_DEFAULT_STACK_TESTS = frozenset({
     "test_init_rejects_missing_stack_before_side_effects",
     "test_missing_or_invalid_stack_fails_before_creating_project",
