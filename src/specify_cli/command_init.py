@@ -919,7 +919,12 @@ def register(app: typer.Typer) -> None:
 
                 # Install MAS presets
                 tracker.start("mas-presets")
-                install_mas_stack_presets(project_path, mas_stack)
+                recorded_stack = previous_init_options.get("stack")
+                install_mas_stack_presets(
+                    project_path,
+                    mas_stack,
+                    previous_stack=recorded_stack if isinstance(recorded_stack, str) else None,
+                )
                 tracker.complete("mas-presets", " + ".join(mas_stack.preset_composition))
                 # Preset installation replaces managed agent commands after setup.
                 # Refresh only files setup owns, preserving untouched recovery marks.

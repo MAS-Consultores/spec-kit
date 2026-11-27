@@ -2498,7 +2498,12 @@ def render_hygiene_yml(stack: MasStack) -> str:
 _HYGIENE_USER_LISTS = ("debug_leftovers_exclude",)
 
 
-def merge_hygiene_yml(rendered: str, existing: str | None) -> str:
+def merge_hygiene_yml(
+    rendered: str,
+    existing: str | None,
+    *,
+    previous_stack: str | None = None,
+) -> str:
     """Keep project overrides when the stack id does not change.
 
     The rendered file records ``stack``. A reinstall of that same stack keeps
@@ -2506,8 +2511,13 @@ def merge_hygiene_yml(rendered: str, existing: str | None) -> str:
     stacks replaces stack-owned keys (branch, entrypoint, globs, excludes)
     with the new defaults. ``debug_leftovers_exclude`` is the exception: it
     is a user list and is kept across a stack change. Unknown keys are kept.
-    An unreadable file is left unchanged. A file with no ``stack`` key is
-    treated as a stack change so an old profile cannot silence a new gate.
+    An unreadable file is left unchanged.
+
+    Files written before ``stack`` was recorded (mas.1 and mas.4) have no
+    ``stack`` key. Those use ``previous_stack``, the id stored in
+    ``.specify/init-options.json`` before this init rewrote it. When that id
+    matches the stack being installed, overrides are kept. When it is missing
+    or names another stack, stack-owned keys reset.
     """
     if not existing or not existing.strip():
         return rendered
@@ -2521,10 +2531,11 @@ def merge_hygiene_yml(rendered: str, existing: str | None) -> str:
     if not isinstance(current, dict) or not isinstance(fresh, dict):
         return rendered if not isinstance(current, dict) else existing
     merged = dict(fresh)
-    same_stack = (
-        isinstance(current.get("stack"), str)
-        and current.get("stack") == fresh.get("stack")
-    )
+    fresh_stack = fresh.get("stack")
+    recorded = current.get("stack")
+    if not isinstance(recorded, str) or not recorded.strip():
+        recorded = previous_stack if isinstance(previous_stack, str) else None
+    same_stack = isinstance(recorded, str) and recorded.strip() == fresh_stack
     list_keys = _HYGIENE_LISTS if same_stack else _HYGIENE_USER_LISTS
     if same_stack:
         for key in _HYGIENE_SCALARS:
@@ -2605,7 +2616,12 @@ def _install_pr_agent_rule(project_path: Path, integration: str, files: object) 
     write_text(dest, updated)
 
 
-def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
+def install_hygiene_assets(
+    project_path: Path,
+    stack: MasStack,
+    *,
+    previous_stack: str | None = None,
+) -> None:
     """Copy PR, CI, hook, and Semgrep assets and write stack hygiene.yml."""
     core = project_path / ".specify" / "presets" / "mas-core"
     from .file_helper import FileHelper
@@ -2678,7 +2694,14 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
         existing_hygiene = files.read_text(hygiene_path)
     except FileNotFoundError:
         existing_hygiene = None
-    write_text(hygiene_path, merge_hygiene_yml(render_hygiene_yml(stack), existing_hygiene))
+    write_text(
+        hygiene_path,
+        merge_hygiene_yml(
+            render_hygiene_yml(stack),
+            existing_hygiene,
+            previous_stack=previous_stack,
+        ),
+    )
     _install_pr_agent_rule(project_path, integration, files)
     gitignore = project_path / ".gitignore"
     marker = "# mas-hygiene-denylist"

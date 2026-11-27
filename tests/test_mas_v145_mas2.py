@@ -331,6 +331,71 @@ def test_d25_06_github_dir_is_not_copilot_and_menu_on_tty(tmp_path: Path, monkey
     assert json.loads((both / ".specify" / "integration.json").read_text(encoding="utf-8"))["integration"] == "cursor-agent"
 
 
+def test_d25_07_legacy_hygiene_without_stack_key(tmp_path: Path) -> None:
+    """A mas.1 file with no stack key keeps overrides when init-options matches."""
+    import os
+
+    project = tmp_path / "legacy"
+    first = _invoke(
+        ["init", str(project), "--integration", "none", "--stack", "nestjs-react", *_INIT]
+    )
+    assert first.exit_code == 0, first.output
+    path = project / ".specify" / "hygiene.yml"
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+    loaded.pop("stack", None)
+    loaded["h4_mode"] = "warn"
+    loaded["size_excludes"] = list(loaded["size_excludes"]) + ["local/scratch/"]
+    loaded["debug_leftovers_exclude"] = ["src/legacy.ts"]
+    path.write_text(yaml.safe_dump(loaded, sort_keys=False), encoding="utf-8")
+    assert "stack:" not in path.read_text(encoding="utf-8")
+
+    previous = os.getcwd()
+    os.chdir(project)
+    try:
+        same = _invoke(
+            ["init", "--here", "--force", "--integration", "none", "--stack", "nestjs-react", *_INIT]
+        )
+    finally:
+        os.chdir(previous)
+    assert same.exit_code == 0, same.output
+    merged = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert merged["h4_mode"] == "warn"
+    assert "local/scratch/" in merged["size_excludes"]
+    assert "src/legacy.ts" in merged["debug_leftovers_exclude"]
+    assert merged["stack"] == "nestjs-react"
+
+    other = tmp_path / "other"
+    seeded = _invoke(
+        ["init", str(other), "--integration", "none", "--stack", "nestjs-react", *_INIT]
+    )
+    assert seeded.exit_code == 0, seeded.output
+    other_path = other / ".specify" / "hygiene.yml"
+    other_loaded = yaml.safe_load(other_path.read_text(encoding="utf-8"))
+    other_loaded.pop("stack", None)
+    other_loaded["h4_mode"] = "warn"
+    other_loaded["size_excludes"] = list(other_loaded["size_excludes"]) + ["local/scratch/"]
+    other_loaded["debug_leftovers_exclude"] = ["src/legacy.ts"]
+    other_path.write_text(yaml.safe_dump(other_loaded, sort_keys=False), encoding="utf-8")
+    options_path = other / ".specify" / "init-options.json"
+    options = json.loads(options_path.read_text(encoding="utf-8"))
+    options["stack"] = "moodle3"
+    options_path.write_text(json.dumps(options), encoding="utf-8")
+    os.chdir(other)
+    try:
+        switched = _invoke(
+            ["init", "--here", "--force", "--integration", "none", "--stack", "nestjs-react", *_INIT]
+        )
+    finally:
+        os.chdir(previous)
+    assert switched.exit_code == 0, switched.output
+    reset = yaml.safe_load(other_path.read_text(encoding="utf-8"))
+    assert reset["h4_mode"] == "block"
+    assert "local/scratch/" not in reset["size_excludes"]
+    assert "src/legacy.ts" in reset["debug_leftovers_exclude"]
+    assert reset["entrypoint_kind"] == "none"
+    assert reset["stack"] == "nestjs-react"
+
+
 def test_d25_04_implement_recommends_pull_request() -> None:
     core = CORE_IMPLEMENT.read_text(encoding="utf-8")
     nest = NEST_IMPLEMENT.read_text(encoding="utf-8")
