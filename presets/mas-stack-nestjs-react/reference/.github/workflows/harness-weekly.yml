@@ -1,5 +1,7 @@
 name: Harness weekly
 
+# Agrega el reporte como artefacto. No hace push: runs.jsonl y harness.md se commitean en el PR del proyecto.
+
 permissions:
   contents: read
 

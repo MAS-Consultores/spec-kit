@@ -59,6 +59,7 @@ La cobertura del diff es `scripts/check-diff-coverage.mjs`.
 Sin lcov ese gate sale distinto de cero.
 
 `pnpm metrics` junta `.specify/telemetry/runs.jsonl` en `docs/metrics/runs.jsonl` y escribe `docs/metrics/harness.md`.
+`docs/metrics/runs.jsonl` y `docs/metrics/harness.md` se versionan en el repo de cada proyecto. Después de `pnpm metrics`, commitealos junto con el pull request. El CI no hace push de esos archivos.
 `pnpm metrics:pr` imprime la tabla de lint para el cuerpo del pull request.
 Pegala ahí al abrirlo.
 
