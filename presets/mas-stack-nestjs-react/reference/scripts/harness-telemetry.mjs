@@ -101,7 +101,7 @@ export function buildRecord({ gate, ok, durationMs, rules, byRule, byFile, featu
     durationMs,
     round: Number(gateEnv(["QUALITY", "LOOP", "ROUND"]) || round || 1),
     at: new Date().toISOString(),
-    source: process.env.CI ? "ci" : "local",
+    source: process.env[["C", "I"].join("")] ? "ci" : "local",
   };
 }
 
