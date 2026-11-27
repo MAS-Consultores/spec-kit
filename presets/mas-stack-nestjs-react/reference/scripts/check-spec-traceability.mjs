@@ -4,7 +4,8 @@
  *   node scripts/check-spec-traceability.mjs --self-test
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ID = /\bAC-\d+\b/g;
 
@@ -56,10 +57,10 @@ function report(root) {
 }
 
 if (process.argv.includes("--self-test")) {
-  const base = new URL("./fixtures/spec-trace/", import.meta.url);
-  const bad = report(new URL("missing/", base).pathname);
-  const ghost = report(new URL("unknown/", base).pathname);
-  const good = report(new URL("ok/", base).pathname);
+  const base = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "spec-trace");
+  const bad = report(join(base, "missing"));
+  const ghost = report(join(base, "unknown"));
+  const good = report(join(base, "ok"));
   if (bad !== 1 || ghost !== 1 || good !== 0) {
     console.error("spec-traceability self-test failed");
     process.exit(1);
