@@ -111,11 +111,16 @@ def detect_installed_integration(project_path: Path) -> tuple[str | None, tuple[
                 if key in AGENT_CONFIG:
                     found.add(key)
 
+        # `.github/` is a normal repo directory. Copilot counts only when
+        # its manifest, integration state, or speckit skills are present.
         folders: dict[str, list[str]] = {}
         for key, config in AGENT_CONFIG.items():
             folder = config.get("folder") if isinstance(config, dict) else None
             if isinstance(folder, str) and folder.strip():
-                folders.setdefault(folder.rstrip("/"), []).append(key)
+                normalized = folder.rstrip("/")
+                if normalized == ".github":
+                    continue
+                folders.setdefault(normalized, []).append(key)
         for folder, keys in folders.items():
             if len(keys) != 1:
                 continue
@@ -125,6 +130,17 @@ def detect_installed_integration(project_path: Path) -> tuple[str | None, tuple[
                 present = False
             if present:
                 found.add(keys[0])
+        try:
+            has_skills = files.directory_exists(".github/skills")
+        except (OSError, FileHelperError):
+            has_skills = False
+        if has_skills and "copilot" in AGENT_CONFIG:
+            skill_dirs = files.iterdir(
+                ".github/skills",
+                select=lambda name: name.startswith("speckit-"),
+            )
+            if skill_dirs:
+                found.add("copilot")
 
     if recorded and (not found or recorded in found):
         return recorded, ()

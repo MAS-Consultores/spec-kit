@@ -2429,6 +2429,7 @@ _HYGIENE_LISTS = (
 
 def _hygiene_defaults(stack: MasStack) -> dict[str, object]:
     return {
+        "stack": stack.id,
         "legacy": stack.hygiene_legacy,
         "harness": stack.hygiene_harness,
         "h4_mode": "block",
@@ -2462,6 +2463,7 @@ def _render_hygiene_mapping(data: dict[str, object], extras: dict[str, object] |
         return body
 
     rows = [
+        f"stack: {data['stack']}",
         flag("legacy"),
         flag("harness"),
         f"h4_mode: {data['h4_mode']}",
@@ -2492,13 +2494,20 @@ def render_hygiene_yml(stack: MasStack) -> str:
     return _render_hygiene_mapping(_hygiene_defaults(stack))
 
 
-def merge_hygiene_yml(rendered: str, existing: str | None) -> str:
-    """Keep project overrides and union list keys with the new defaults.
+# Lists the user fills in. They are not part of a stack profile.
+_HYGIENE_USER_LISTS = ("debug_leftovers_exclude",)
 
-    A project that already set ``debug_leftovers_exclude``, ``h4_mode``,
-    ``size_excludes``, or another hygiene key keeps that value. New default
-    list entries are added. Unknown keys are kept. An unreadable file is
-    left unchanged.
+
+def merge_hygiene_yml(rendered: str, existing: str | None) -> str:
+    """Keep project overrides when the stack id does not change.
+
+    The rendered file records ``stack``. A reinstall of that same stack keeps
+    scalar overrides and unions list keys with the new defaults. Switching
+    stacks replaces stack-owned keys (branch, entrypoint, globs, excludes)
+    with the new defaults. ``debug_leftovers_exclude`` is the exception: it
+    is a user list and is kept across a stack change. Unknown keys are kept.
+    An unreadable file is left unchanged. A file with no ``stack`` key is
+    treated as a stack change so an old profile cannot silence a new gate.
     """
     if not existing or not existing.strip():
         return rendered
@@ -2512,10 +2521,16 @@ def merge_hygiene_yml(rendered: str, existing: str | None) -> str:
     if not isinstance(current, dict) or not isinstance(fresh, dict):
         return rendered if not isinstance(current, dict) else existing
     merged = dict(fresh)
-    for key in _HYGIENE_SCALARS:
-        if key in current and current[key] is not None:
-            merged[key] = current[key]
-    for key in _HYGIENE_LISTS:
+    same_stack = (
+        isinstance(current.get("stack"), str)
+        and current.get("stack") == fresh.get("stack")
+    )
+    list_keys = _HYGIENE_LISTS if same_stack else _HYGIENE_USER_LISTS
+    if same_stack:
+        for key in _HYGIENE_SCALARS:
+            if key in current and current[key] is not None:
+                merged[key] = current[key]
+    for key in list_keys:
         fresh_values = list(fresh.get(key) or [])
         old_values = current.get(key)
         if isinstance(old_values, list):
@@ -2523,7 +2538,7 @@ def merge_hygiene_yml(rendered: str, existing: str | None) -> str:
                 if item not in fresh_values:
                     fresh_values.append(item)
         merged[key] = fresh_values
-    known = set(_HYGIENE_SCALARS) | set(_HYGIENE_LISTS)
+    known = set(_HYGIENE_SCALARS) | set(_HYGIENE_LISTS) | {"stack"}
     extras = {key: value for key, value in current.items() if key not in known}
     return _render_hygiene_mapping(merged, extras)
 

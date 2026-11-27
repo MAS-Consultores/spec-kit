@@ -209,6 +209,128 @@ def test_d25_03_reinit_preserves_hygiene_overrides(tmp_path: Path) -> None:
     assert merged["team_note"] == "keep-me"
 
 
+def test_d25_05_stack_change_resets_stack_hygiene(tmp_path: Path) -> None:
+    """Switching stacks replaces stack-owned hygiene and keeps user excludes."""
+    import os
+
+    project = tmp_path / "switch"
+    first = _invoke(
+        ["init", str(project), "--integration", "none", "--stack", "nestjs-react", *_INIT]
+    )
+    assert first.exit_code == 0, first.output
+    path = project / ".specify" / "hygiene.yml"
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+    loaded["debug_leftovers_exclude"] = ["src/legacy.ts"]
+    path.write_text(yaml.safe_dump(loaded, sort_keys=False), encoding="utf-8")
+    previous = os.getcwd()
+    os.chdir(project)
+    try:
+        again = _invoke(
+            [
+                "init",
+                "--here",
+                "--force",
+                "--integration",
+                "none",
+                "--stack",
+                "cakephp2-mysql",
+                *_INIT,
+            ]
+        )
+    finally:
+        os.chdir(previous)
+    assert again.exit_code == 0, again.output
+    merged = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert merged["entrypoint_kind"] == "cake"
+    assert merged["production_branch"] == "master"
+    assert merged["clean_code_mode"] == "info"
+    assert "*Test.php" in merged["test_globs"]
+    assert "*.spec.ts" not in merged["test_globs"]
+    assert "src/legacy.ts" in merged["debug_leftovers_exclude"]
+
+
+def test_d25_06_github_dir_is_not_copilot_and_menu_on_tty(tmp_path: Path, monkeypatch) -> None:
+    """`.github/` alone is not Copilot. Interactive ambiguity opens the menu."""
+    import os
+
+    import specify_cli.command_init as init_mod
+
+    project = tmp_path / "cursor"
+    first = _invoke(
+        ["init", str(project), "--integration", "cursor-agent", "--stack", "moodle3", *_INIT]
+    )
+    assert first.exit_code == 0, first.output
+    assert (project / ".github").is_dir()
+    state_path = project / ".specify" / "integration.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state.pop("integration", None)
+    state.pop("default_integration", None)
+    state["installed_integrations"] = ["cursor-agent"]
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+    options = json.loads((project / ".specify/init-options.json").read_text(encoding="utf-8"))
+    options.pop("integration", None)
+    options.pop("ai", None)
+    (project / ".specify/init-options.json").write_text(json.dumps(options), encoding="utf-8")
+
+    previous = os.getcwd()
+    os.chdir(project)
+    try:
+        again = _invoke(["init", "--here", "--force", "--stack", "moodle3", *_INIT])
+    finally:
+        os.chdir(previous)
+    assert again.exit_code == 0, again.output
+    data = json.loads(state_path.read_text(encoding="utf-8"))
+    assert data["integration"] == "cursor-agent"
+    assert "reusing installed integration 'copilot'" not in again.output.lower()
+
+    bare = tmp_path / "workflows"
+    (bare / ".github" / "workflows").mkdir(parents=True)
+    (bare / ".github" / "workflows" / "ci.yml").write_text("name: ci\n", encoding="utf-8")
+    os.chdir(bare)
+    try:
+        fresh = _invoke(["init", "--here", "--force", "--stack", "moodle3", *_INIT])
+    finally:
+        os.chdir(previous)
+    assert fresh.exit_code == 0, fresh.output
+    assert "defaulting to 'copilot'" in fresh.output.lower()
+    assert "reusing installed integration 'copilot'" not in fresh.output.lower()
+
+    both = tmp_path / "both"
+    seeded = _invoke(
+        ["init", str(both), "--integration", "cursor-agent", "--stack", "moodle3", *_INIT]
+    )
+    assert seeded.exit_code == 0, seeded.output
+    (both / ".specify" / "integrations" / "copilot.manifest.json").write_text("{}\n", encoding="utf-8")
+    both_state = json.loads((both / ".specify" / "integration.json").read_text(encoding="utf-8"))
+    both_state.pop("integration", None)
+    both_state.pop("default_integration", None)
+    both_state["installed_integrations"] = ["cursor-agent", "copilot"]
+    (both / ".specify" / "integration.json").write_text(json.dumps(both_state), encoding="utf-8")
+    both_options = json.loads((both / ".specify" / "init-options.json").read_text(encoding="utf-8"))
+    both_options.pop("integration", None)
+    both_options.pop("ai", None)
+    (both / ".specify" / "init-options.json").write_text(json.dumps(both_options), encoding="utf-8")
+
+    monkeypatch.setattr(init_mod, "_stdin_is_interactive", lambda: True)
+    chosen: list[str] = []
+
+    def pick(*_args, **_kwargs):
+        chosen.append("menu")
+        return "cursor-agent"
+
+    monkeypatch.setattr(init_mod, "select_with_arrows", pick)
+    os.chdir(both)
+    try:
+        interactive = _invoke(
+            ["init", "--here", "--force", "--stack", "moodle3", "--ignore-agent-tools", "--script", "sh", "--skip-external-skills"]
+        )
+    finally:
+        os.chdir(previous)
+    assert interactive.exit_code == 0, interactive.output
+    assert chosen == ["menu"]
+    assert json.loads((both / ".specify" / "integration.json").read_text(encoding="utf-8"))["integration"] == "cursor-agent"
+
+
 def test_d25_04_implement_recommends_pull_request() -> None:
     core = CORE_IMPLEMENT.read_text(encoding="utf-8")
     nest = NEST_IMPLEMENT.read_text(encoding="utf-8")

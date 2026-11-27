@@ -602,7 +602,7 @@ def register(app: typer.Typer) -> None:
             selected_ai = integration
         else:
             detected_key, ambiguous = detect_installed_integration(project_path)
-            if ambiguous:
+            if ambiguous and not _prompts_allowed(non_interactive):
                 listed = ", ".join(ambiguous)
                 console.print(
                     "[red]Error:[/red] Several integrations are already installed "
