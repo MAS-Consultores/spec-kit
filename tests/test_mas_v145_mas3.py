@@ -28,7 +28,9 @@ def _node(source: str) -> subprocess.CompletedProcess[str]:
 def test_d26_01_oxlint_copies_eslint_thresholds() -> None:
     config = json.loads((REFERENCE / ".oxlintrc.json").read_text(encoding="utf-8"))
     magic = config["rules"]["no-magic-numbers"]
-    assert magic[0] == "warn"
+    assert magic[0] == "error"
+    package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
+    assert package["scripts"]["lint:fast"].endswith("oxlint --deny-warnings")
     assert magic[1]["ignore"][:3] == [-1, 0, 1]
     assert 404 in magic[1]["ignore"]
     assert config["rules"]["max-lines"][1]["max"] == 300

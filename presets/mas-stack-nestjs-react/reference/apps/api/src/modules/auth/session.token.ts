@@ -1,3 +1,5 @@
+const MILLISECONDS_PER_SECOND = 1000;
+
 export interface AccessPayload {
   sub: string;
   scopes: string[];
@@ -27,7 +29,7 @@ export function accessTokenStillValid(user: SessionStamp, payload: AccessPayload
     return false;
   }
   if (user.passwordChangedAt !== null) {
-    const issuedMs = typeof payload.iat === "number" ? payload.iat * 1000 : 0;
+    const issuedMs = typeof payload.iat === "number" ? payload.iat * MILLISECONDS_PER_SECOND : 0;
     if (issuedMs <= user.passwordChangedAt.getTime()) {
       return false;
     }
@@ -58,6 +60,6 @@ export function refreshIssuedAfterPasswordChange(
   if (user.passwordChangedAt === null) {
     return true;
   }
-  const issuedMs = typeof issuedAtSeconds === "number" ? issuedAtSeconds * 1000 : 0;
+  const issuedMs = typeof issuedAtSeconds === "number" ? issuedAtSeconds * MILLISECONDS_PER_SECOND : 0;
   return issuedMs > user.passwordChangedAt.getTime();
 }
