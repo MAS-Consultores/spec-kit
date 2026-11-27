@@ -3,10 +3,28 @@
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+export function isoWeek(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "sin-fecha";
+  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((utc - yearStart) / 86400000 + 1) / 7);
+  return `${utc.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function addCounts(target, counts) {
+  for (const [key, count] of Object.entries(counts ?? {})) target[key] = (target[key] ?? 0) + count;
+}
 
 export function renderHarness(records) {
   const rules = {};
+  const files = {};
+  const weeks = {};
   const rounds = {};
   const gates = {};
   let escaped = 0;
@@ -16,28 +34,44 @@ export function renderHarness(records) {
     gates[record.gate].runs += 1;
     gates[record.gate].durationMs += record.durationMs ?? 0;
     if (!record.ok) gates[record.gate].failed += 1;
-    for (const rule of record.rules ?? []) rules[rule] = (rules[rule] ?? 0) + 1;
+    if (record.byRule) addCounts(rules, record.byRule);
+    else for (const rule of record.rules ?? []) rules[rule] = (rules[rule] ?? 0) + 1;
+    addCounts(files, record.byFile);
+    const week = isoWeek(record.at);
+    const findings = Object.values(record.byRule ?? {}).reduce((sum, count) => sum + count, 0) || (record.rules ?? []).length;
+    weeks[week] = (weeks[week] ?? 0) + findings;
     if (record.phase === "ci" && record.ok === false && record.localOk === true) escaped += 1;
   }
-  const ruleRows = Object.entries(rules).sort((a, b) => b[1] - a[1]).map(([rule, count]) => `| ${rule} | ${count} |`);
+  const table = (entries, headers) => [
+    `| ${headers[0]} | ${headers[1]} |`,
+    "| --- | --- |",
+    ...(entries.length ? entries : [`| — | 0 |`]),
+  ];
+  const ruleRows = Object.entries(rules).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([rule, count]) => `| ${rule} | ${count} |`);
+  const fileRows = Object.entries(files).sort((a, b) => b[1] - a[1]).slice(0, 20).map(([file, count]) => `| ${file} | ${count} |`);
+  const weekRows = Object.entries(weeks).sort((a, b) => a[0].localeCompare(b[0])).map(([week, count]) => `| ${week} | ${count} |`);
   const gateRows = Object.entries(gates).map(([gate, value]) => `| ${gate} | ${value.runs} | ${value.failed} | ${value.durationMs} |`);
   const roundRows = Object.entries(rounds).map(([feature, round]) => `| ${feature} | ${round} |`);
   return [
     "# Harness",
     "",
-    "Reglas que más fallan, vueltas por feature, tiempos por gate y fallas de CI que no se atraparon en local.",
+    "Top de reglas, top de archivos y tendencia semanal. Lo genera `pnpm metrics` desde `docs/metrics/runs.jsonl`.",
     "",
     "## Reglas",
     "",
-    "| Regla | Fallas |",
-    "| --- | --- |",
-    ...(ruleRows.length ? ruleRows : ["| — | 0 |"]),
+    ...table(ruleRows, ["Regla", "Hallazgos"]),
+    "",
+    "## Archivos",
+    "",
+    ...table(fileRows, ["Archivo", "Hallazgos"]),
+    "",
+    "## Semanas",
+    "",
+    ...table(weekRows, ["Semana", "Hallazgos"]),
     "",
     "## Vueltas",
     "",
-    "| Feature | Vueltas |",
-    "| --- | --- |",
-    ...(roundRows.length ? roundRows : ["| — | 0 |"]),
+    ...table(roundRows, ["Feature", "Vueltas"]),
     "",
     "## Gates",
     "",
@@ -55,7 +89,7 @@ function selfTest() {
     { feature: "nomina", phase: "implement", gate: "lint", ok: false, rules: ["max-depth"], durationMs: 40, round: 2 },
     { feature: "nomina", phase: "ci", gate: "e2e-critical", ok: false, rules: [], durationMs: 10, round: 1, localOk: true },
   ]);
-  if (!markdown.includes("max-depth") || !markdown.includes("| nomina | 2 |") || !markdown.includes("Fallas de CI no vistas en local: 1")) {
+  if (!markdown.includes("max-depth") || !markdown.includes("| nomina | 2 |") || !markdown.includes("Fallas de CI no vistas en local: 1") || !markdown.includes("## Archivos") || !markdown.includes("## Semanas")) {
     console.error(markdown);
     process.exit(1);
   }
@@ -74,13 +108,25 @@ function selfTest() {
   console.log("harness-report self-test ok");
 }
 
-if (process.argv.includes("--self-test")) selfTest();
-else if (process.argv.includes("--write")) {
+const reportInvoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (reportInvoked && process.argv.includes("--self-test")) selfTest();
+else if (reportInvoked && process.argv.includes("--write")) {
   const root = process.cwd();
-  const source = join(root, ".specify/telemetry/runs.jsonl");
-  const records = readFileSync(source, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  const accumulated = join(root, "docs/metrics/runs.jsonl");
+  const source = exists(accumulated) ? accumulated : join(root, ".specify/telemetry/runs.jsonl");
+  const raw = exists(source) ? readFileSync(source, "utf8") : "";
+  const records = raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
   const target = join(root, "docs/metrics/harness.md");
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, renderHarness(records), "utf8");
   console.log(target);
+}
+
+function exists(path) {
+  try {
+    readFileSync(path);
+    return true;
+  } catch {
+    return false;
+  }
 }

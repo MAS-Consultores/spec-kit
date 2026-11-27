@@ -24,10 +24,20 @@ const referenceRoot = fileURLToPath(new URL("..", import.meta.url));
 const vitestRunner = "@stryker-mutator/vitest-runner";
 const vitestRunnerVersion = "10.1.1";
 
+export function globExcluded(file, pattern) {
+  const body = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*\*/g, "\u0000")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\u0000/g, ".*");
+  return new RegExp(`^${body}$`).test(file);
+}
+
 export function mutationPlan(gates, changedFiles) {
   const modules = gates.mutation?.modules ?? [];
   const paths = gates.mutation?.paths ?? {};
   const threshold = gates.mutation?.threshold;
+  const exclude = gates.mutation?.exclude ?? [];
   const mutate = [];
   const warnings = [];
   for (const file of changedFiles) {
@@ -37,6 +47,7 @@ export function mutationPlan(gates, changedFiles) {
     });
     if (!moduleName) continue;
     if (!file.endsWith(".ts") || file.endsWith(".spec.ts") || file.endsWith(".test.ts")) continue;
+    if (exclude.some((pattern) => globExcluded(file, pattern))) continue;
     mutate.push(file);
   }
   for (const name of modules) {
@@ -151,6 +162,22 @@ function selfTest() {
   const spec = mutationPlan(gates, ["apps/api/src/modules/auth/auth.service.spec.ts"]);
   if (spec.mutate.length !== 0) {
     console.error("el spec no se muta");
+    process.exit(1);
+  }
+  const repositories = mutationPlan({
+    mutation: {
+      modules: ["employees"],
+      threshold: 80,
+      paths: { employees: "apps/api/src/modules/employees" },
+      exclude: ["**/*.repository.ts", "apps/api/src/modules/tabular-import/**"],
+    },
+  }, [
+    "apps/api/src/modules/employees/employees.repository.ts",
+    "apps/api/src/modules/employees/employees.service.ts",
+    "apps/api/src/modules/tabular-import/tabular-import.service.ts",
+  ]);
+  if (repositories.mutate.length !== 1 || repositories.mutate[0] !== "apps/api/src/modules/employees/employees.service.ts") {
+    console.error("un exclude de quality-gates.json no puede entrar a la mutación");
     process.exit(1);
   }
   const missing = mutationPlan({ mutation: { modules: ["nomina"], threshold: 0, paths: {} } }, []);

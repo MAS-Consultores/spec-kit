@@ -339,6 +339,19 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D25-06 | una carpeta `.github/` contaba como Copilot, y la ambigüedad cortaba también el modo interactivo | el mismo archivo: con cursor-agent y `.github/` el reinit no interactivo sigue en cursor-agent. Un repo que solo tiene `.github/workflows` dice `defaulting to 'copilot'`. Con dos manifiestos y TTY, `select_with_arrows` elige y sale 0 |
 | D25-07 | un `hygiene.yml` de mas.1 o mas.4, sin `stack:`, se trataba como cambio de stack y perdía `h4_mode` y `size_excludes` | el mismo archivo: sin `stack:` y con `init-options` en nestjs-react, el reinit del mismo stack conserva `h4_mode: warn`, `local/scratch/` y `debug_leftovers_exclude`. Si `init-options` dice moodle3, `h4_mode` vuelve a block, se pierde `local/scratch/` y el exclude del usuario sigue |
 
+## Alcance 5 (v1.4.5-mas.3)
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D26-01 | `no-magic-numbers`, `max-lines` y `complexity` seguían solo en ESLint | `tests/test_mas_v145_mas3.py`: `.oxlintrc.json` trae warn con -1, 0, 1 y 404, `max-lines` 300 y `complexity` 10. `oxlint-ownership.mjs` los declara |
+| D26-02 | el jsonl no tenía conteos por regla y por archivo, y no había `docs/metrics/harness.md` ni `pnpm metrics` | el mismo archivo: `lintFindings` cuenta `max-lines` en `pay.ts` y `renderHarness` escribe Archivos y Semanas. `package.json` tiene `metrics` y `metrics:pr` |
+| D26-03 | no había evals del harness en CI | el mismo archivo: `node scripts/run-evals.mjs` sale 0. El workflow `nestjs-react-d18.yml` lo ejecuta |
+| D26-04 | no existían `pnpm gen module` ni `pnpm gen page` | el mismo archivo: `renderPage` incluye `useTranslation` y `t("title")` y no tiene dígitos. El script `gen` despacha `module` y `page` |
+| D26-05 | si `pnpm audit` fallaba no corría Semgrep, y si oxlint fallaba no corría madge | el mismo archivo: `security.yml` y `lint-gates.yml` tienen `if: always()` y un paso final. `run-independent-gates.mjs --self-test` sale 0 |
+| D26-06 | `check-mutation` ignoraba `mutation.exclude` | el mismo archivo: un `**/*.repository.ts` no entra al plan y el service sí |
+| D26-07 | la cobertura contaba `.specify/reference` | el mismo archivo: un diff bajo `.specify/reference/apps/api/src` deja `lineTotal` en 0 |
+| D26-08 | `specify preset list` con la misma prioridad ordenaba `mas-core` antes que el stack | el mismo archivo: la salida lista `mas-stack-nestjs-react` antes que `mas-core`. `list_by_priority` coincide |
+
 ## Versiones probadas
 
 `specify init --stack nestjs-react` copia `pnpm-lock.yaml` y los `package.json` del esqueleto a `.specify/reference/`. Lo comprueba `test_reference_lockfile_is_what_init_installs`. El job `reference` hace `pnpm install --frozen-lockfile` sobre esa copia. Renovate solo actualiza el esqueleto (`renovate.json`); ese PR tiene que pasar este workflow. Así se cumple «última estable» sin resolver versiones en cada proyecto.

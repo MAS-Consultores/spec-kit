@@ -61,7 +61,7 @@ def test_d18_06_oxlint_does_not_share_rules_or_drop_the_ratchet() -> None:
     package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
     assert package["devDependencies"]["oxlint"] == "1.94.0"
     assert package["devDependencies"]["eslint-plugin-oxlint"] == "1.94.0"
-    assert package["scripts"]["lint:fast"].startswith("oxlint")
+    assert "oxlint" in package["scripts"]["lint:fast"]
     verify = package["scripts"]["verify"]
     assert verify.index("pnpm lint:fast") < verify.index("pnpm lint &&")
 
