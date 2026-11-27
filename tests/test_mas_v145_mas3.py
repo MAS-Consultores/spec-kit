@@ -166,6 +166,30 @@ def _install(temp_dir: Path, project_dir: Path, pack_id: str, priority: int) -> 
     PresetManager(project_dir).install_from_directory(src, "9.9.9", priority)
 
 
+def test_d26_09_env_check_scopes_the_app_and_rejects_split_names() -> None:
+    telemetry = (REFERENCE / "scripts" / "harness-telemetry.mjs").read_text(encoding="utf-8")
+    assert "process.env.CI" in telemetry
+    assert "process.env.SPEC_FEATURE" in telemetry
+    assert "gateEnv" not in telemetry
+    result = subprocess.run(
+        ["node", "scripts/check-env-example.mjs", "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    live = subprocess.run(
+        ["node", "scripts/check-env-example.mjs"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert live.returncode == 0, live.stderr
+    assert "env CI is read" not in live.stderr
+
+
 def test_d26_08_preset_list_puts_stack_above_core(tmp_path, monkeypatch) -> None:
     project_dir = tmp_path / "project"
     templates = project_dir / ".specify" / "templates"
