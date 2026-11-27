@@ -130,7 +130,7 @@ export default tseslint.config(
       "mas/zod-strict-writes": "error",
       "mas/no-swallowed-catch": "error",
       "mas/barrel-exports-only-public": "error",
-      complexity: ["error", { max: 10 }],
+      "complexity": ["error", { max: 10 }],
       "max-depth": ["error", 3],
       "sonarjs/cognitive-complexity": ["error", 15],
       "no-nested-ternary": "error",

@@ -22,7 +22,19 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: pnpm audit
+        id: audit
+        continue-on-error: true
         run: pnpm audit --audit-level=high
 
       - name: Semgrep
+        id: semgrep
+        if: always()
+        continue-on-error: true
         run: pipx install semgrep==1.186.0 && semgrep scan --config .semgrep.yml --error --metrics=off
+
+      - name: Fail if a gate failed
+        if: always()
+        run: |
+          set -euo pipefail
+          test "${{ steps.audit.outcome }}" = "success"
+          test "${{ steps.semgrep.outcome }}" = "success"
