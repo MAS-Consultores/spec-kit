@@ -434,10 +434,20 @@ This document defines cross-stack security expectations aligned with OWASP ASVS 
   `.specify/hygiene.yml` (by default `testing` or `hotfix/*`). A re-merge after
   a revert links the revert and includes a test that reproduces the cause.
 - A promotion does not merge while security findings are open.
-- The agent may draft the body from spec, plan, and tasks. That draft is
-  recommended; apply judgment. It runs `check-hygiene.sh` and does not disable
-  a false positive. It proposes an entry in `.specify/hygiene-allowlist.yml`
-  with a reason and an expiry.
+- The agent recommends opening a pull request that follows
+  `.github/pull_request_template.md`. When the developer accepts, the agent
+  creates and publishes that pull request: feature branch against the
+  integration branch (`testing` when it exists), Conventional Commits title,
+  **Qué y por qué** and **Fuera de alcance** from `spec.md`, **Riesgos/rollback**
+  from `plan.md`, completed tasks from `tasks.md`, and **Cómo se validó** with
+  the `check-hygiene` output. The agent does not merge it. Without that
+  acceptance the agent does not push and does not open the pull request. This
+  remains recommended; apply judgment («recomendado; aplica criterio»). It is
+  not a blocking gate. `check-pr-body` only warns.
+- The agent may still draft the body from spec, plan, and tasks before the
+  developer accepts. It runs `check-hygiene.sh` and does not disable a false
+  positive. It proposes an entry in `.specify/hygiene-allowlist.yml` with a
+  reason and an expiry.
 
 ### XIII. Código limpio
 
@@ -478,7 +488,9 @@ active projects.
 Versioning follows semantic intent: MAJOR for incompatible governance changes,
 MINOR for new principles or materially expanded obligations, and PATCH for
 clarifications that do not alter enforcement. Principles XII and XIII are a
-MINOR bump from the previous template baseline (1.1.0 to 1.2.0). Maintainers
+MINOR bump from the previous template baseline (1.1.0 to 1.2.0). Version 1.2.1
+clarifies that the agent creates the pull request with the project template
+when the developer accepts, and that this step stays non-blocking. Maintainers
 edit this template directly; do not amend it by running `/speckit.constitution`.
 
-**Version**: 1.2.0 | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
+**Version**: 1.2.1 | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]

@@ -156,6 +156,13 @@ Lower numeric priority wins in upstream Spec Kit. Stack presets should therefore
 have higher precedence than `mas-core`, while using `append`, `prepend`, or
 `wrap` where the goal is augmentation rather than replacement.
 
+Recommended order: the selected `mas-stack-*` preset at priority **5** and
+`mas-core` at priority **10**. If both are installed at the same number, the
+order stays deterministic and the stack still sits above `mas-core` (other
+ties break alphabetically by preset id). That tie-break keeps the stack
+`.composed` commands, including every wrap except a command that only the
+stack defines. Do not rely on equal priorities; set the stack lower than core.
+
 ## Responsibility Matrix
 
 | Theme | `mas-core` | Stack Preset |

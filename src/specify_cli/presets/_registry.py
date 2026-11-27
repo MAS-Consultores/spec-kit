@@ -206,8 +206,9 @@ class PresetRegistry:
         """Get all installed presets sorted by priority.
 
         Lower priority number = higher precedence (checked first).
-        Presets with equal priority are sorted alphabetically by ID
-        for deterministic ordering.
+        Equal priorities stay deterministic: ``mas-stack-*`` stays above
+        ``mas-core`` so a tie does not replace stack composition with the
+        core layer, then remaining IDs sort alphabetically.
 
         Args:
             include_disabled: If True, include disabled presets. Default False.
@@ -229,10 +230,14 @@ class PresetRegistry:
             metadata_copy = copy.deepcopy(meta)
             metadata_copy["priority"] = normalize_priority(metadata_copy.get("priority", 10))
             sortable_packs.append((pack_id, metadata_copy))
-        return sorted(
-            sortable_packs,
-            key=lambda item: (item[1]["priority"], item[0]),
-        )
+        def _sort_key(item: tuple) -> tuple:
+            pack_id, meta = item
+            # mas-core is the base layer. At the same number it must not
+            # outrank a stack preset (alphabetical order would put it first).
+            family = 1 if pack_id == "mas-core" else 0
+            return (meta["priority"], family, pack_id)
+
+        return sorted(sortable_packs, key=_sort_key)
 
     def is_installed(self, pack_id: str) -> bool:
         """Check if preset is installed.

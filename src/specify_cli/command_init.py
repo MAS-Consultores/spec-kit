@@ -19,6 +19,7 @@ from rich.panel import Panel
 from ._agent_config import (
     AGENT_CONFIG,
     SCRIPT_TYPE_CHOICES,
+    detect_installed_integration,
     resolve_default_init_integration,
 )
 from ._assets import (
@@ -599,21 +600,38 @@ def register(app: typer.Typer) -> None:
                 )
                 raise typer.Exit(1)
             selected_ai = integration
-        elif not _prompts_allowed(non_interactive):
-            default_integration = resolve_default_init_integration()
-            console.print(
-                f"[dim]Non-interactive session detected: defaulting to '{default_integration}'. "
-                "Use --integration to choose a different agent.[/dim]"
-            )
-            selected_ai = default_integration
         else:
-            ai_choices = {key: config["name"] for key, config in AGENT_CONFIG.items()}
-            selected_ai = select_with_arrows(
-                ai_choices,
-                "Choose your coding agent integration:",
-                resolve_default_init_integration(),
-                flag_hint="--integration <agent>",
-            )
+            detected_key, ambiguous = detect_installed_integration(project_path)
+            if ambiguous:
+                listed = ", ".join(ambiguous)
+                console.print(
+                    "[red]Error:[/red] Several integrations are already installed "
+                    f"({listed}). Pass --integration to choose one. "
+                    "Refusing to default to copilot."
+                )
+                raise typer.Exit(1)
+            if not _prompts_allowed(non_interactive):
+                if detected_key:
+                    console.print(
+                        f"[dim]Reusing installed integration '{detected_key}'. "
+                        "Pass --integration to choose another.[/dim]"
+                    )
+                    selected_ai = detected_key
+                else:
+                    default_integration = resolve_default_init_integration()
+                    console.print(
+                        f"[dim]Non-interactive session detected: defaulting to '{default_integration}'. "
+                        "Use --integration to choose a different agent.[/dim]"
+                    )
+                    selected_ai = default_integration
+            else:
+                ai_choices = {key: config["name"] for key, config in AGENT_CONFIG.items()}
+                selected_ai = select_with_arrows(
+                    ai_choices,
+                    "Choose your coding agent integration:",
+                    detected_key or resolve_default_init_integration(),
+                    flag_hint="--integration <agent>",
+                )
 
         if not integration:
             resolved_integration = get_integration(selected_ai)

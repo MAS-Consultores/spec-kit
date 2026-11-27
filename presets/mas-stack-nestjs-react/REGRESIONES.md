@@ -327,6 +327,15 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D24-04 | las copias de la plantilla de PR y de los workflows en `.github/` sumaban al tope de líneas | el mismo archivo: los seis `hygiene.yml` excluyen `.github/pull_request_template.md`, `.github/PULL_REQUEST_TEMPLATE/`, `commits.yml`, `pr-hygiene.yml` y `security.yml`. 4 000 líneas en esos archivos salen 0; 1 600 en `src/App.php` salen 1 |
 | D24-05 | PowerShell no omitía una ruta que termina en `/.specify` | el mismo archivo: bash y `pwsh` dan el mismo exit en `nested/.specify`, `.specify`, `.specify/x` y `src/.specify/y` (0) y en `src/feature.specify.ts` y `src/app.ts` (1). Sin `pwsh` se salta solo la mitad PowerShell |
 
+## Reinstalación, composición y PR (v1.4.5-mas.2)
+
+| ID | Qué se rompió | Dónde se prueba |
+| --- | --- | --- |
+| D25-01 | `specify init` no interactivo sin `--integration` elegía Copilot aunque el proyecto ya tenía cursor-agent | `tests/test_mas_v145_mas2.py`: un segundo `init --here --force --stack nestjs-react` deja `integration` en `cursor-agent` y no crea `copilot.manifest.json`. Un proyecto vacío sigue en Copilot. Dos integraciones sin default salen distinto de 0 y nombran ambas |
+| D25-02 | `preset update` de mas-core y mas-stack-nestjs-react, ambos en prioridad 5, borraba los `.composed` del stack salvo analyze y dejaba la skill de Cursor en la plantilla base | el mismo archivo: tras los dos updates, `.composed` conserva implement, plan, specify, tasks y analyze; implement incluye el gate NestJS y la skill de Cursor también. `list_by_priority` pone el stack antes que core |
+| D25-03 | `specify init --force` ponía `debug_leftovers_exclude` en `[]` y pisaba el resto de `hygiene.yml` | el mismo archivo: tras reinstalar, siguen `src/legacy.ts`, `h4_mode: warn`, `local/scratch/` y `team_note`, y `own_code_block` sigue en 1500 |
+| D25-04 | `/speckit.implement` prohibía abrir el PR y init no instalaba la regla | el mismo archivo: `speckit.implement.md` de mas-core y del stack nest recomienda el PR con la plantilla y ya no dice `Do not push, do not open a pull request`. La constitución está en 1.2.1. Init con cursor-agent escribe `.cursor/rules/pr.mdc`; init con copilot escribe la sección `mas-pr-rule` en `AGENTS.md` |
+
 ## Versiones probadas
 
 `specify init --stack nestjs-react` copia `pnpm-lock.yaml` y los `package.json` del esqueleto a `.specify/reference/`. Lo comprueba `test_reference_lockfile_is_what_init_installs`. El job `reference` hace `pnpm install --frozen-lockfile` sobre esa copia. Renovate solo actualiza el esqueleto (`renovate.json`); ese PR tiene que pasar este workflow. Así se cumple «última estable» sin resolver versiones en cada proyecto.
