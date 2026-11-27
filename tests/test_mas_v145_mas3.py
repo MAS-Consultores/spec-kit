@@ -107,6 +107,34 @@ def test_d26_11_gate_gaming_catches_each_trick() -> None:
         assert (REFERENCE / "scripts/fixtures/gate-gaming" / name.replace(".diff", ".justified.diff")).is_file()
 
 
+def test_d26_12_api_logs_are_structured_without_telemetry_sdk() -> None:
+    package = json.loads((REFERENCE / "apps/api/package.json").read_text(encoding="utf-8"))
+    assert package["dependencies"]["nestjs-pino"] == "5.3.2"
+    assert package["dependencies"]["pino"] == "10.4.0"
+    assert package["devDependencies"]["pino-pretty"] == "13.2.0"
+    blob = json.dumps(package)
+    assert "@opentelemetry" not in blob
+    example = (REFERENCE / ".env.example").read_text(encoding="utf-8")
+    assert "LOG_LEVEL=" in example
+    redact = (REFERENCE / "apps/api/src/logging/redact.ts").read_text(encoding="utf-8")
+    for field in ("password", "token", "authorization", "cookie", "set-cookie", "rut", "email", "refreshtoken"):
+        assert field in redact
+    spec = (REFERENCE / "apps/api/src/logging/logging.spec.ts").read_text(encoding="utf-8")
+    for action in ("login", "login_failed", "roles_changed", "permissions_changed", "delete"):
+        assert action in spec
+    assert "JSON.parse" in spec
+    assert "X-Request-Id" in (REFERENCE / "apps/api/src/logging/request-id.ts").read_text(encoding="utf-8")
+    assert "pino-pretty" in (REFERENCE / "apps/api/src/logging/pino-options.ts").read_text(encoding="utf-8")
+    assert "nestjs-pino" in (REFERENCE / "apps/api/src/main.ts").read_text(encoding="utf-8")
+    fixtures = (REFERENCE / "scripts/check-lint-fixtures.mjs").read_text(encoding="utf-8")
+    assert "apps/web/lint-fixtures/console-log.tsx" in fixtures
+    assert "console.log" in (REFERENCE / "apps/web/lint-fixtures/console-log.tsx").read_text(encoding="utf-8")
+    constitution = (REPO / "presets/mas-stack-nestjs-react/templates/constitution-template-append.md").read_text(encoding="utf-8")
+    assert "emitir un audit" in constitution
+    agents = (REFERENCE / "AGENTS.md").read_text(encoding="utf-8")
+    assert "emitAudit" in agents
+
+
 def test_d26_03_evals_pass() -> None:
     result = subprocess.run(
         ["node", "scripts/run-evals.mjs"],

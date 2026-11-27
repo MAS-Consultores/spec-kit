@@ -247,6 +247,10 @@ const cases = [
     expects: [{ ruleId: "no-console", includes: "console", severity: "error" }],
   },
   {
+    file: "apps/web/lint-fixtures/console-log.tsx",
+    expects: [{ ruleId: "no-console", includes: "console", severity: "error" }],
+  },
+  {
     file: "apps/api/lint-fixtures/banned-imports.ts",
     min: 13,
     minRule: "no-restricted-imports",
