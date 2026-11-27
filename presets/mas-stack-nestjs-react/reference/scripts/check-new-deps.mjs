@@ -6,6 +6,7 @@
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NAME = /(?:^|\n) {2}['"]?((?:@[a-z0-9-]+\/)?[a-z0-9._-]+)@/gi;
@@ -70,7 +71,7 @@ async function lookup(name, root) {
 }
 
 function selfTest() {
-  const root = new URL(".", import.meta.url).pathname.replace(/scripts\/$/, "");
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const licenses = allowedLicenses(root);
   const now = Date.parse("2026-11-27T00:00:00.000Z");
   const registry = {

@@ -86,7 +86,7 @@ export async function writeRolledLog(env: LogEnv, record: Record<string, unknown
         method.apply(this, [...redactArgs(args)]);
       },
     },
-  }, stream as pino.DestinationStream);
+  }, stream as unknown as pino.DestinationStream);
   logger.info(record);
   stream.flushSync();
   stream.end();
