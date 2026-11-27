@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Writable } from "node:stream";
 import pino from "pino";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_LOG_FILE_RETENTION_DAYS } from "../config/env.js";
 import { emitAudit, setAuditSink, type AuditAction, type AuditEvent } from "./audit-log.js";
 import { pinoHttpOptions, writeRolledLog, type LogEnv } from "./pino-options.js";
 import { REDACTED, redactSensitive } from "./redact.js";
@@ -17,7 +18,7 @@ function logEnv(partial: Partial<LogEnv> = {}): LogEnv {
     LOG_LEVEL: "info",
     NODE_ENV: "production",
     LOG_FILE: "",
-    LOG_FILE_RETENTION_DAYS: 14,
+    LOG_FILE_RETENTION_DAYS: DEFAULT_LOG_FILE_RETENTION_DAYS,
     ...partial,
   };
 }
@@ -45,7 +46,8 @@ describe("structured logs", () => {
   it("uses pino-pretty only outside production", () => {
     const dev = pinoHttpOptions(logEnv({ NODE_ENV: "development" }));
     const prod = pinoHttpOptions(logEnv());
-    expect("transport" in dev && dev.transport.target).toBe("pino-pretty");
+    const devTarget = "transport" in dev && "target" in dev.transport ? dev.transport.target : "";
+    expect(devTarget.includes("pino-pretty")).toBe(true);
     expect("transport" in prod).toBe(false);
     expect(dev.level).toBe("info");
   });
@@ -63,7 +65,7 @@ describe("log file", () => {
   it("writes redacted JSON when a path is set", async () => {
     const dir = mkdtempSync(join(tmpdir(), "log-on-"));
     const file = join(dir, "api.log");
-    await writeRolledLog(logEnv({ LOG_FILE: file, LOG_FILE_RETENTION_DAYS: 14 }), {
+    await writeRolledLog(logEnv({ LOG_FILE: file }), {
       password: fileSecret,
       keep: "visible",
     });
@@ -121,7 +123,7 @@ describe("audit", () => {
         resource: "session",
         result: action === "login_failed" ? "denied" : "ok",
         requestId: knownId,
-        email: "person@example.com",
+        email: "person@infra.test",
       });
       expect(seen[0]).toMatchObject({
         actor: "user-1",
@@ -129,7 +131,7 @@ describe("audit", () => {
         resource: "session",
         requestId: knownId,
       });
-      expect(JSON.stringify(seen[0])).not.toContain("person@example.com");
+      expect(JSON.stringify(seen[0])).not.toContain("person@infra.test");
       expect(JSON.stringify(seen[0])).toContain(REDACTED);
     },
   );

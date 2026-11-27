@@ -356,6 +356,8 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | D26-11 | un diff podía agregar un disable, un test saltado, un umbral más bajo, un ignore nuevo o un `process.env` armado por partes | el mismo archivo: `check-gate-gaming.mjs --self-test` falla en los cinco fixtures y pasa en la versión justificada. `lint-gates.yml` lo corre con `if: always()`. `AGENTS.md` prohíbe esquivar un gate |
 | D26-12 | la API no tenía logs JSON, request id, ocultamiento ni audit, y la web no tenía fixture de `console.log` | el mismo archivo: `logging.spec.ts` exige JSON, `X-Request-Id`, cada campo oculto y los cinco eventos de audit. `apps/web/lint-fixtures/console-log.tsx` está en `check-lint-fixtures.mjs`. `.env.example` tiene `LOG_LEVEL`. No hay `@opentelemetry` |
 | D26-13 | no había archivo de log, o quedaba prendido sin pedirlo | el mismo archivo: sin `LOG_FILE` no aparece `pino-roll` ni un archivo; con `LOG_FILE` el JSON oculta `password`. `.env.example` documenta `LOG_FILE` y `LOG_FILE_RETENTION_DAYS`. `.gitignore` y `.dockerignore` ignoran `logs/` |
+| D26-14 | el spec de logging usaba `@example.com` y knip veía `pino-pretty` y exports sin uso | el mismo archivo: `check-no-example-slice.mjs` sale 0 y el spec usa `person@infra.test`. `pino-pretty` se resuelve con `require.resolve`. `rollOptions` e `isSensitiveKey` no se exportan |
+| D26-15 | `no-magic-numbers` era warning y `Number("14")` esquivaba el gate | el mismo archivo: `.oxlintrc.json` trae `error`, `lint:fast` termina en `oxlint --deny-warnings` y `DEFAULT_LOG_FILE_RETENTION_DAYS` es 14. `check-gate-gaming.mjs --self-test` falla el fixture `f-wrapped` y pasa justificado |
 
 ## Versiones probadas
 

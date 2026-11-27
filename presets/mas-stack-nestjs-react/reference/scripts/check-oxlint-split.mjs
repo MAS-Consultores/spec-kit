@@ -62,8 +62,8 @@ function selfTest() {
     console.error("complexity de oxlint no copia el máximo 10 de ESLint");
     process.exit(1);
   }
-  if (magic?.[0] !== "warn" || ignore[0] !== -1 || ignore[1] !== 0 || ignore[2] !== 1 || !ignore.includes(404)) {
-    console.error("no-magic-numbers de oxlint no copia el warn ni los ignorados de ESLint");
+  if (magic?.[0] !== "error" || ignore[0] !== -1 || ignore[1] !== 0 || ignore[2] !== 1 || !ignore.includes(404)) {
+    console.error("no-magic-numbers de oxlint no copia el error ni los ignorados de ESLint");
     process.exit(1);
   }
   const configText = readFileSync(join(referenceRoot, "eslint.config.js"), "utf8");

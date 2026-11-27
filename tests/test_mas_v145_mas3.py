@@ -28,7 +28,7 @@ def _node(source: str) -> subprocess.CompletedProcess[str]:
 def test_d26_01_oxlint_copies_eslint_thresholds() -> None:
     config = json.loads((REFERENCE / ".oxlintrc.json").read_text(encoding="utf-8"))
     magic = config["rules"]["no-magic-numbers"]
-    assert magic[0] == "warn"
+    assert magic[0] == "error"
     assert magic[1]["ignore"][:3] == [-1, 0, 1]
     assert 404 in magic[1]["ignore"]
     assert config["rules"]["max-lines"][1]["max"] == 300
@@ -75,7 +75,7 @@ def test_d26_10_metrics_history_lives_on_its_branch() -> None:
     assert "git fetch origin metrics" in implement
     assert "Do not commit `docs/metrics/runs.jsonl`" in implement
     package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
-    assert "--deny-warnings" not in package["scripts"]["lint:fast"]
+    assert "--deny-warnings" in package["scripts"]["lint:fast"]
     weekly = (REFERENCE / ".github/workflows/harness-weekly.yml").read_text(encoding="utf-8")
     assert "schedule:" in weekly
     assert "workflow_dispatch:" in weekly
@@ -102,7 +102,7 @@ def test_d26_11_gate_gaming_catches_each_trick() -> None:
     assert "check-gate-gaming.mjs" in workflow
     agents = (REFERENCE / "AGENTS.md").read_text(encoding="utf-8")
     assert "Prohibido esquivar un gate" in agents
-    for name in ("a-disable.diff", "b-skip.diff", "c-threshold.diff", "d-ignore.diff", "e-env.diff"):
+    for name in ("a-disable.diff", "b-skip.diff", "c-threshold.diff", "d-ignore.diff", "e-env.diff", "f-wrapped.diff"):
         assert (REFERENCE / "scripts/fixtures/gate-gaming" / name).is_file()
         assert (REFERENCE / "scripts/fixtures/gate-gaming" / name.replace(".diff", ".justified.diff")).is_file()
 
@@ -140,6 +140,45 @@ def test_d26_12_api_logs_are_structured_without_telemetry_sdk() -> None:
     assert "logs/" in (REFERENCE / ".dockerignore").read_text(encoding="utf-8")
     assert "does not create a file when the path is empty" in spec
     assert "writes redacted JSON when a path is set" in spec
+
+
+def test_d26_14_example_domain_and_knip_imports() -> None:
+    spec = (REFERENCE / "apps/api/src/logging/logging.spec.ts").read_text(encoding="utf-8")
+    assert "example.com" not in spec
+    assert "person@infra.test" in spec
+    result = subprocess.run(
+        ["node", "scripts/check-no-example-slice.mjs"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    options = (REFERENCE / "apps/api/src/logging/pino-options.ts").read_text(encoding="utf-8")
+    assert 'require.resolve("pino-pretty")' in options
+    assert "export function rollOptions" not in options
+    redact = (REFERENCE / "apps/api/src/logging/redact.ts").read_text(encoding="utf-8")
+    assert "export function isSensitiveKey" not in redact
+
+
+def test_d26_15_magic_numbers_are_errors_and_wrappers_fail() -> None:
+    env = (REFERENCE / "apps/api/src/config/env.ts").read_text(encoding="utf-8")
+    assert "export const DEFAULT_LOG_FILE_RETENTION_DAYS = 14" in env
+    assert 'Number("14")' not in env
+    assert "parseInt(" not in env
+    package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
+    assert package["scripts"]["lint:fast"].endswith("oxlint --deny-warnings")
+    owned = (REFERENCE / "eslint/oxlint-ownership.mjs").read_text(encoding="utf-8")
+    assert 'oxlint: "no-magic-numbers"' in owned
+    assert 'severity: "error"' in owned
+    result = subprocess.run(
+        ["node", "scripts/check-gate-gaming.mjs", "--self-test"],
+        cwd=REFERENCE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_d26_03_evals_pass() -> None:

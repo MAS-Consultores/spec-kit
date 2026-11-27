@@ -39,7 +39,7 @@
     "test:e2e:api": "pnpm --filter @demo/api test:e2e",
     "test:e2e:mcp": "pnpm --filter @demo/api test:mcp",
     "test:e2e:web": "pnpm --filter @demo/web exec playwright test",
-    "lint:fast": "node scripts/lint-stats.mjs --gate lint-fast -- oxlint"
+    "lint:fast": "node scripts/lint-stats.mjs --gate lint-fast -- oxlint --deny-warnings"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.4",
