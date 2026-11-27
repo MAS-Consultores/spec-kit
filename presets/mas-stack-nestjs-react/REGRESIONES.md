@@ -344,7 +344,7 @@ Pendientes de la demo 2 que solo quedaron como frases en `stack-context.md` (loc
 | ID | Qué se rompió | Dónde se prueba |
 | --- | --- | --- |
 | D26-01 | `no-magic-numbers`, `max-lines` y `complexity` seguían solo en ESLint | `tests/test_mas_v145_mas3.py`: `.oxlintrc.json` trae warn con -1, 0, 1 y 404, `max-lines` 300 y `complexity` 10. `oxlint-ownership.mjs` los declara |
-| D26-02 | el jsonl no tenía conteos por regla y por archivo, y no había `docs/metrics/harness.md` ni `pnpm metrics` | el mismo archivo: `lintFindings` cuenta `max-lines` en `pay.ts` y `renderHarness` escribe Archivos y Semanas. `package.json` tiene `metrics` y `metrics:pr` |
+| D26-02 | el jsonl no tenía conteos por regla y por archivo, y no había `docs/metrics/harness.md` ni `pnpm metrics` | el mismo archivo: `lintFindings` cuenta `max-lines` en `pay.ts` y `renderHarness` escribe Archivos y Semanas. `package.json` tiene `metrics` y `metrics:pr`. El esqueleto incluye `docs/metrics/runs.jsonl` y `docs/metrics/harness.md` |
 | D26-03 | no había evals del harness en CI | el mismo archivo: `node scripts/run-evals.mjs` sale 0. El workflow `nestjs-react-d18.yml` lo ejecuta |
 | D26-04 | no existían `pnpm gen module` ni `pnpm gen page` | el mismo archivo: `renderPage` incluye `useTranslation` y `t("title")` y no tiene dígitos. El script `gen` despacha `module` y `page` |
 | D26-05 | si `pnpm audit` fallaba no corría Semgrep, y si oxlint fallaba no corría madge | el mismo archivo: `security.yml` y `lint-gates.yml` tienen `if: always()` y un paso final. `run-independent-gates.mjs --self-test` sale 0 |

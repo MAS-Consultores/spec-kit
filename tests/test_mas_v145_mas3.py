@@ -55,6 +55,8 @@ def test_d26_02_lint_counts_and_weekly_report() -> None:
     package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
     assert "harness-collect.mjs" in package["scripts"]["metrics"]
     assert package["scripts"]["metrics:pr"].endswith("lint-pr-summary.mjs")
+    assert (REFERENCE / "docs/metrics/runs.jsonl").is_file()
+    assert (REFERENCE / "docs/metrics/harness.md").is_file()
 
 
 def test_d26_03_evals_pass() -> None:
