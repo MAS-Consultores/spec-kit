@@ -77,7 +77,7 @@ def test_d26_10_metrics_history_lives_on_its_branch() -> None:
     assert "git fetch origin metrics" in implement
     assert "Do not commit `docs/metrics/runs.jsonl`" in implement
     package = json.loads((REFERENCE / "package.json").read_text(encoding="utf-8"))
-    assert "--deny-warnings" not in package["scripts"]["lint:fast"]
+    assert "--deny-warnings" in package["scripts"]["lint:fast"]
     weekly = (REFERENCE / ".github/workflows/harness-weekly.yml").read_text(encoding="utf-8")
     assert "schedule:" in weekly
     assert "workflow_dispatch:" in weekly
