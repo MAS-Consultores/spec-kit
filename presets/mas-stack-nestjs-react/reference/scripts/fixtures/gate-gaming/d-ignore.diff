@@ -1,0 +1,5 @@
+diff --git a/.semgrepignore b/.semgrepignore
+--- a/.semgrepignore
++++ b/.semgrepignore
+@@ -1 +1 @@
++src/legacy

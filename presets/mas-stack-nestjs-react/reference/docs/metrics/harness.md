@@ -1,6 +1,6 @@
 # Harness
 
-Top de reglas, top de archivos y tendencia semanal. Lo genera `pnpm metrics`. `docs/metrics/runs.jsonl` y `docs/metrics/harness.md` se versionan en el repo. El CI no hace push.
+Plantilla. La tendencia viva está en la rama `metrics`, en docs/metrics/runs.jsonl y en el harness.md de esa rama. `pnpm metrics` la lee con `git fetch origin metrics`. Esos jsonl no se commitean en las ramas de trabajo ni en main o master.
 
 ## Reglas
 

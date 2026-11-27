@@ -36,6 +36,8 @@ jobs:
           node scripts/run-independent-gates.mjs --self-test
           node scripts/run-evals.mjs
           node scripts/gen-page.mjs --self-test
+          node scripts/harness-metrics.mjs --self-test
+          node scripts/merge-week-metrics.mjs --self-test
 
   security-scan:
     runs-on: ubuntu-latest
@@ -121,6 +123,23 @@ jobs:
         run: pnpm --filter @demo/web exec playwright test --config playwright.visual.config.ts
         env:
           CI: "true"
+
+  gate-gaming:
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.13.1"
+
+      - name: Gate gaming fixtures
+        if: always()
+        working-directory: presets/mas-stack-nestjs-react/reference
+        run: node scripts/check-gate-gaming.mjs --self-test
 
   harness-weekly:
     if: github.event_name == 'schedule'
