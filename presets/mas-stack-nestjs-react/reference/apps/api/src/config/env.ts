@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const DEFAULT_LOGIN_THROTTLE_LIMIT = 1000;
+
 export type AppEnv = {
   DATABASE_URL: string;
   JWT_ACCESS_SECRET: string;
@@ -49,7 +51,7 @@ export function readAppEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     DATABASE_URL: requiredText(databaseUrl, "DATABASE_URL"),
     JWT_ACCESS_SECRET: requiredText(accessSecret, "JWT_ACCESS_SECRET"),
     JWT_REFRESH_SECRET: requiredText(refreshSecret, "JWT_REFRESH_SECRET"),
-    LOGIN_THROTTLE_LIMIT: optionalNumber(throttle, 1000, "LOGIN_THROTTLE_LIMIT"),
+    LOGIN_THROTTLE_LIMIT: optionalNumber(throttle, DEFAULT_LOGIN_THROTTLE_LIMIT, "LOGIN_THROTTLE_LIMIT"),
     PORT: optionalNumber(port, 0, "PORT"),
     CORS_ORIGIN: typeof corsOrigin === "string" ? corsOrigin : "",
     TRUST_PROXY: typeof trustProxy === "string" ? trustProxy : "",

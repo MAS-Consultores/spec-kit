@@ -73,7 +73,7 @@ export default tseslint.config(
       "mas/no-commented-code": "warn",
       "mas/no-hidden-service-deps": "warn",
       "no-magic-numbers": [
-        "warn",
+        "error",
         {
           ignore: [-1, 0, 1, 200, 201, 204, 301, 302, 304, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503],
           ignoreArrayIndexes: true,

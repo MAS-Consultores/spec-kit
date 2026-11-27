@@ -51,7 +51,7 @@ After this phase, and after every fix round, run the quality loop in `.specify/p
 
 When implement closes, recommend that the developer open a pull request in the format of `.github/pull_request_template.md`. Until the developer accepts, do not push and do not open the pull request. When the developer accepts, create and publish it yourself and never merge it. Fill **Qué y por qué** and **Fuera de alcance** from `spec.md`, **Riesgos/rollback** from `plan.md`, completed tasks from `tasks.md`, and **Cómo se validó** with the `check-hygiene` output. The base branch is `testing` when it exists. Run `pnpm metrics:pr` and paste its lint table (rules and files) into the pull request body. The rows come from `.specify/telemetry/runs.jsonl`.
 
-New and modified lines are error for `no-magic-numbers`, `mas/no-commented-code`, and `mas/no-hidden-service-deps` via `scripts/check-diff-quality.mjs` even while those rules stay warn on existing code. Services inject `Clock` and `IdGenerator` from `modules/platform`. A web component past the complexity threshold needs a Testing Library `*.test.tsx`.
+`no-magic-numbers` is error. New and modified lines are also error for `mas/no-commented-code` and `mas/no-hidden-service-deps` via `scripts/check-diff-quality.mjs` while those two stay warn on existing code. Services inject `Clock` and `IdGenerator` from `modules/platform`. A web component past the complexity threshold needs a Testing Library `*.test.tsx`.
 
 ## Lint the agent must keep green
 
