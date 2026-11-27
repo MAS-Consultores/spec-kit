@@ -2,6 +2,10 @@
 
 <!-- insert new changelog below this comment -->
 
+## [1.4.5+mas.2] - 2026-11-27
+
+`specify init` sin `--integration`, en modo no interactivo, reutiliza la integración ya instalada (manifiesto, estado o carpeta única) y no elige Copilot en silencio. Si hay varias y ninguna es la registrada, el comando falla y pide `--integration`. `specify preset update` con `mas-core` y `mas-stack-*` en la misma prioridad deja el stack encima del core, así que los `.composed` no se pierden. La guía de presets documenta el orden recomendado (stack 5, core 10). `specify init --force` mezcla `.specify/hygiene.yml` con lo que el proyecto ya configuró (`debug_leftovers_exclude` y el resto de claves) en lugar de resetearlo. Al cerrar `/speckit.implement` el agente recomienda el PR con `.github/pull_request_template.md` y, si el dev acepta, lo crea y lo publica sin mergearlo. `specify init` instala esa regla en `.cursor/rules/pr.mdc` o en `AGENTS.md`. La constitución pasa a 1.2.1: el cambio es un parche y no vuelve el PR bloqueante. `check-pr-body` sigue solo avisando.
+
 ## [1.4.5+mas.1] - 2026-11-26
 
 MAS fork release based on upstream Spec Kit 1.4.5. Package version uses the local `+mas.N` convention; Git tags for this fork remain `vX.Y.Z-mas.N`.

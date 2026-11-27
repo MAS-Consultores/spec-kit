@@ -2406,34 +2406,222 @@ def yaml_quote(value: str) -> str:
     return f'"{escaped}"'
 
 
-def render_hygiene_yml(stack: MasStack) -> str:
-    """Render `.specify/hygiene.yml` for one stack."""
-    def lines(key: str, values: tuple[str, ...]) -> list[str]:
+_HYGIENE_SCALARS = (
+    "legacy",
+    "harness",
+    "h4_mode",
+    "production_branch",
+    "clean_code_mode",
+    "entrypoint_kind",
+    "own_code_warn",
+    "own_code_block",
+    "test_line_threshold",
+)
+_HYGIENE_LISTS = (
+    "integration_refs",
+    "test_globs",
+    "size_excludes",
+    "data_paths",
+    "clean_langs",
+    "debug_leftovers_exclude",
+)
+
+
+def _hygiene_defaults(stack: MasStack) -> dict[str, object]:
+    return {
+        "stack": stack.id,
+        "legacy": stack.hygiene_legacy,
+        "harness": stack.hygiene_harness,
+        "h4_mode": "block",
+        "production_branch": stack.production_branch,
+        "clean_code_mode": stack.clean_code_mode,
+        "entrypoint_kind": stack.entrypoint_kind,
+        "own_code_warn": 800,
+        "own_code_block": 1500,
+        "test_line_threshold": 300,
+        "integration_refs": list(stack.integration_refs),
+        "test_globs": list(stack.test_globs),
+        "size_excludes": list(stack.size_excludes),
+        "data_paths": list(stack.data_paths),
+        "clean_langs": list(stack.clean_langs),
+        "debug_leftovers_exclude": [],
+    }
+
+
+def _render_hygiene_mapping(data: dict[str, object], extras: dict[str, object] | None = None) -> str:
+    def flag(key: str) -> str:
+        return f"{key}: {'true' if data[key] else 'false'}"
+
+    def lines(key: str) -> list[str]:
+        values = data.get(key) or []
+        if not isinstance(values, list):
+            values = [values]
         body = [f"{key}:"]
-        body.extend(f"  - {yaml_quote(value)}" for value in values)
+        if not values:
+            return [f"{key}: []"]
+        body.extend(f"  - {yaml_quote(str(value))}" for value in values)
         return body
 
     rows = [
-        f"legacy: {'true' if stack.hygiene_legacy else 'false'}",
-        f"harness: {'true' if stack.hygiene_harness else 'false'}",
-        "h4_mode: block",
-        f"production_branch: {stack.production_branch}",
-        f"clean_code_mode: {stack.clean_code_mode}",
-        f"entrypoint_kind: {stack.entrypoint_kind}",
-        "own_code_warn: 800",
-        "own_code_block: 1500",
-        "test_line_threshold: 300",
-        *lines("integration_refs", stack.integration_refs),
-        *lines("test_globs", stack.test_globs),
-        *lines("size_excludes", stack.size_excludes),
-        *lines("data_paths", stack.data_paths),
-        *lines("clean_langs", stack.clean_langs),
-        "debug_leftovers_exclude: []",
+        f"stack: {data['stack']}",
+        flag("legacy"),
+        flag("harness"),
+        f"h4_mode: {data['h4_mode']}",
+        f"production_branch: {data['production_branch']}",
+        f"clean_code_mode: {data['clean_code_mode']}",
+        f"entrypoint_kind: {data['entrypoint_kind']}",
+        f"own_code_warn: {data['own_code_warn']}",
+        f"own_code_block: {data['own_code_block']}",
+        f"test_line_threshold: {data['test_line_threshold']}",
+        *lines("integration_refs"),
+        *lines("test_globs"),
+        *lines("size_excludes"),
+        *lines("data_paths"),
+        *lines("clean_langs"),
+        *lines("debug_leftovers_exclude"),
     ]
+    if extras:
+        import yaml
+
+        dumped = yaml.safe_dump(extras, sort_keys=True).rstrip()
+        if dumped and dumped != "{}":
+            rows.append(dumped)
     return "\n".join(rows) + "\n"
 
 
-def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
+def render_hygiene_yml(stack: MasStack) -> str:
+    """Render `.specify/hygiene.yml` for one stack."""
+    return _render_hygiene_mapping(_hygiene_defaults(stack))
+
+
+# Lists the user fills in. They are not part of a stack profile.
+_HYGIENE_USER_LISTS = ("debug_leftovers_exclude",)
+
+
+def merge_hygiene_yml(
+    rendered: str,
+    existing: str | None,
+    *,
+    previous_stack: str | None = None,
+) -> str:
+    """Keep project overrides when the stack id does not change.
+
+    The rendered file records ``stack``. A reinstall of that same stack keeps
+    scalar overrides and unions list keys with the new defaults. Switching
+    stacks replaces stack-owned keys (branch, entrypoint, globs, excludes)
+    with the new defaults. ``debug_leftovers_exclude`` is the exception: it
+    is a user list and is kept across a stack change. Unknown keys are kept.
+    An unreadable file is left unchanged.
+
+    Files written before ``stack`` was recorded (mas.1 and mas.4) have no
+    ``stack`` key. Those use ``previous_stack``, the id stored in
+    ``.specify/init-options.json`` before this init rewrote it. When that id
+    matches the stack being installed, overrides are kept. When it is missing
+    or names another stack, stack-owned keys reset.
+    """
+    if not existing or not existing.strip():
+        return rendered
+    import yaml
+
+    try:
+        current = yaml.safe_load(existing)
+        fresh = yaml.safe_load(rendered)
+    except yaml.YAMLError:
+        return existing
+    if not isinstance(current, dict) or not isinstance(fresh, dict):
+        return rendered if not isinstance(current, dict) else existing
+    merged = dict(fresh)
+    fresh_stack = fresh.get("stack")
+    recorded = current.get("stack")
+    if not isinstance(recorded, str) or not recorded.strip():
+        recorded = previous_stack if isinstance(previous_stack, str) else None
+    same_stack = isinstance(recorded, str) and recorded.strip() == fresh_stack
+    list_keys = _HYGIENE_LISTS if same_stack else _HYGIENE_USER_LISTS
+    if same_stack:
+        for key in _HYGIENE_SCALARS:
+            if key in current and current[key] is not None:
+                merged[key] = current[key]
+    for key in list_keys:
+        fresh_values = list(fresh.get(key) or [])
+        old_values = current.get(key)
+        if isinstance(old_values, list):
+            for item in old_values:
+                if item not in fresh_values:
+                    fresh_values.append(item)
+        merged[key] = fresh_values
+    known = set(_HYGIENE_SCALARS) | set(_HYGIENE_LISTS) | {"stack"}
+    extras = {key: value for key, value in current.items() if key not in known}
+    return _render_hygiene_mapping(merged, extras)
+
+
+_PR_RULE_START = "<!-- mas-pr-rule:start -->"
+_PR_RULE_END = "<!-- mas-pr-rule:end -->"
+
+
+def _pr_agent_rule_body() -> str:
+    return "\n".join([
+        "When implementation finishes, recommend that the developer open a pull request.",
+        "Tell them the body follows `.github/pull_request_template.md`.",
+        "Until the developer accepts, do not push and do not open the pull request.",
+        "When the developer accepts, or whenever they ask to create a pull request,",
+        "create and publish it yourself:",
+        "- Feature branch against the integration branch (`testing` when it exists,",
+        "  otherwise the integration ref in `.specify/hygiene.yml`).",
+        "- Title in Conventional Commits.",
+        "- **Qué y por qué** and **Fuera de alcance** from `spec.md`.",
+        "- **Riesgos/rollback** from `plan.md`.",
+        "- Completed tasks from `tasks.md`.",
+        "- **Cómo se validó** includes the `check-hygiene` output.",
+        "The developer does not assemble the pull request by hand.",
+        "The agent never merges the pull request.",
+        "`check-pr-body` only warns; it does not block.",
+    ])
+
+
+def _install_pr_agent_rule(project_path: Path, integration: str, files: object) -> None:
+    """Install the pull-request rule for the active integration."""
+    if not integration or integration == "none":
+        return
+    from .integrations._file_changes import make_directories, write_text
+
+    body = _pr_agent_rule_body()
+    if integration == "cursor-agent":
+        dest = project_path / ".cursor" / "rules" / "pr.mdc"
+        make_directories(dest.parent)
+        text = (
+            "---\n"
+            "description: Open a pull request only after the developer accepts\n"
+            "alwaysApply: true\n"
+            "---\n\n"
+            f"{_PR_RULE_START}\n{body}\n{_PR_RULE_END}\n"
+        )
+        write_text(dest, text)
+        return
+    dest = project_path / "AGENTS.md"
+    section = f"{_PR_RULE_START}\n{body}\n{_PR_RULE_END}\n"
+    try:
+        current = files.read_text(dest)  # type: ignore[attr-defined]
+    except FileNotFoundError:
+        current = ""
+    start = current.find(_PR_RULE_START)
+    end = current.find(_PR_RULE_END)
+    if start != -1 and end != -1 and end > start:
+        end = end + len(_PR_RULE_END)
+        if end < len(current) and current[end] == "\n":
+            end += 1
+        updated = current[:start] + section + current[end:]
+    else:
+        sep = "" if current.endswith("\n") or current == "" else "\n"
+        updated = f"{current}{sep}{section}"
+    write_text(dest, updated)
+
+
+def install_hygiene_assets(
+    project_path: Path,
+    stack: MasStack,
+    *,
+    previous_stack: str | None = None,
+) -> None:
     """Copy PR, CI, hook, and Semgrep assets and write stack hygiene.yml."""
     core = project_path / ".specify" / "presets" / "mas-core"
     from .file_helper import FileHelper
@@ -2501,7 +2689,20 @@ def install_hygiene_assets(project_path: Path, stack: MasStack) -> None:
             continue
         payload = files.read_text(rule)
         _write_shared_bytes(project_path, semgrep_dst / rule.name, payload.encode("utf-8"), mode=0o644)
-    write_text(project_path / ".specify" / "hygiene.yml", render_hygiene_yml(stack))
+    hygiene_path = project_path / ".specify" / "hygiene.yml"
+    try:
+        existing_hygiene = files.read_text(hygiene_path)
+    except FileNotFoundError:
+        existing_hygiene = None
+    write_text(
+        hygiene_path,
+        merge_hygiene_yml(
+            render_hygiene_yml(stack),
+            existing_hygiene,
+            previous_stack=previous_stack,
+        ),
+    )
+    _install_pr_agent_rule(project_path, integration, files)
     gitignore = project_path / ".gitignore"
     marker = "# mas-hygiene-denylist"
     block = files.read_text(core / "templates" / "gitignore-base")

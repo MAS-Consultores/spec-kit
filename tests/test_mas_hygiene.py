@@ -151,7 +151,7 @@ def test_d23_01_constitution_xii_and_xiii(projects: dict[str, Path]) -> None:
         assert "### XII. Higiene de código y PRs" in text, stack
         assert "recomendado; aplica criterio" in text, stack
         assert "### XIII. Código limpio" in text, stack
-        assert "**Version**: 1.2.0" in text, stack
+        assert "**Version**: 1.2.1" in text, stack
 
 
 def test_d23_02_pr_template_and_ci(projects: dict[str, Path]) -> None:

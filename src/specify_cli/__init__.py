@@ -420,7 +420,12 @@ SKILL_DESCRIPTIONS = {
 # MAS Stack Helper Functions
 # ---------------------------------------------------------------------------
 
-def install_mas_stack_presets(project_path: Path, mas_stack: MasStack) -> None:
+def install_mas_stack_presets(
+    project_path: Path,
+    mas_stack: MasStack,
+    *,
+    previous_stack: str | None = None,
+) -> None:
     """Install bundled MAS core and stack presets for stack-aware init."""
     from .presets import PresetManager
 
@@ -451,7 +456,7 @@ def install_mas_stack_presets(project_path: Path, mas_stack: MasStack) -> None:
     from .mas import install_conventional_commit_assets, install_hygiene_assets
 
     install_conventional_commit_assets(project_path)
-    install_hygiene_assets(project_path, mas_stack)
+    install_hygiene_assets(project_path, mas_stack, previous_stack=previous_stack)
 
 
 def ensure_constitution_from_template(project_path: Path, tracker: StepTracker | None = None) -> None:

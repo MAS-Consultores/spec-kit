@@ -18,8 +18,9 @@ directory whose basename is not HEAD. That exit is `HARD_FAIL`.
 ## MAS Local Merge To Main
 
 After every task in `tasks.md` is done and the project's checks pass, finish on
-`main` with a local merge. Do not push, do not open a pull request, and do not
-create a tag. Do not run `git branch`, `git checkout`, or `git merge` yourself.
+`main` with a local merge. Do not create a tag. Do not push and do not open a
+pull request unless the developer accepts the recommendation below. Do not run
+`git branch`, `git checkout`, or `git merge` yourself.
 
 Run the bundled script from the feature branch and require exit code 0. On
 Windows PowerShell use the `.ps1` script; otherwise use Bash. Stop on any
@@ -38,16 +39,29 @@ is and runs the same `git merge --no-ff`. The script exits 1 when the working
 tree is dirty or when the merge does not create a merge commit. Do not use
 `--force` or reset.
 
-## PR body
+## Pull request
 
-When the work is ready for review, a pull request body is recommended; apply
-judgment. The spec, the plan, and the tasks already record why. If you draft
-the body, start from `.github/pull_request_template.md` and prefer **Qué y por
-qué**, **Spec/tarea**, **Cómo se validó**, **Riesgos/rollback**, and **Fuera de
-alcance**. A missing body warns and does not fail CI. Run
-`.specify/scripts/bash/check-hygiene.sh` (or the PowerShell variant) and, when
-the section exists, paste its summary under **Cómo se validó**. This step does
-not push and it does not open the pull request.
+When the work is ready for review, recommend that the developer open a pull
+request. Tell them the body will follow `.github/pull_request_template.md`
+(the project's established format). Apply judgment («recomendado; aplica
+criterio»). Until the developer accepts, do not push and do not open the pull
+request.
+
+When the developer accepts, create and publish the pull request yourself. The
+developer does not assemble it by hand. The agent never merges it.
+
+- Base: the project's integration branch. Use `testing` when that branch
+  exists; otherwise use the integration ref from `.specify/hygiene.yml`.
+- Title: Conventional Commits 1.0.0.
+- **Qué y por qué** and **Fuera de alcance** come from `spec.md`.
+- **Spec/tarea** names the feature directory and the completed tasks in
+  `tasks.md`.
+- **Riesgos/rollback** comes from `plan.md`.
+- **Cómo se validó** includes the output of `check-hygiene`
+  (`.specify/scripts/bash/check-hygiene.sh`, or the PowerShell variant).
+
+`check-pr-body` only warns. A missing body does not fail CI. The same steps
+apply whenever the developer asks to create a pull request.
 
 ## Conventional Commits during implementation
 
